@@ -7517,7 +7517,21 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Jar-data">Jar data<a class="anchor-link" href="#Jar-data">¶</a></h1><h2 id="Reading-data-&amp;-summarizing">Reading data &amp; summarizing<a class="anchor-link" href="#Reading-data-&amp;-summarizing">¶</a></h2><p>The following code cell loads data from an excel file and generates summary statistics (mean, standard deviation, minimum, maximum and count), grouped by crop, isotope and sampling week for δ<sup>13</sup>C<sub>VPDB</sub> (‰), at-% <sup>13</sup>C, CO<sub>2</sub> (ppm), and flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>). It saves these statistics as a csv file.</p>
+<h1 id="Salk-Project-CO2-Data-Analysis">Salk Project CO<sub>2</sub> Data Analysis<a class="anchor-link" href="#Salk-Project-CO2-Data-Analysis">¶</a></h1><h2 id="Overview">Overview<a class="anchor-link" href="#Overview">¶</a></h2><h3 id="Sample-collection">Sample collection<a class="anchor-link" href="#Sample-collection">¶</a></h3><p>CO2 gas samples were collected from incubation jars and intact pots at UC Merced between October 29, 2024 and July 28, 2025. Both jars and pots were incubated in Sustainability Research and Engineering (SRE), room 450. For each sampling, pots were capped with a PVC chamber for approximately 60 minutes and jars were sealed with screw-on lids for approximately 24 hours. Headspace gas was sampled by hand (60 mL ea) and injected into evacuated 12mL Labco Exetainer vials. About 48 mL of sample was used to flush the vials, which were then overpressurized with the remaining 12mL.</p>
+<h3 id="Analysis">Analysis<a class="anchor-link" href="#Analysis">¶</a></h3><p>Samples were analyzed at UC Davis's Stable Isotope Facility (SIF), using a Thermo Scientific Gas Bench interfaced to a Delta V Plus IRMS (ThermoScientific, Bremen, Germany). δ<sup>13</sup>C<sub>VPDB</sub> (‰) and at-% <sup>13</sup>C are raw values, from SIF. CO<sub>2</sub> (ppm) - Blank and CO<sub>2</sub> Flux are calculated values.</p>
+<h3 id="CO2-(ppm)---Blank">CO<sub>2</sub> (ppm) - Blank<a class="anchor-link" href="#CO2-(ppm)---Blank">¶</a></h3><p>For the first batch (1 - 629), SIF lab air CO<sub>2</sub> concentrations are used as the blank value because no samples of SRE 450 lab air were analyzed with these samples. For the second batch, 6 samples of the air in room 450 were included, and an average of these values (within 1 standard deviation, n = 5) Is used as the blank value. This may need to be revised for consistency.</p>
+<h3 id="CO2-Flux">CO<sub>2</sub> Flux<a class="anchor-link" href="#CO2-Flux">¶</a></h3><p>Since the jars had a known and constant amount of soil, flux was calculated as μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>. Since pots had variable amounts of soil (following destructive sampling of ~1/4 wedges every 10 weeks), and the chambers did not cover the entire pot, flux was calculated by approximating the headspace volume inside the chamber (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>). Flux calculations are based on Robertson, G. P., Blair, J. M., Groffman, P. M., Harris, D., Holland, E., Nadelhoffer, K., &amp; Wedin, D. (1999). Soil carbon and nitrogen availability: Nitrogen mineralization, nitrification, and soil respiration potentials. In G. P. Robertson, C. S. Bledsoe, D. C. Coleman, &amp; P. Sollins (Eds.), Standard Soil Methods for Long-Term Ecological Research. Oxford University Press. <a href="https://www.researchgate.net/profile/John-Blair/publication/304047637_Soil_carbon_and_nitrogen_availability_nitrogen_mineralization_nitrification_and_soil_respiration_potentials/links/576c030c08aef0e50da8aa89/Soil-carbon-and-nitrogen-availability-nitrogen-mineralization-nitrification-and-soil-respiration-potentials.pdf?__cf_chl_tk=fUA_6StxpRdbyT.JumCNjRBpkyYySCIgrPDgmS6.v40-1755111199-1.0.1.1-2yoWRWxLFvpdJQTwMI3A5x3LFWpEvjkVbCezg9_4O0I">download link</a></p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h1 id="Jar-data">Jar data<a class="anchor-link" href="#Jar-data">¶</a></h1><h2 id="Reading-data-&amp;-summarizing">Reading data &amp; summarizing<a class="anchor-link" href="#Reading-data-&amp;-summarizing">¶</a></h2><p>The following code cell loads data from an excel file ("Compiled_CO2_data.xlsx") and generates summary statistics (mean, standard deviation, minimum, maximum and count), grouped by crop, isotope and sampling week for δ<sup>13</sup>C<sub>VPDB</sub> (‰), at-% <sup>13</sup>C, CO<sub>2</sub> (ppm) - Blank, and flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>). It saves these statistics as a new tab, "Jars_Summary_Stats", in the spreadsheet "Compiled_CO2_data.xlsx".</p>
 </div>
 </div>
 </div>
@@ -7684,7 +7698,7 @@ noPlant 12.0    1            59.338979  141.003545  369.809030    16
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Plotting-%CE%B413CVPDB-&amp;-CO2-flux-(jars)">Plotting δ<sup>13</sup>C<sub>VPDB</sub> &amp; CO<sub>2</sub> flux (jars)<a class="anchor-link" href="#Plotting-%CE%B413CVPDB-&amp;-CO2-flux-(jars)">¶</a></h2><p>The following code plots δ<sup>13</sup>C<sub>VPDB</sub> (‰) vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file.</p>
+<h2 id="Plotting-%CE%B413CVPDB-&amp;-CO2-flux-(jars)">Plotting δ<sup>13</sup>C<sub>VPDB</sub> &amp; CO<sub>2</sub> flux (jars)<a class="anchor-link" href="#Plotting-%CE%B413CVPDB-&amp;-CO2-flux-(jars)">¶</a></h2><p>The following code plots δ<sup>13</sup>C<sub>VPDB</sub> (‰) vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "jars_analysis_plots_VPDB".</p>
 </div>
 </div>
 </div>
@@ -7801,7 +7815,7 @@ Plots saved to 'jars_analysis_plots_VPDB.png'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Plotting-atom-%25-13C-&amp;-CO2-flux-(jars)">Plotting atom % <sup>13</sup>C &amp; CO<sub>2</sub> flux (jars)<a class="anchor-link" href="#Plotting-atom-%25-13C-&amp;-CO2-flux-(jars)">¶</a></h2><p>The following code plots atom %<sup>13</sup>C vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file.</p>
+<h2 id="Plotting-atom-%25-13C-&amp;-CO2-flux-(jars)">Plotting atom % <sup>13</sup>C &amp; CO<sub>2</sub> flux (jars)<a class="anchor-link" href="#Plotting-atom-%25-13C-&amp;-CO2-flux-(jars)">¶</a></h2><p>The following code plots atom %<sup>13</sup>C vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "jars_analysis_plots_at-pct". I wrote this after noticing that JP presents isotope data in atom % rather than δ<sup>13</sup>C<sub>VPDB</sub> (‰).</p>
 </div>
 </div>
 </div>
@@ -7918,7 +7932,7 @@ Plots saved to 'jars_analysis_plots_at-pct.png'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Pot-data">Pot data<a class="anchor-link" href="#Pot-data">¶</a></h1><h2 id="Reading-data-&amp;-summarizing">Reading data &amp; summarizing<a class="anchor-link" href="#Reading-data-&amp;-summarizing">¶</a></h2><p>The following code cell loads data from an excel file and generates summary statistics (mean, standard deviation, minimum, maximum and count), grouped by crop, isotope and sampling week for δ<sup>13</sup>C<sub>VPDB</sub> (‰), at-% <sup>13</sup>C, CO<sub>2</sub> (ppm), and flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>). It saves these statistics as a csv file.</p>
+<h1 id="Pot-data">Pot data<a class="anchor-link" href="#Pot-data">¶</a></h1><h2 id="Reading-data-&amp;-summarizing">Reading data &amp; summarizing<a class="anchor-link" href="#Reading-data-&amp;-summarizing">¶</a></h2><p>The following code cell loads data from an excel file and generates summary statistics (mean, standard deviation, minimum, maximum and count), grouped by crop, isotope and sampling week for δ<sup>13</sup>C<sub>VPDB</sub> (‰), at-% <sup>13</sup>C, CO<sub>2</sub> (ppm), and flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>). It saves these statistics as a new tab, "Pots_Summary_Stats", in the spreadsheet "Compiled_CO2_data.xlsx".</p>
 </div>
 </div>
 </div>
@@ -8085,7 +8099,7 @@ rice    13.0    10           26.047954  7.339267  57.600634     3
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Plotting-%CE%B413C-&amp;-CO2-flux-(pots)">Plotting δ<sup>13</sup>C &amp; CO<sub>2</sub> flux (pots)<a class="anchor-link" href="#Plotting-%CE%B413C-&amp;-CO2-flux-(pots)">¶</a></h2><p>The following code plots δ<sup>13</sup>C<sub>VPDB</sub> (‰) vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file.</p>
+<h2 id="Plotting-%CE%B413C-&amp;-CO2-flux-(pots)">Plotting δ<sup>13</sup>C &amp; CO<sub>2</sub> flux (pots)<a class="anchor-link" href="#Plotting-%CE%B413C-&amp;-CO2-flux-(pots)">¶</a></h2><p>The following code plots δ<sup>13</sup>C<sub>VPDB</sub> (‰) vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "pots_analysis_plots_VPDB".</p>
 </div>
 </div>
 </div>
@@ -8202,7 +8216,7 @@ Plots saved to 'pots_analysis_plots_VPDB.png'
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="Plotting-atom-%25-13C-&amp;-CO2-flux-(pots)">Plotting atom % <sup>13</sup>C &amp; CO<sub>2</sub> flux (pots)<a class="anchor-link" href="#Plotting-atom-%25-13C-&amp;-CO2-flux-(pots)">¶</a></h2><p>The following code plots atom % <sup>13</sup>C vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file.</p>
+<h2 id="Plotting-atom-%25-13C-&amp;-CO2-flux-(pots)">Plotting atom % <sup>13</sup>C &amp; CO<sub>2</sub> flux (pots)<a class="anchor-link" href="#Plotting-atom-%25-13C-&amp;-CO2-flux-(pots)">¶</a></h2><p>The following code plots atom % <sup>13</sup>C vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "pots_analysis_plots_at-pct". I wrote this after noticing that JP presents isotope data in atom % rather than δ<sup>13</sup>C<sub>VPDB</sub> (‰).</p>
 </div>
 </div>
 </div>
