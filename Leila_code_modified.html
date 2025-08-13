@@ -2557,62 +2557,12 @@ Still troubleshooting this code.</p>
 library(ggplot2)
 library(stringr)
 library(viridis)
-#&gt; Loading required package: viridisLite
 library(gt)
 library(dplyr)
 library(cowplot)
-#&gt; 
-#&gt; Attaching package: &#39;cowplot&#39;
-#&gt; The following object is masked from &#39;package:gt&#39;:
-#&gt; 
-#&gt;     as_gtable
-#&gt; The following object is masked from &#39;package:reshape&#39;:
-#&gt; 
-#&gt;     stamp
 library(grid)
 library(gridExtra)
-#&gt; 
-#&gt; Attaching package: &#39;gridExtra&#39;
-#&gt; The following object is masked from &#39;package:dplyr&#39;:
-#&gt; 
-#&gt;     combine
 library(tidyverse)
-#&gt; ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-#&gt; ✔ forcats   1.0.0     ✔ purrr     1.1.0
-#&gt; ✔ lubridate 1.9.4     ✔ tibble    3.3.0
-#&gt; ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-#&gt; ✖ dplyr::arrange()      masks plyr::arrange()
-#&gt; ✖ data.table::between() masks dplyr::between()
-#&gt; ✖ gridExtra::combine()  masks dplyr::combine()
-#&gt; ✖ purrr::compact()      masks plyr::compact()
-#&gt; ✖ dplyr::count()        masks plyr::count()
-#&gt; ✖ purrr::cross()        masks pracma::cross()
-#&gt; ✖ dplyr::desc()         masks plyr::desc()
-#&gt; ✖ tidyr::expand()       masks reshape::expand()
-#&gt; ✖ dplyr::failwith()     masks plyr::failwith()
-#&gt; ✖ dplyr::filter()       masks stats::filter()
-#&gt; ✖ data.table::first()   masks dplyr::first()
-#&gt; ✖ lubridate::hour()     masks data.table::hour()
-#&gt; ✖ dplyr::id()           masks plyr::id()
-#&gt; ✖ lubridate::isoweek()  masks data.table::isoweek()
-#&gt; ✖ dplyr::lag()          masks stats::lag()
-#&gt; ✖ data.table::last()    masks dplyr::last()
-#&gt; ✖ lubridate::mday()     masks data.table::mday()
-#&gt; ✖ lubridate::minute()   masks data.table::minute()
-#&gt; ✖ lubridate::month()    masks data.table::month()
-#&gt; ✖ dplyr::mutate()       masks plyr::mutate()
-#&gt; ✖ lubridate::quarter()  masks data.table::quarter()
-#&gt; ✖ reshape::rename()     masks dplyr::rename(), plyr::rename()
-#&gt; ✖ lubridate::second()   masks data.table::second()
-#&gt; ✖ lubridate::stamp()    masks cowplot::stamp(), reshape::stamp()
-#&gt; ✖ dplyr::summarise()    masks plyr::summarise()
-#&gt; ✖ dplyr::summarize()    masks plyr::summarize()
-#&gt; ✖ purrr::transpose()    masks data.table::transpose()
-#&gt; ✖ lubridate::wday()     masks data.table::wday()
-#&gt; ✖ lubridate::week()     masks data.table::week()
-#&gt; ✖ lubridate::yday()     masks data.table::yday()
-#&gt; ✖ lubridate::year()     masks data.table::year()
-#&gt; ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors
 library(ggsignif)
 library(forcats)
 
