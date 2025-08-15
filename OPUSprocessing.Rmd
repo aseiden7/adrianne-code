@@ -1,0 +1,730 @@
+---
+title: "Visualizing OPUS binary files and DPT files in R"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = ">",
+  echo = TRUE,
+  results = "markup",
+  include = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+
+# set Box path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+# set corr_spectra path
+corr_spectra <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files")
+# set dpt_folder path
+dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
+
+```
+
+# Reading OPUS files
+[source](https://spectral-cockpit.github.io/opusreader2/articles/opusreader2_introduction.html)
+
+This code is modified from the original OPUSreader2 documentation [vignettes/opusreader2_introduction.Rmd](https://github.com/spectral-cockpit/opusreader2/blob/main/vignettes/opusreader2_introduction.Rmd) by Philip Baumann and Thomas Knecht. It reads OPUS binary files and extracts metadata and absorbance data, which can then be plotted.
+
+## Plots \& Metadata
+The main function, `read_opus()`, reads one or more OPUS files and returns a nested list of class `list_opusreader2`. Each list contains both the spectral data and metadata for each file. The `dsn` argument is the data source name. It can be a character vector of folder paths (to read files recursively) or specific OPUS file paths. Start by testing the read_opus function on your corrected spectra folder, and saving the output of the first file.
+
+```{r setup-first-sample, message=FALSE, warning=FALSE, echo=TRUE}
+#load opusreader2 from github.com/spectral-cockpit
+library(opusreader2)
+
+#save the path to your corrected spectra
+# # Mac path
+# corr_spectra <- "/Users/adrianneseiden/Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files" # nolint
+#  # Windows path
+# corr_spectra <- "C:/Users/adria/Box/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files" # nolint
+# # Relative path
+# corr_spectra <- "../Adrianne_FTIRdata/Corrected_files"
+
+#save the data from your corrected files as 'data_test'
+data_test <- read_opus(dsn = corr_spectra)
+#check the names of the list
+names(data_test)
+# define 'meas_1' as the first element of the 'data_test' list
+meas_1 <- data_test[[1]]
+```
+
+Next I defined a function, plotSpectrum, to plot the spectral data from a single sample (meas_1)
+
+```{r fun-plot-spectrum-and-metadata, echo=TRUE, message=FALSE, warning=FALSE, fig.width=8, fig.height=5}
+# data is a list containing OPUS file data, including absorbance and metadata.
+
+plotSpectrum <- function(data) { # nolint: object_name_linter.
+  ab_data <- data$ab
+  if (!is.null(ab_data) &&
+        !is.null(ab_data$wavenumbers) && !is.null(ab_data$data) &&
+        is.numeric(ab_data$wavenumbers) && is.numeric(ab_data$data) &&
+        length(ab_data$wavenumbers) == length(ab_data$data) &&
+        all(is.finite(ab_data$wavenumbers)) && all(is.finite(ab_data$data))) {
+    plot(
+      ab_data$wavenumbers, ab_data$data, type = "l",
+      xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
+      main = data$basic_metadata$dsn_filename,
+      xlim = rev(range(ab_data$wavenumbers))
+    )
+  } else {
+    cat("Absorbance data not found or not valid in this file.\n")
+    str(ab_data)
+  }
+}
+plotSpectrum(meas_1)
+```
+
+I then defined the ***metadataTable*** function, to extract and display the a subset of the metadata stored in the data extracted by 'read_opus' in a table format. 
+
+To view all the available data categories, run 'names(meas_1)' in the console. To view the parameters within these categories use str(meas_1$category_name) where 'category_name' is 'basic_metadata', 'optics', etc.
+```{r fun-metadata-table, include=FALSE, echo = TRUE, message=FALSE, warning=FALSE}
+## Safely extract each value (use NA if missing)
+library(knitr)
+getval <- function(x) if (!is.null(x) && length(x) > 0) x else NA
+metadataTable <- function(data) { # nolint: object_name_linter.
+  meta_vec <- c(
+    `File Name` = getval(data$basic_metadata$dsn_filename),
+    `Timestamp` = getval(data$basic_metadata$timestamp_string),
+    `Max Y` = getval(data$ab_data_param$parameters$MXY$parameter_value),
+    `Min Y` = getval(data$ab_data_param$parameters$MNY$parameter_value),
+    `Aperture Setting` = getval(data$optics$parameters$APT$parameter_value),
+    `Scanner Velocity` = getval(data$optics$parameters$VEL$parameter_value),
+    `Result Spectrum` = getval(data$acquisition$parameters$PLF$parameter_value),
+    `Resolution` = getval(data$acquisition$parameters$RES$parameter_value),
+    `Sample Scans` = getval(data$acquisition$parameters$NSS$parameter_value),
+    `End Frequency` =
+      getval(data$fourier_transformation$parameters$HFQ$parameter_value),
+    `Start Frequency` =
+      getval(data$fourier_transformation$parameters$LFQ$parameter_value),
+    `Duration` = getval(data$instrument$parameters$DUR$parameter_value),
+    `Experiment (method)` = getval(data$sample$parameters$EXP$parameter_value)
+  )
+  meta_long <- data.frame(
+    Parameter = names(meta_vec),
+    Value = unname(meta_vec),
+    row.names = NULL,
+    check.names = FALSE
+  )
+
+  kable(meta_long, caption = "Metadata", align = "l")
+}
+metadataTable(meas_1)
+```
+
+The ***plotMetadata*** function combines the plot and table for a single spectrum.
+```{r single-spectrum-metadata, message=FALSE, warning=FALSE, fig.width=8, fig.height=5}
+plotMetadata <- function(data) { # nolint: object_name_linter.
+  plotSpectrum(data)
+  metadataTable(data)
+}
+plotMetadata(meas_1)
+```
+### Combined plot and table (folder)
+The following for loop runs plotMetadata on each spectrum in the data_test list, which contains all the spectra in the folder. It will plot each spectrum and print its metadata below.
+```{r folder-spectrum-metadata, message=FALSE, warning=FALSE, fig.width=8, fig.height=5, results='asis'}
+for (i in seq_along(data_test)) {
+  cat("#### Spectrum", i, ":", names(data_test)[i], "\n\n")
+  data_i <- data_test[[i]]
+  ab_data <- data_i$ab
+  valid <- !is.null(ab_data) &&
+    !is.null(ab_data$wavenumbers) && !is.null(ab_data$data) &&
+    is.numeric(ab_data$wavenumbers) && is.numeric(ab_data$data) &&
+    length(ab_data$wavenumbers) == length(ab_data$data) &&
+    all(is.finite(ab_data$wavenumbers)) && all(is.finite(ab_data$data))
+  if (valid) {
+    plotSpectrum(data_i)
+    print(metadataTable(data_i))
+  } else {
+    cat("Data not valid or missing for this spectrum.\n")
+    str(ab_data)
+  }
+}
+```
+## Stacking multiple spectra
+### Stacking re-runs
+This code looks for files with the same sample number and stacks their spectra, to check whether reruns are consistent.
+```{r stack-re-runs-new, include= TRUE, message=FALSE, warning=FALSE, fig.width=10, fig.height=7}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo = TRUE,
+  results = "markup",
+  include = TRUE
+)
+library(opusreader2)
+library(RColorBrewer)
+
+#save the path to your corrected spectra
+# # Mac path
+# corr_spectra <- "/Users/adrianneseiden/Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files" # nolint
+#  # Windows path
+# corr_spectra <- "C:/Users/adria/Box/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files" # nolint
+# Relative path
+# corr_spectra <- "../Adrianne_FTIRdata/Corrected_files"
+
+data_test <- read_opus(dsn = corr_spectra)
+
+# Helper to extract sample number from filename (e.g., "pot094")
+extract_sample_number <- function(filename) {
+  m <- regexpr("[a-z]{3}[0-9]+", filename)
+  if (m[1] != -1) {
+    regmatches(filename, m)
+  } else {
+    NA
+  }
+}
+
+# Helper to extract sample type (e.g.,"soil", "root")
+extract_sample_type <- function(filename) {
+  m <- regexpr("soil|root", filename, ignore.case = TRUE)
+  if (m[1] != -1) {
+    tolower(regmatches(filename, m))
+  } else {
+    NA
+  }
+}
+
+# Group files by sample number & sample type
+sample_numbers <- sapply(names(data_test), extract_sample_number)
+sample_types <- sapply(names(data_test), extract_sample_type)
+
+# Create unique combinations of sample number and sample type
+sample_combinations <- paste(sample_numbers, sample_types, sep = "_")
+unique_combinations <- unique(sample_combinations[!is.na(sample_numbers)
+                                                  & !is.na(sample_types)])
+
+# Plot stacked spectra for each unique combination
+library(RColorBrewer)
+for (combination in unique_combinations) {
+  idx <- which(sample_combinations == combination)
+  if (length(idx) > 1) {
+    # Extract sample number and type from combination
+    parts <- strsplit(combination, "_")[[1]]
+    sample_num <- parts[1]
+    sample_type <- parts[2]
+
+    spectra <- data_test[idx]
+    colors <- brewer.pal(min(length(spectra), 8), "Set1")
+    plot(NULL, xlim = rev(range(spectra[[1]]$ab$wavenumbers)),
+         ylim = range(sapply(spectra, function(x) x$ab$data), na.rm = TRUE),
+         xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
+         main = paste("Stacked spectra for", sample_num, "-", sample_type),
+         bty = "l")
+    for (i in seq_along(spectra)) {
+      ab_data <- spectra[[i]]$ab
+      if (!is.null(ab_data) && !is.null(ab_data$wavenumbers) &&
+            !is.null(ab_data$data)) {
+        lines(ab_data$wavenumbers, ab_data$data, col = colors[i], lwd = 2)
+      }
+    }
+    legend("topright",
+           inset = c(-0.05, -0.02),
+           legend = names(spectra),
+           col = colors[seq_along(spectra)],
+           lwd = 2,
+           xpd = TRUE,
+           bty = "n")
+  }
+}
+```
+
+### Stacking by crop \& time
+This code stacks spectra of the same crop and timepoint.
+```{r stack-crop-time, message=FALSE, warning=FALSE, fig.width=10, fig.height=7}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo = TRUE,
+  results = "markup",
+  include = TRUE
+)
+# Helper functions to extract crop and timepoint from filename
+extract_crop <- function(filename) {
+  m <- regexpr("rice|wheat|soy", filename, ignore.case = TRUE)
+  if (m[1] != -1) tolower(regmatches(filename, m)) else NA
+}
+extract_time <- function(filename) {
+  m <- regexpr("wk[0-9]+", filename, ignore.case = TRUE)
+  if (m[1] != -1) tolower(regmatches(filename, m)) else NA
+}
+
+# Get crop and time for each file
+crops <- sapply(names(data_test), extract_crop)
+times <- sapply(names(data_test), extract_time)
+
+# Unique crop-time combinations
+combos <- na.omit(unique(paste(crops, times, sep = "_")))
+
+library(RColorBrewer)
+for (combo in combos) {
+  idx <- which(paste(crops, times, sep = "_") == combo)
+  if (length(idx) > 1) {
+    spectra <- data_test[idx]
+    colors <- brewer.pal(min(length(spectra), 8), "Set1")
+    plot(NULL, xlim = rev(range(spectra[[1]]$ab$wavenumbers)),
+         ylim = range(sapply(spectra, function(x) x$ab$data), na.rm = TRUE),
+         xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
+         main = paste("Stacked spectra for", combo),
+         bty = "l")
+    for (i in seq_along(spectra)) {
+      ab_data <- spectra[[i]]$ab
+      if (!is.null(ab_data) &&
+            !is.null(ab_data$wavenumbers)
+          && !is.null(ab_data$data)) {
+        lines(ab_data$wavenumbers, ab_data$data, col = colors[i], lwd = 2)
+      }
+    }
+    legend("topright",
+           inset = c(-0.05, -0.02),
+           legend = names(spectra),
+           col = colors[seq_along(spectra)],
+           lwd = 2,
+           xpd = TRUE,
+           bty = "n")
+  }
+}
+```
+
+# Reading DPT files
+This code is modified from code by Stephany Soledad Chacon, "Box> Salk Institute Project> Salk Data> FTIR_Intact_decomposition_pots> FTIR_analysis.Rmd". Using data in the DPT format, we can extrapolate sample attributes from the file names, then normalize and visualize spectra across replicates, crops, and timepoints. The width of the line bounding the spectra represents the range of the data.
+```{r dpt-setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(ggplot2)
+library(ggridges)
+library(readr)
+library(stringr)
+library(viridis)
+library(dplyr)
+library(cowplot)
+library(grid)
+library(ggsignif)
+# # Mac wd
+# setwd("/Users/adrianneseiden/Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata") # nolint
+# # Windows wd
+# setwd("C:/Users/adria/Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata") # nolint
+# set Box path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+# set dpt_folder path
+dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
+```
+## Importing FTIR data using readr
+
+### Define file path and import multiple files into one data frame
+```{r create-dpt-csv, message=FALSE, warning=FALSE}
+# Load required libraries
+library(readr)
+library(dplyr)
+library(tidyr)
+
+# Set data folder
+# # Mac path
+# dpt_folder <- "/Users/adrianneseiden/Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files" # nolint
+# # Windows path
+# dpt_folder <- "C:/Users/adria/Box/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files" # nolint
+# # Relative path
+# dpt_folder <- "../Adrianne_FTIRdata/DPT_files"
+
+# Check if folder exists and list files
+if (!dir.exists(dpt_folder)) {
+  stop("Directory does not exist: ", dpt_folder)
+}
+
+# List and sort files
+cat("Files found in directory:\n")
+print(list.files(dpt_folder))
+DPTfiles <- sort(# nolint: object_name_linter.
+                 list.files(dpt_folder, pattern = ".dpt"))
+
+cat("Number of .dpt files:", length(DPTfiles), "\n")
+
+# Read files individually and combine
+dpt_data_list <- list()
+
+for (i in seq_along(DPTfiles)) {
+  file_path <- file.path(dpt_folder, DPTfiles[i])
+
+  # Read individual file
+  temp_data <- readr::read_delim(file_path,
+                                 delim = " ",
+                                 col_names = c("wavenumber", "absorbance"),
+                                 show_col_types = FALSE,
+                                 skip_empty_rows = TRUE,
+                                 skip = 0)
+
+  # Add filename column
+  temp_data$filename <- DPTfiles[i]
+
+  # Store in list
+  dpt_data_list[[i]] <- temp_data
+}
+
+# Combine all data
+dpt_data <- bind_rows(dpt_data_list)
+
+# Convert absorbance to numeric (handle any parsing issues)
+dpt_data$absorbance <- as.numeric(dpt_data$absorbance)
+
+# Remove any rows with NA values that might have been created during parsing
+dpt_data <- dpt_data[complete.cases(dpt_data), ]
+
+# filter out KBr
+dpt_data <- dpt_data[!grepl("KBr", dpt_data$filename), ]
+
+# Create wide format table
+dfw <- dpt_data %>%
+  pivot_wider(names_from = filename,
+              values_from = absorbance)
+
+# Save to CSV with today's date
+today <- Sys.Date()
+csvName <- paste0("FTIR_wide_", today, ".csv") # nolint: object_name_linter.
+write_csv(dfw, csvName)
+```
+
+### Extract sample info from filename
+Using the long format dataframe `dpt_data`
+**format example: DRIFTS_pot094_13Csoy_wk10_soil_250630.0.dpt**
+```{r extract-sample-info, message=FALSE, warning=FALSE}
+# First, let's check what our data looks like
+cat("Column filenames:", colnames(dpt_data), "\n")
+
+# Extract pot/jar identifier
+dpt_data$source <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
+  pot_part <- x[2]
+  # Extract just "pot" or "jar" part
+  if (grepl("pot", pot_part)) {
+    "pot"
+  } else if (grepl("jar", pot_part)) {
+    "jar"
+  } else {
+    "unknown"
+  }
+})
+unique(dpt_data$source)
+
+# Extract ID number
+dpt_data$ID <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
+  pot_part <- x[2]
+  # Extract numbers from pot/jar identifier
+  number <- gsub("(pot|jar)", "", pot_part)
+  number
+})
+unique(dpt_data$ID)
+
+# Extract isotope information (13C or 12C)
+dpt_data$isotope <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
+  # Look for the part with isotope info (usually position 3)
+  isotope_part <- x[3]
+  if (grepl("13C", isotope_part)) {
+    13
+  } else if (grepl("12C", isotope_part)) {
+    12
+  } else {
+    "unknown"
+  }
+})
+unique(dpt_data$isotope)
+
+# Extract crop type (remove isotope numbers)
+dpt_data$crop <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
+  isotope_part <- x[3]
+  # Remove 13C or 12C prefix
+  crop <- gsub("^(13C|12C)", "", isotope_part)
+  crop
+})
+unique(dpt_data$crop)
+
+# Extract timepoint
+dpt_data$timepoint <- sapply(strsplit(dpt_data$filename, "_"), `[`, 4)
+unique(dpt_data$timepoint)
+
+# Extract sample type (root, soil, etc.) - usually position 5
+dpt_data$type <- sapply(strsplit(dpt_data$filename, "_"), `[`, 5)
+unique(dpt_data$type)
+
+# Extract run date
+# find last segment
+dpt_data$run_date <- sapply(dpt_data$filename, function(x) {
+  segments <- strsplit(x, "_")[[1]]
+  last_segment <- segments[length(segments)]
+  date <- gsub("\\..*$", "", last_segment) # Remove .dpt extension
+})
+unique(dpt_data$run_date)
+
+# Extract notes
+dpt_data$notes <- sapply(dpt_data$filename, function(x) {
+  # Look for the part with notes (usually position 6)
+  segments <- strsplit(x, "_")[[1]]
+  if (length(segments) > 6) {
+    notes_part <- segments[6]
+  } else {
+    notes_part <- NA
+  }
+})
+unique(dpt_data$notes)
+head(dpt_data)
+
+# Create wide format table
+dfw2 <- dpt_data %>%
+  pivot_wider(names_from = filename,
+              values_from = absorbance)
+
+# Save to CSV with today's date
+today <- Sys.Date()
+csvName2 <- paste0("FTIR_wide_info_", # nolint: object_name_linter.
+                   today, ".csv")
+write_csv(dfw2, csvName2)
+```
+
+```{r plots, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(gridExtra)
+library(cowplot)
+library(grid)
+library(ggsignif)
+library(viridis)
+library(ggridges)
+library(knitr)
+library(gridExtra)
+
+roots <- dpt_data %>% filter(type == "root")
+soil <- dpt_data %>% filter(type == "soil")
+palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
+           "wheat" = "#D66327", "soy" = "#159C78")
+
+# Normalize absorbance values
+rootsn <- roots %>%
+  group_by(filename) %>%
+  mutate(nabs = absorbance / max(absorbance))
+
+soiln <- soil %>%
+  group_by(filename) %>%
+  mutate(nabs = absorbance / max(absorbance))
+```
+
+## Plotting by timepoint and type
+### Week 0
+```{r plotting wk0, message=FALSE, warning=FALSE, comment=FALSE, fig.width=9, fig.height=6}
+palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
+           "wheat" = "#D66327", "soy" = "#159C78")
+#roots week 0
+root0 <- rootsn %>%
+  filter(timepoint == "wk0") %>%
+  filter(ID != "047") # 47 has a weird peak at the start
+#Plot
+root0_plot <- root0 %>%
+  ggplot(mapping = aes(x = wavenumber,
+                       y = crop,
+                       height = nabs,
+                       group = crop,
+                       fill = crop,
+                       color = crop)) +
+  geom_density_ridges(stat = "identity",
+                      scale = 3,
+                      alpha = 0.25) +
+  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  xlim(4000, 400) +
+  theme_classic() +
+  scale_fill_manual(values = palc1) +
+  scale_color_manual(values = palc1) +
+  ggtitle("Roots at week 0")
+root0_plot
+unique(root0$ID)
+ggsave("Root_week0_FTIR.png", plot = root0_plot)
+
+
+# Soils week 0
+# soil0 <- soiln %>% # nolint: commented_code_linter.
+#   filter(timepoint == "wk0") # nolint
+# soil0
+
+# palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
+#            "wheat" = "#D66327", "soy" = "#159C78")
+
+# soil0_plot <- soil0 %>% # nolint: commented_code_linter.
+#   ggplot(mapping = aes(x = wavenumber,
+#                        y = crop, # nolint: commented_code_linter.
+#                        height = nabs, # nolint: commented_code_linter.
+#                        group = crop, # nolint: commented_code_linter.
+#                        fill = crop, # nolint: commented_code_linter.
+#                        color = crop)) +
+#   geom_density_ridges(stat = "identity",
+#                       scale = 3, # nolint: commented_code_linter.
+#                       alpha = 0.25) +
+#   geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
+#   geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
+#   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+#   geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+#   xlim(4000, 400) +
+#   theme_classic() +
+#   scale_fill_manual(values = palc1) +
+#   scale_color_manual(values = palc1) +
+#   ggtitle("Soils at week 0") # nolint: commented_code_linter.
+# soil0_plot
+# unique(soil0$ID) # nolint: commented_code_linter.
+# ggsave("Soil_week0_FTIR.png", plot = soil0_plot) # nolint
+```
+
+### Week 10
+```{r plotting wk10, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
+palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
+           "wheat" = "#D66327", "soy" = "#159C78")
+#roots week 10
+root10 <- rootsn %>%
+  filter(timepoint == "wk10")
+#Plot
+root10_plot <- root10 %>%
+  ggplot(mapping = aes(x = wavenumber,
+                       y = crop,
+                       height = nabs,
+                       group = crop,
+                       fill = crop,
+                       color = crop)) +
+  geom_density_ridges(stat = "identity",
+                      scale = 3,
+                      alpha = 0.25) +
+  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  xlim(4000, 400) +
+  theme_classic() +
+  scale_fill_manual(values = palc1) +
+  scale_color_manual(values = palc1) +
+  ggtitle("Roots at week 10")
+root10_plot
+unique(root10$ID)
+ggsave("Root_week10_FTIR.png", plot = root10_plot)
+
+# Soils week 10
+soil10 <- soiln %>%
+  filter(timepoint == "wk10")
+
+palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
+           "wheat" = "#D66327", "soy" = "#159C78")
+
+soil10_plot <- soil10 %>%
+  ggplot(mapping = aes(x = wavenumber,
+                       y = crop,
+                       height = nabs,
+                       group = crop,
+                       fill = crop,
+                       color = crop)) +
+  geom_density_ridges(stat = "identity",
+                      scale = 3,
+                      alpha = 0.25) +
+  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  xlim(4000, 400) +
+  theme_classic() +
+  scale_fill_manual(values = palc1) +
+  scale_color_manual(values = palc1) +
+  ggtitle("Soils at week 10")
+soil10_plot
+unique(soil10$ID)
+ggsave("Soil_week10_FTIR.png", plot = soil10_plot)
+```
+## Plotting by crop
+### wheat roots
+```{r plotting wheat, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
+
+# Plotting by crop
+#wheat roots
+
+wheat <- rootsn %>%
+  group_by(timepoint) %>%
+  filter(crop == "wheat")
+
+wheat$absorbance <- as.numeric(wheat$absorbance)
+
+wheat_plot <- ggplot(wheat,
+                     aes(x = wavenumber,
+                         y = absorbance,
+                         color = timepoint)) +
+  xlim(4000, 1000) +
+  geom_line() +
+  theme_classic() +
+  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  ggtitle("Wheat Roots FTIR")
+wheat_plot
+unique(wheat$ID)
+```
+### rice roots
+```{r plotting rice, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
+#rice
+
+rice <- rootsn %>%
+  group_by(timepoint) %>%
+  filter(crop == "rice")
+
+rice <- rice %>%
+  group_by(ID) %>%
+  filter(ID != "047") # 47 has a weird peak at the start
+
+rice$absorbance <- as.numeric(rice$absorbance)
+
+rice_plot <- ggplot(rice,
+                    aes(x = wavenumber,
+                        y = absorbance,
+                        color = timepoint)) +
+  xlim(4000, 1000) +
+  ylim(0, 1.5) +
+  geom_line() +
+  theme_classic() +
+  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  ggtitle("Rice Roots FTIR")
+rice_plot
+unique(rice$ID)
+```
+### soy roots
+```{r plotting soy, echo=FALSE, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
+# soy
+soy <- rootsn %>%
+  group_by(timepoint) %>%
+  filter(crop == "soy")
+
+soy$absorbance <- as.numeric(soy$absorbance)
+
+soy_plot <- ggplot(soy,
+                   aes(x = wavenumber,
+                       y = absorbance,
+                       color = timepoint)) +
+  xlim(4000, 1000) +
+  geom_line() +
+  theme_classic() +
+  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  ggtitle("Soy Roots FTIR")
+soy_plot
+unique(soy$ID)
+```

@@ -1,0 +1,787 @@
+---
+title: "Analyzing and visualizing FTIR data from DPT files"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    self_contained: true
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+The code below is modified from Leila Wahab's code, which can be found in the 
+Berhe_Ghezzehei_Lab Box folder under Box > Berhe_Ghezzehei_Lab > DRIFTS Data Analysis
+Leila's original code used .csv files for every sample.
+I've modified the code to read .dpt files directly, and save the compiled results as csv.
+Further modifications accommodate different experimental designs, naming conventions, etc.
+Some chunks may be redundant, but I left them in to not change the original code too much.
+
+```{css, echo=FALSE, message=FALSE, warning=FALSE}
+body, .main-container, .container, .row-fluid, .content {
+  margin-left: -140px !important;   /* Reduce this value as needed */
+  padding-left: -140px !important; /* Reduce this value as needed */
+  padding-right: 120px !important; /* Adjust this value to fit your layout */
+  width: calc(100% + 140px) !important; /* Ensure full width */
+}
+.tocify {
+  width: 400px !important;
+  right: 1px !important;
+  left: auto !important;
+  font-size: 0.95em;
+}
+
+```
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo = TRUE,
+  results = "markup",
+  include = TRUE
+)
+## Installing packages ##
+list_of_packages <- c(
+  "plyr",
+  "dplyr",
+  "stringr",
+  "reshape",
+  "data.table",
+  "nc",
+  "readr",
+  "tidyr",
+  "pracma"
+)
+
+# install missing packages
+new_packages <- list_of_packages[!(
+  list_of_packages %in% installed.packages()[, "Package"]
+)]
+if (length(new_packages)) install.packages(new_packages)
+
+# load packages
+library(plyr)
+library(dplyr)
+library(stringr)
+library(reshape)
+library(data.table)
+library(nc)
+library(readr)
+library(tidyr)
+library(pracma)
+
+# set dpt folder path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
+
+```
+
+# Load the data
+The first 4 code chunks are modified from "Integration_Code_Premliminary_Data.R",
+also found in the beginning of "Integration_Code_Example.R"
+```{r load-data, echo=TRUE, message=FALSE, warning=FALSE}
+# # Set working directory where data files are located
+# setwd("C:/Users/adria/Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata") # nolint: line_length_linter.
+
+# This first section of the code is loading data from the DPT files
+
+# Set data folder (don't need to change working directory)
+# # Windows path
+# dpt_folder <- "C:/Users/adria/Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files" # nolint: line_length_linter.
+# # relative path
+# dpt_folder <- "../Adrianne_FTIRdata/DPT_files"
+
+# # path from local repository
+# box_base <- Sys.getenv("BOX_BASE")
+# if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+# dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
+
+# Check if folder exists and list files
+if (!dir.exists(dpt_folder)) {
+  stop("Directory does not exist: ", dpt_folder)
+}
+
+# List and sort files
+cat("Files found in directory:\n")
+print(list.files(dpt_folder))
+DPTfiles <- sort(# nolint: object_name_linter.
+                 list.files(dpt_folder, pattern = ".dpt"))
+
+cat("Number of .dpt files:", length(DPTfiles), "\n")
+```
+
+
+# Read files and extract data
+Read each DPT file and store in a list
+```{r read-files, echo=TRUE, message=FALSE, warning=FALSE}
+# # folder path from local repository
+# box_base <- Sys.getenv("BOX_BASE")
+# if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+# dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
+
+dpt_data_list <- list()
+
+for (i in seq_along(DPTfiles)) {
+  file_path <- file.path(dpt_folder, DPTfiles[i])
+
+  # Read individual file
+  temp_data <- readr::read_delim(file_path,
+                                 delim = " ",
+                                 col_names = c("wavenumber", "absorbance"),
+                                 show_col_types = FALSE,
+                                 skip_empty_rows = TRUE,
+                                 skip = 0)
+
+  # Add filename column
+  temp_data$filename <- DPTfiles[i]
+
+  # Store in list
+  dpt_data_list[[i]] <- temp_data
+
+  cat("Processed file", i, "of", length(DPTfiles), ":", DPTfiles[i], "\n")
+}
+
+# Combine all data
+long_table <- bind_rows(dpt_data_list)
+long_table <- long_table[, c("filename", "wavenumber", "absorbance")]
+
+# Convert absorbance to numeric (handle any parsing issues)
+long_table$absorbance <- as.numeric(long_table$absorbance)
+
+# Remove any rows with NA values that might have been created during parsing
+long_table <- long_table[complete.cases(long_table), ]
+
+# Convert to data.table for efficiency
+setDT(long_table)  # convert in-place to data.table
+
+# Filter out KBr files
+long_table <- long_table[!grepl("KBr", long_table$filename), ]
+
+# dcast is a reshaping tool that will convert "long" (columnar) data into "wide"
+# first argument is our long_table, and then the second argument is the formula
+wide_table <- dcast(long_table, filename ~ wavenumber, value.var = "absorbance")
+```
+# Extract metadata from filenames
+We give it the column of filenames as the first argument, and then specify
+the different parts of the filename that will become our new columns.
+The first column is source (pot or jar), which is a three letter word, so we specify
+to nc that we want it to see out any three lowercase characters, and then for sample id,
+which is a three digit code, any three digits from 0-9, and then for isotope, "12C" or "13C",
+any characters for crop, for timepoint "wk" plus a digit or more, and then for type and
+notes any characters, and finally for date any 6 digit number again. 
+the syntax nc::capture_first_vec is object oriented,
+so it's saying use the object capture_first_vec from the package nc.
+
+**My filenames have this structure:**
+
+>DRIFTS_{pot|jar}{ID}\_{isotope}{crop}\_{timepoint}\_{type}\_{notes}\_{date}.0.dpt
+
+The issue is that type_and_notes varies significantly:
+
+* "root" (simple)
+* "soil" (simple)
+* "root_qmark" (compound)
+* "root_recNMR" (compound)
+* "root_vial1", "root_vial2", "root_vial3" (compound)
+* "root_really13" (compound)
+
+So type and notes are captured together as type_and_notes, then split later.
+
+## Extract metadata from wide table
+```{r extract-metadata, echo=TRUE, message=FALSE, warning=FALSE}
+
+meta_table <- nc::capture_first_vec(
+  wide_table$filename,
+  "^DRIFTS_",                    # Skip "DRIFTS_" prefix
+  source = "pot|jar",                # pot or jar
+  ID = "[0-9]{3}",              # 3-digit ID
+  "_",
+  isotope = "(?:13C|12C)",      # 13C or 12C
+  crop = "[a-z]+",              # crop name
+  "_",
+  timepoint = "wk[0-9]+",       # wk followed by digits
+  "_",
+  type_and_notes = "[a-zA-Z0-9_]+", # Allow letters, digits, and underscores
+  "_",
+  run_date = "[0-9]{6}",        # 6-digit date
+  "\\.",                        # literal dot
+  "[0-9]+",                     # version number (not captured)
+  "\\.dpt$",                    # file extension
+  nomatch.error = FALSE
+)
+
+# Check the results
+print("Parsing results:")
+print(meta_table)
+
+# Verify no failed matches
+failed_matches <- wide_table$filename[is.na(meta_table$run_date)]
+cat("\nFailed matches:", length(failed_matches), "\n")
+if (length(failed_matches) > 0) {
+  print(failed_matches)
+}
+
+# split the type_and_notes column:
+# Create separate columns for type and additional notes
+meta_table$type <- sapply(strsplit(meta_table$type_and_notes, "_"), `[`, 1)
+meta_table$notes <- sapply(
+  strsplit(meta_table$type_and_notes, "_"),
+  function(x) {
+    if (length(x) > 1) paste(x[-1], collapse = "_") else NA
+  }
+)
+
+# Convert date to proper format
+meta_table$run_date <- as.Date(meta_table$run_date, format = "%y%m%d")
+# Remove the type_and_notes column and reorder columns
+meta_table <- meta_table[, c("source", "ID", "isotope", "crop", "timepoint",
+                             "type", "notes", "run_date")]
+# Display final results
+print("\nFinal metadata table:")
+print(meta_table[, c(
+  "source", "ID", "isotope", "crop", "timepoint",
+  "type", "notes", "run_date"
+)])
+
+# Add metadata to wide_table
+wide_table_with_meta <- cbind(meta_table, wide_table)
+
+print("\nDimensions of final table:")
+print(dim(wide_table_with_meta))
+# Save as CSV
+today <- Sys.Date()
+meta_wide_table_csv <- paste0("FTIR_meta_wide_", today, ".csv")
+write.csv(wide_table_with_meta, file = meta_wide_table_csv, row.names = FALSE)
+```
+
+## Repeat for the long table
+```{r repeat-long-table, echo=TRUE, message=FALSE, warning=FALSE}
+meta_table_tall <- nc::capture_first_vec(
+  long_table$filename,
+  "^DRIFTS_",                    # Skip "DRIFTS_" prefix
+  source = "pot|jar",                # pot or jar
+  ID = "[0-9]{3}",              # 3-digit ID
+  "_",
+  isotope = "(?:13C|12C)",      # 13C or 12C
+  crop = "[a-z]+",              # crop name
+  "_",
+  timepoint = "wk[0-9]+",       # wk followed by digits
+  "_",
+  type_and_notes = "[a-zA-Z0-9_]+", # Allow letters, digits, and underscores
+  "_",
+  run_date = "[0-9]{6}",        # 6-digit date
+  "\\.",                        # literal dot
+  "[0-9]+",                     # version number (not captured)
+  "\\.dpt$",                    # file extension
+  nomatch.error = FALSE
+)
+
+
+# Verify no failed matches
+failed_matches <- long_table$filename[is.na(meta_table_tall$run_date)]
+cat("\nFailed matches:", length(failed_matches), "\n")
+if (length(failed_matches) > 0) {
+  print(failed_matches)
+}
+
+# split the type_and_notes column, you can do:
+# Create separate columns for type and additional notes
+meta_table_tall$type <- sapply(
+  strsplit(meta_table_tall$type_and_notes, "_"), `[`, 1
+)
+meta_table_tall$notes <- sapply(
+  strsplit(meta_table_tall$type_and_notes, "_"), function(x) {
+    if (length(x) > 1) paste(x[-1], collapse = "_") else NA
+  }
+)
+
+# Convert date to proper format
+meta_table_tall$run_date <- as.Date(meta_table_tall$run_date, format = "%y%m%d")
+meta_table_tall <- meta_table_tall[, c(
+  "source", "ID", "isotope", "crop", "timepoint",
+  "type", "notes", "run_date"
+)]
+# Display final results
+print("\nFinal metadata tall table:")
+print(meta_table_tall[, c(
+  "source", "ID", "isotope", "crop", "timepoint",
+  "type", "notes", "run_date"
+)])
+
+
+# Adding meta data we've extracted to the long table so it's easier to subset
+meta_long_table <- cbind(long_table, meta_table_tall)
+head(meta_long_table)
+
+
+# Save as CSV
+today <- Sys.Date()
+meta_long_table_csv <- paste0("FTIR_meta_long_", today, ".csv")
+write.csv(meta_long_table, file = meta_long_table_csv, row.names = FALSE)
+```
+# Integrating spectral data
+This code is modified from "Integration_Code_Example.R" (not found in "Integration_Code_Premliminary_Data.R")
+Importing the list of file names is possibly not necessary, because we already have the filenames in the wide_table and long_table.
+Also, I export a csv file in every chunk, for troubleshooting purposes. This is not necessary for the final code.
+
+## Importing the list of file names
+Felt cute, might delete later.
+```{r import-filenames, echo=TRUE, message=FALSE, warning=FALSE}
+# Need to have all of the datafiles you want to import in the same directory.
+# # Windows path
+# data1 <- list.files(
+#   path = "C:/Users/adria/Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files", # nolint: line_length_linter.
+#   full.names = TRUE
+# )
+# # relative path
+# data1 <- list.files(
+#   path = "../Adrianne_FTIRdata/DPT_files",
+#   full.names = TRUE
+# )
+
+# # path from local repository
+# box_base <- Sys.getenv("BOX_BASE")
+# if (box_base == "") stop("BOX_BASE environment variable is not set!")
+# data1 <- list.files(
+#   path = file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files",
+#   full.names = TRUE
+# )
+
+# using predefined path
+data1 <- list.files(
+  path = dpt_folder,
+  full.names = TRUE
+)
+
+
+data1 <- data1[!grepl("KBr", data1)]  # Exclude KBr files
+str(data1)
+# Import as space-delimited files
+import_list <- llply(data1, read.table, header = FALSE, sep = "")
+str(import_list)
+#now get all of the data together
+data2 <- rbind.fill(import_list)
+str(data2)
+#add sample ID column; assuming 2799 measurements per sample
+
+# Get file count and verify the math works out
+n_samples <- length(data1)
+total_rows <- nrow(data2)
+measurements_per_sample <- total_rows / n_samples
+
+# Check if it divides evenly
+if (total_rows %% n_samples == 0) {
+  data2$sample <- sort(rep(1:n_samples, measurements_per_sample))
+} else {
+  warning("Total rows don't divide evenly by number of samples")
+  # Handle uneven division as needed
+}
+
+comb <- data2
+
+names(comb)[1] <- "wavelength"
+names(comb)[2] <- "abs"
+
+# Check what's actually in your wavelength column
+str(comb$wavelength)
+head(comb$wavelength, 20)
+class(comb$wavelength)
+
+# Look at the first few rows of your combined data
+head(comb)
+
+# Check for non-numeric entries
+unique(comb$wavelength[!is.na(as.numeric(as.character(comb$wavelength)))])
+
+# Convert to numeric (this will show warnings for non-numeric entries)
+comb$wavelength <- as.numeric(as.character(comb$wavelength))
+
+# Then proceed with rounding
+comb$wave <- round(comb$wavelength, 0)
+
+##export to check
+today <- format(Sys.Date(), "%Y-%m-%d")
+comb_name <- paste0("spectra_combined_test_", today, ".csv")
+write.csv(comb, file = comb_name, row.names = FALSE)
+```
+
+### Isolate the spectra of interest
+```{r isolate-spectra, echo=TRUE, message=FALSE, warning=FALSE}
+###isolate spectra for correction
+# Check the actual wavelength range in your data
+range(comb$wavelength, na.rm = TRUE)
+summary(comb$wavelength)
+#create reduced data frames for each spectral window of interest
+red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]
+red2 <- comb[comb$wavelength > 2898 & comb$wavelength < 2976, ]
+red3 <- comb[comb$wavelength > 1580 & comb$wavelength < 1660, ]
+red4 <- comb[comb$wavelength > 1500 & comb$wavelength < 1550, ]
+
+#make a new data frame to hold corrected data
+# First, define the sample variable
+sample <- unique(comb$sample)
+
+# Then create the data frame with the correct number of rows
+ints <- as.data.frame(matrix(NA, nrow = length(sample), ncol = 11))
+
+# Now assign the sample column
+ints$sample <- sample
+
+# Check dimensions match before assigning metadata
+print(paste("ints rows:", nrow(ints)))
+print(paste("meta_table rows:", nrow(meta_table)))
+print(paste("Number of unique samples:", length(sample)))
+
+# Assign metadata columns
+ints[1] <- meta_table[, 1]
+ints[2] <- meta_table[, 2]
+ints[3] <- meta_table[, 3]
+ints[4] <- meta_table[, 4]
+ints[5] <- meta_table[, 5]
+ints[6] <- meta_table[, 6]
+ints[7] <- meta_table[, 8]
+
+# Set column names
+names(ints)[1:7] <- c(
+  "source",
+  "ID",
+  "isotope",
+  "crop",
+  "timepoint",
+  "type",
+  "run_date"
+)
+names(ints)[8:9] <- c("int_2839_2870", "int_2898_2976")
+names(ints)[10:11] <- c("int_1580_1660", "int_1500_1550")
+head(ints)
+
+##export to check - note there are no absorbance values yet
+today <- format(Sys.Date(), "%Y-%m-%d")
+comb_names <- paste0("spectra_combined_names_test_", today, ".csv")
+write.csv(ints, file = comb_names, row.names = FALSE)
+```
+
+## Binning and correcting spectra
+now the rows of the "ints" data frame represent the samples, the columns
+represent the spectral regions of interest. Columns are the area under the
+curve between defined endpoints. "back" columns are the background area
+calculated as the distance between endpoints, which needs to be subtracted
+(in subsequent steps)
+```{r binning-correcting, echo=TRUE, message=FALSE, warning=FALSE}
+
+# Calculate integrated areas for each spectral window and sample
+for (i in seq_len(nrow(ints))) {
+  current_sample <- ints$sample[i]
+
+  # Extract data for current sample from each spectral window
+  sample_red1 <- red1[red1$sample == current_sample, ]
+  sample_red2 <- red2[red2$sample == current_sample, ]
+  sample_red3 <- red3[red3$sample == current_sample, ]
+  sample_red4 <- red4[red4$sample == current_sample, ]
+
+  # Calculate area under curve (integration) using trapezoidal rule
+  if (nrow(sample_red1) > 1) {
+    ints$int_2839_2870[i] <- pracma::trapz(
+      sample_red1$wavelength, sample_red1$abs
+    )
+  }
+
+  if (nrow(sample_red2) > 1) {
+    ints$int_2898_2976[i] <- pracma::trapz(
+      sample_red2$wavelength, sample_red2$abs
+    )
+  }
+
+  if (nrow(sample_red3) > 1) {
+    ints$int_1580_1660[i] <- pracma::trapz(
+      sample_red3$wavelength, sample_red3$abs
+    )
+  }
+
+  if (nrow(sample_red4) > 1) {
+    ints$int_1500_1550[i] <- pracma::trapz(
+      sample_red4$wavelength, sample_red4$abs
+    )
+  }
+}
+#export data to csv
+head(ints)
+today <- format(Sys.Date(), "%Y-%m-%d")
+ints_name <- paste0("integrated_peak_data_", today, ".csv")
+write.csv(ints, file = ints_name, row.names = FALSE)
+```
+# Calculating derived metrics
+Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts
+by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions
+before visualizing everything.
+Still troubleshooting this code.
+```{r derived-metrics, echo=TRUE, message=FALSE, warning=FALSE}
+# Load required libraries
+library(ggplot2)
+library(stringr)
+library(viridis)
+library(gt)
+library(dplyr)
+library(cowplot)
+library(grid)
+library(gridExtra)
+library(tidyverse)
+library(ggsignif)
+library(forcats)
+
+# Read your processed data (assuming 'ints' is your integrated data frame)
+ftir_data <- ints # ints is defined in the previous chunk
+
+# Calculate derived metrics (same as original)
+ftir_data$aliphatic <- ftir_data$int_2839_2870 + ftir_data$int_2898_2976
+ftir_data$total_peak_area <- ftir_data$aliphatic + ftir_data$int_1580_1660 + ftir_data$int_1500_1550
+ftir_data$simple_plant_prop <- ftir_data$aliphatic / ftir_data$total_peak_area
+ftir_data$complex_plant_prop <- ftir_data$int_1500_1550 / ftir_data$total_peak_area
+ftir_data$microbial_plant_prop <- ftir_data$int_1580_1660 / ftir_data$total_peak_area
+ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_plant_prop
+ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_plant_prop
+
+# Save processed data
+today <- format(Sys.Date(), "%Y-%m-%d")
+proc_name <- paste0("processed_int_data_", today, ".csv")
+write.csv(ftir_data, file = proc_name, row.names = FALSE)
+
+# Create subset data frames based on your actual data structure
+wk0_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk0", ]
+wk10_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk10", ]
+
+# Crop-specific subsets
+wk0_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk0", ]
+wk10_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk10", ]
+wk0_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk0", ]
+wk10_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk10", ]
+wk0_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk0", ]
+wk10_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk10", ]
+
+# Function to calculate summary statistics for any grouping
+calculate_group_stats <- function(data, group_vars) {
+  data %>%
+    group_by(across(all_of(group_vars))) %>%
+    summarise(
+      n_samples = n(),
+      Mean_aliphatic = mean(aliphatic, na.rm = TRUE),
+      SE_aliphatic = sd(aliphatic, na.rm = TRUE) / sqrt(n()),
+      Mean_1580_1660 = mean(int_1580_1660, na.rm = TRUE),
+      SE_1580_1660 = sd(int_1580_1660, na.rm = TRUE) / sqrt(n()),
+      Mean_1500_1550 = mean(int_1500_1550, na.rm = TRUE),
+      SE_1500_1550 = sd(int_1500_1550, na.rm = TRUE) / sqrt(n()),
+      Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
+      SE_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE) / sqrt(n()),
+      Mean_complex_plant_prop = mean(complex_plant_prop, na.rm = TRUE),
+      SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
+      Mean_microbial_prop = mean(microbial_plant_prop, na.rm = TRUE),
+      SE_microbial_prop = sd(microbial_plant_prop, na.rm = TRUE) / sqrt(n()),
+      Mean_simple_microbial = mean(simple_microbial_prop, na.rm = TRUE),
+      SE_simple_microbial = sd(simple_microbial_prop, na.rm = TRUE) / sqrt(n()),
+      Mean_complex_microbial = mean(complex_microbial_prop, na.rm = TRUE),
+      SE_complex_microbial = sd(complex_microbial_prop, na.rm = TRUE) / sqrt(n()),
+      .groups = "drop"
+    )
+}
+
+# Calculate statistics by different groupings
+# By crop and timepoint
+crop_timepoint_stats <- calculate_group_stats(ftir_data, c("crop", "timepoint"))
+
+# By crop only
+crop_stats <- calculate_group_stats(ftir_data, "crop")
+
+# By timepoint only
+timepoint_stats <- calculate_group_stats(ftir_data, "timepoint")
+
+# By isotope and crop (if you want to compare 12C vs 13C)
+isotope_crop_stats <- calculate_group_stats(ftir_data, c("isotope", "crop"))
+
+# Save summary statistics
+write.csv(crop_timepoint_stats, "FTIR_Stats_Crop_Timepoint.csv", row.names = FALSE)
+write.csv(crop_stats, "FTIR_Stats_Crop.csv", row.names = FALSE)
+write.csv(timepoint_stats, "FTIR_Stats_Timepoint.csv", row.names = FALSE)
+```
+# Visualizing the data
+This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
+```{r visualize-data, echo=TRUE}
+# Plotting functions
+create_proportion_plots <- function(stats_data, group_col, title_prefix) {
+
+  p1 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_simple_plant_prop", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(
+      x = group_col,
+      ymin = "Mean_simple_plant_prop - SE_simple_plant_prop",
+      ymax = "Mean_simple_plant_prop + SE_simple_plant_prop"
+    ),
+    width = 0.2) +
+    theme_classic() +
+    scale_fill_viridis_d(option = "plasma") +
+    labs(title = paste(title_prefix, "Simple Plant OM"),
+         x = str_to_title(group_col),
+         y = "Proportion") +
+    theme(legend.position = "none",
+          plot.margin = margin(20, 20, 20, 20),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(size = 10))
+
+  p2 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_complex_plant_prop", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(
+      x = group_col,
+      ymin = "Mean_complex_plant_prop - SE_complex_plant_prop",
+      ymax = "Mean_complex_plant_prop + SE_complex_plant_prop"
+    ),
+    width = 0.2) +
+    theme_classic() +
+    scale_fill_viridis_d(option = "plasma") +
+    labs(title = paste(title_prefix, "Complex Plant OM"),
+         x = str_to_title(group_col),
+         y = "Proportion") +
+    theme(legend.position = "none",
+          plot.margin = margin(20, 20, 20, 20),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(size = 10))
+
+  p3 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_microbial_prop", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(
+      x = group_col,
+      ymin = "Mean_microbial_prop - SE_microbial_prop",
+      ymax = "Mean_microbial_prop + SE_microbial_prop"
+    ),
+    width = 0.2) +
+    theme_classic() +
+    scale_fill_viridis_d(option = "plasma") +
+    labs(title = paste(title_prefix, "Microbial OM"),
+         x = str_to_title(group_col),
+         y = "Proportion") +
+    theme(legend.position = "none",
+          plot.margin = margin(20, 20, 20, 20),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(size = 10))
+  list(p1 = p1, p2 = p2, p3 = p3)
+}
+
+# Create plots by crop
+crop_plots <- create_proportion_plots(crop_stats, "crop", "")
+crop_combined <- plot_grid(crop_plots$p1, crop_plots$p2, crop_plots$p3, nrow = 1, labels = "auto")
+print(crop_combined)
+ggsave("FTIR_by_Crop.pdf", plot = crop_combined, width = 18, height = 9, units = "in", dpi = 300)
+
+# Create plots by timepoint
+timepoint_plots <- create_proportion_plots(timepoint_stats, "timepoint", "")
+timepoint_combined <- plot_grid(timepoint_plots$p1, timepoint_plots$p2, timepoint_plots$p3, nrow = 1, labels = "auto")
+print(timepoint_combined)
+ggsave("FTIR_by_Timepoint.pdf", plot = timepoint_combined, width = 18, height = 9, units = "in", dpi = 300)
+
+# Create interaction plot (crop x timepoint)
+interaction_plot <- ggplot(crop_timepoint_stats) +
+  geom_col(aes(x = crop, y = Mean_simple_plant_prop, fill = timepoint),
+           position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_simple_plant_prop - SE_simple_plant_prop,
+                    ymax = Mean_simple_plant_prop + SE_simple_plant_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  theme_classic() +
+  scale_fill_manual("Timepoint", values = c("#440154", "#31688e")) +
+  labs(title = "Simple Plant OM by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Simple Plant OM Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(interaction_plot)
+ggsave("FTIR_Crop_Timepoint_Interaction.pdf", plot = interaction_plot, 
+       width = 10, height = 9, units = "in", dpi = 300)
+
+# Stacked bar plots (similar to your original stacked plots)
+create_stacked_data <- function(stats_data, group_col) {
+  # Reshape data for stacking
+  long_data <- stats_data %>%
+    select(all_of(group_col), Mean_simple_plant_prop, Mean_complex_plant_prop, Mean_microbial_prop) %>%
+    pivot_longer(cols = starts_with("Mean_"),
+                 names_to = "func_type",
+                 values_to = "proportion") %>%
+    mutate(func_type = case_when(
+      func_type == "Mean_simple_plant_prop" ~ "Simple Plant",
+      func_type == "Mean_complex_plant_prop" ~ "Complex Plant",
+      func_type == "Mean_microbial_prop" ~ "Microbial"
+    )) %>%
+    mutate(func_type = factor(func_type, levels = c("Complex Plant", "Simple Plant", "Microbial")))
+
+  long_data
+}
+
+# Create stacked plots
+crop_stacked_data <- create_stacked_data(crop_stats, "crop")
+timepoint_stacked_data <- create_stacked_data(timepoint_stats, "timepoint")
+
+p_crop_stacked <- ggplot(crop_stacked_data, aes(x = crop, y = proportion * 100, fill = func_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("#9E9AC8", "#DADAEB", "#6A51A3"),
+                    breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
+  theme_classic() +
+  labs(x = "Crop Type",
+       y = "Functional Group Amount (%)",
+       fill = "") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 27, 20, 13),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.margin = margin(10, 16, 10, 8))
+
+p_timepoint_stacked <- ggplot(timepoint_stacked_data, aes(x = timepoint, y = proportion * 100, fill = func_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("#FA9FB5", "#FDE0DD", "#F768A1"),
+                    breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
+  theme_classic() +
+  labs(x = "Timepoint",
+       y = "Functional Group Amount (%)",
+       fill = "") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 27, 20, 13),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.margin = margin(10, 16, 10, 8))
+
+combined_stacked <- plot_grid(
+  p_crop_stacked,
+  p_timepoint_stacked,
+  nrow = 1,
+  labels = "auto"
+)
+print(combined_stacked)
+ggsave(
+  "FTIR_Stacked_Plots.pdf",
+  plot = combined_stacked,
+  width = 20,
+  height = 10,
+  units = "in",
+  dpi = 300
+)
+
+# Print summary information
+cat("Summary of your FTIR data:\n")
+cat("Number of samples:", nrow(ftir_data), "\n")
+cat("Crops:", paste(unique(ftir_data$crop), collapse = ", "), "\n")
+cat("Timepoints:", paste(unique(ftir_data$timepoint), collapse = ", "), "\n")
+cat("Isotopes:", paste(unique(ftir_data$isotope), collapse = ", "), "\n")
+
+# Display summary statistics
+print("Crop Statistics:")
+print(crop_stats)
+print("\nTimepoint Statistics:")
+print(timepoint_stats)
+```

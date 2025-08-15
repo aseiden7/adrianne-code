@@ -1,0 +1,842 @@
+---
+title: "Salk Project CO₂ Data Analysis"
+author: "Adrianne Seiden"
+date: "08/13/2025"
+output:
+  html_document:
+    self_contained: true
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+```{r setup, include=FALSE}
+library(reticulate)
+
+# Configure Python installation
+# Mac install
+use_python("/Users/adrianneseiden/Library/Caches/org.R-project.R/R/reticulate/uv/cache/archive-v0/4R66RK1qjSkCbDYQUxbIy/bin/python3") #nolint
+
+# # Windows install
+# use_python("C:/Users/adria/AppData/Local/Programs/Python/Python313/python.exe") #nolint
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  comment = ">",
+  results = 'hold'
+)
+```
+
+# Overview
+
+### Sample collection
+
+CO₂ gas samples were collected from incubation jars and intact pots at UC Merced between October 29, 2024 and July 28, 2025. Both jars and pots were incubated in Sustainability Research and Engineering (SRE), room 450. For each sampling, pots were capped with a PVC chamber for approximately 60 minutes and jars were sealed with screw-on lids for approximately 24 hours. Headspace gas was sampled by hand (60 mL ea) and injected into evacuated 12mL Labco Exetainer vials. About 48 mL of sample was used to flush the vials, which were then overpressurized with the remaining 12mL.
+
+### Analysis
+
+Samples were analyzed at UC Davis's Stable Isotope Facility (SIF), using a Thermo Scientific Gas Bench interfaced to a Delta V Plus IRMS (ThermoScientific, Bremen, Germany). δ¹³C~VPDB~ (‰) and at-% ¹³C are raw values, from SIF. CO₂ (ppm) - Blank and CO₂ Flux are calculated values.
+
+### CO₂ (ppm) - Blank
+
+For the first batch (1 - 629), SIF lab air CO₂ concentrations are used as the blank value because no samples of SRE 450 lab air were analyzed with these samples. For the second batch, 6 samples of the air in room 450 were included, and an average of these values (within 1 standard deviation, n = 5) is used as the blank value. This may need to be revised for consistency.
+
+### CO₂ Flux
+
+Since the jars had a known and constant amount of soil, flux was calculated as μg CO₂-C · g-soil⁻¹ · minute⁻¹. Since pots had variable amounts of soil (following destructive sampling of ~1/4 wedges every 10 weeks), and the chambers did not cover the entire pot, flux was calculated by approximating the headspace volume inside the chamber (μg CO₂-C · cm[V/A]⁻¹ · minute⁻¹). Flux calculations are based on Robertson, G. P., Blair, J. M., Groffman, P. M., Harris, D., Holland, E., Nadelhoffer, K., & Wedin, D. (1999). Soil carbon and nitrogen availability: Nitrogen mineralization, nitrification, and soil respiration potentials. In G. P. Robertson, C. S. Bledsoe, D. C. Coleman, & P. Sollins (Eds.), Standard Soil Methods for Long-Term Ecological Research. Oxford University Press. [download link](https://www.researchgate.net/profile/John-Blair/publication/304047637_Soil_carbon_and_nitrogen_availability_nitrogen_mineralization_nitrification_and_soil_respiration_potentials/links/576c030c08aef0e50da8aa89/Soil-carbon-and-nitrogen-availability-nitrogen-mineralization-nitrification-and-soil-respiration-potentials.pdf?__cf_chl_tk=fUA_6StxpRdbyT.JumCNjRBpkyYySCIgrPDgmS6.v40-1755111199-1.0.1.1-2yoWRWxLFvpdJQTwMI3A5x3LFWpEvjkVbCezg9_4O0I)
+
+# Jar data
+
+## Reading data & summarizing
+
+The following code cell loads data from an excel file ("Compiled_CO2_data.xlsx") and generates summary statistics (mean, standard deviation, minimum, maximum and count), grouped by crop, isotope and sampling week for δ¹³C~VPDB~ (‰), at-% ¹³C, CO₂ (ppm) - Blank, and flux (μg CO₂-C · g-soil⁻¹ · minute⁻¹). It saves these statistics as a new tab, "Jars_Summary_Stats", in the spreadsheet "Compiled_CO2_data.xlsx".
+
+```{python load-jar-data}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import openpyxl
+# Define the path to your Excel file
+# Find Box on your current os
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+excel_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Compiled_CO2_data.xlsx")
+
+# Read the 'Jars' tab from the Excel file
+try:
+    df = pd.read_excel(excel_path, sheet_name='Jars')
+    print("Excel file loaded successfully!")
+except Exception as e:
+    print(f"Error loading Excel file: {e}")
+    import sys
+    sys.exit(1)
+
+# Display the first few rows to verify data
+print("\nFirst 5 rows of the dataframe:")
+print(df.head())
+
+# Check column names
+print("\nColumn names:")
+print(df.columns.tolist())
+
+# Convert isotope to integer format (removing decimals)
+df['isotope'] = df['isotope'].fillna(-1)  # Replace NaN with -1 temporarily
+df['isotope'] = df['isotope'].astype(int)  # Convert to integer
+df.loc[df['isotope'] == -1, 'isotope'] = np.nan  # Convert -1 back to NaN if needed
+
+# Remove rows with NaN values in key columns
+columns_to_analyze = ['δ13CVPDB (‰)', 'at-% 13C', 'CO2 (ppm) - Blank', 'Flux (μg CO2-C/g-soil/minute)']
+df_clean = df.dropna(subset=['crop', 'isotope', 'sampling_wk'] + columns_to_analyze)
+
+print(f"\nRemoved {len(df) - len(df_clean)} rows with NaN values")
+print(f"Remaining rows: {len(df_clean)}")
+
+# Generate summary statistics grouped by crop, isotope, and sampling_wk
+summary_stats = df_clean.groupby(['crop', 'isotope', 'sampling_wk'])[columns_to_analyze].agg(
+    ['mean', 'std', 'min', 'max', 'count']
+)
+
+# Save the summary statistics to a new tab in the existing Excel file
+try:
+    with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        summary_stats.to_excel(writer, sheet_name='Jars_Summary_Stats')
+    print("\nSummary statistics saved to 'Jars_Summary_Stats' tab in the existing Excel file")
+except Exception as e:
+    print(f"Error saving to Excel file: {e}")
+
+# Print a preview of the summary statistics
+print("\nSummary Statistics Preview:")
+print(summary_stats.head())
+```
+## Plotting δ<sup>13</sup>C<sub>VPDB</sub> \& CO<sub>2</sub> flux (jars)
+
+The following code plots δ<sup>13</sup>C<sub>VPDB</sub> (‰) vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "jars_analysis_plots_VPDB". 
+
+```{python plot-jar-data-VPDB}
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Create figure for plotting
+fig=plt.figure(figsize=(15, 10));
+fig.suptitle(r'Incubation Jars: $\mathrm{^{13}CO_{2}}$ Timeseries Data', fontsize=16);
+# Get unique combinations of crop and isotope
+crop_isotope_combinations = df_clean[['crop', 'isotope']].drop_duplicates()
+
+# Create a color palette for consistent colors across plots
+# Use a different approach with a simple list of colors
+#num_combinations = len(crop_isotope_combinations)
+#colors = sns.color_palette('husl', num_combinations)
+colors = ['#FC9D33', '#FE318E', '#9F29FF','#3C57DE','#0CB2AF', '#98C65D']   # orange, pink, purple, blue, teal, green
+
+
+# Creating Plot 1: δ13CVPDB (‰) vs sampling_week
+plt.subplot(2, 1, 1);
+
+# Plot each crop & root_isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+    
+    # Filter data for this combination
+    subset = df_clean[(df_clean['crop'] == crop) & (df_clean['isotope'] == isotope)]
+
+    # Calculate mean and standard error for each sampling_wk
+    grouped = subset.groupby('sampling_wk')['δ13CVPDB (‰)'].agg(['mean', 'sem']).reset_index()
+    
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'], 
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰)');
+plt.title(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰) vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Creating Plot 2: Flux (μg CO2-C/g-soil/minute) vs sampling_week
+plt.subplot(2, 1, 2);
+
+# Plot each crop & root_isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+    
+    # Filter data for this combination
+    subset = df_clean[(df_clean['crop'] == crop) & (df_clean['isotope'] == isotope)]
+    
+    # Calculate mean and standard error for each sampling_week
+    grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/g-soil/minute)'].agg(['mean', 'sem']).reset_index()
+
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$');
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Adjust layout and save figure
+plt.tight_layout()
+plt.savefig('jars_analysis_plots_VPDB.png', dpi=300)
+print("\nPlots saved to 'jars_analysis_plots_VPDB.png'")
+
+# Show the plots
+plt.show()
+```
+
+## Plotting atom % <sup>13</sup>C \& CO<sub>2</sub> flux (jars)
+The following code plots atom %<sup>13</sup>C vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "jars_analysis_plots_at-pct". I wrote this after noticing that JP presents isotope data in atom % rather than δ<sup>13</sup>C<sub>VPDB</sub> (‰).
+```{python plot-jar-data-at-pct}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Create figure for plotting
+fig1=plt.figure(figsize=(15, 10))
+fig1.suptitle(r'Incubation Jars: $\mathrm{^{13}CO_{2}}$ Timeseries Data', fontsize=16);
+# Get unique combinations of crop and isotope
+crop_isotope_combinations = df_clean[['crop', 'isotope']].drop_duplicates()
+
+# Create a color palette for consistent colors across plots
+# Use a different approach with a simple list of colors
+#num_combinations = len(crop_isotope_combinations)
+#colors = sns.color_palette('husl', num_combinations)
+colors = ['#FC9D33', '#FE318E', '#9F29FF','#3C57DE','#0CB2AF', '#98C65D']   # orange, pink, purple, blue, teal, green
+
+
+# Creating Plot 1: δ13CVPDB (‰) vs sampling_week
+plt.subplot(2, 1, 1);
+
+# Plot each crop & root_isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+    
+    # Filter data for this combination
+    subset = df_clean[(df_clean['crop'] == crop) & (df_clean['isotope'] == isotope)]
+
+    # Calculate mean and standard error for each sampling_wk
+    grouped = subset.groupby('sampling_wk')['at-% 13C'].agg(['mean', 'sem']).reset_index()
+
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'], 
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{at-\% \,^{13}C}$');
+plt.title(r'$\mathrm{at-\% \,^{13}C}$ vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Creating Plot 2: Flux (μg CO2-C/g-soil/minute) vs sampling_week
+plt.subplot(2, 1, 2);
+
+# Plot each crop & root_isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+    
+    # Filter data for this combination
+    subset = df_clean[(df_clean['crop'] == crop) & (df_clean['isotope'] == isotope)]
+    
+    # Calculate mean and standard error for each sampling_week
+    grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/g-soil/minute)'].agg(['mean', 'sem']).reset_index()
+
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$');
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Adjust layout and save figure
+plt.tight_layout()
+plt.savefig('jars_analysis_plots_at-pct.png', dpi=300)
+print("\nPlots saved to 'jars_analysis_plots_at-pct.png'")
+
+# Show the plots
+plt.show()
+```
+
+## Cumulative flux
+
+The following two chunks calculate weekly averages of CO₂ flux (μg CO₂-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) for each crop, then print the weekly and total cumulative flux averages for each crop. They then plot cumulative flux over time and save the figure as a PNG file. The second chunk filters out outliers (values beyond 1 standard deviation from the mean for that week), calculates corrected averages, then prints and plots those new values.
+
+It is important to note that soy and rice jars have both <sup>13</sup>C and <sup>12</sup>C treatments, while noPlant and wheat jars have only <sup>12</sup>C (i.e. half the sample size).
+
+### Cumulative flux no filtering
+Includes all data points.
+
+```{python cumulative-flux-no-filtering}
+# Cumulative CO2 Flux Analysis - Grouped by Crop
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Define the path to your Excel file
+# Define the path to your Excel file
+# Relative paths assume you are starting from the working directory
+excel_path = "../CO2 data/Compiled_CO2_data.xlsx"
+
+# Recalculate weekly_averages to include SEM and cumulative SEM
+crops = df_clean['crop'].unique()
+weekly_averages = {}
+for crop in crops:
+    crop_data = df_clean[df_clean['crop'] == crop]
+    weeks = sorted(crop_data['sampling_wk'].unique())
+    weekly_avg_list = []
+    weekly_sem_list = []
+    weekly_n_list = []
+    for week in weeks:
+        week_data = crop_data[crop_data['sampling_wk'] == week]['Flux (μg CO2-C/g-soil/minute)']
+        if len(week_data) > 0:
+            weekly_avg = week_data.mean()
+            weekly_sem = week_data.sem()
+            weekly_n = len(week_data)
+        else:
+            weekly_avg = np.nan
+            weekly_sem = np.nan
+            weekly_n = 0
+        weekly_avg_list.append(weekly_avg)
+        weekly_sem_list.append(weekly_sem)
+        weekly_n_list.append(weekly_n)
+    cumulative_flux = np.cumsum(weekly_avg_list)
+    cumulative_sem = np.sqrt(np.cumsum(np.array(weekly_sem_list) ** 2))
+    cumulative_n = np.cumsum(weekly_n_list)
+    weekly_averages[crop] = {
+        'weeks': weeks,
+        'weekly_flux': weekly_avg_list,
+        'weekly_sem': weekly_sem_list,
+        'weekly_n': weekly_n_list,
+        'cumulative_flux': cumulative_flux,
+        'cumulative_sem': cumulative_sem,
+        'cumulative_n': cumulative_n
+    }
+
+# Print summary of weekly averages in order of suberin content
+crop_order = ['noPlant', 'wheat', 'rice', 'soy']
+print("Weekly Average CO2 Flux (no outlier filtering):")
+for crop in crop_order:
+    if crop in weekly_averages:
+        print(f"\n{crop}:")
+        for i, week in enumerate(weekly_averages[crop]['weeks']):
+            print(f"  Week {week}: {weekly_averages[crop]['weekly_flux'][i]:.2f} μg CO2-C/g-soil/minute (n={weekly_averages[crop]['weekly_n'][i]})")
+
+# Create cumulative flux visualization
+fig, ax = plt.subplots(figsize=(12, 8))
+
+# Define colors for noPlant, wheat, rice, soy
+crop_order = ['noPlant', 'wheat', 'rice', 'soy']
+colors = ['#9F29FF', '#98C65D', '#FC9D33', '#FE318E']  # purple, green, orange, pink
+
+# Plot cumulative flux for each crop with error bars
+for i, crop in enumerate(crop_order):
+    if crop in weekly_averages:
+        weeks = weekly_averages[crop]['weeks']
+        cumulative = weekly_averages[crop]['cumulative_flux']
+        cumulative_sem = weekly_averages[crop]['cumulative_sem']
+        plt.errorbar(weeks, cumulative, yerr=cumulative_sem, marker='o', linestyle='-', linewidth=2.5,
+                    markersize=8, label=f'{crop}', color=colors[i], capsize=4);
+
+plt.xlabel('Sampling Week', fontsize=12);
+plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1})}$', fontsize=12);
+plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop', fontsize=14, pad=20);
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend(fontsize=11);
+
+# Add some styling
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+
+# Save the figure
+plt.savefig('jars_cumul_co2_flux_by_crop_no_filter.png', dpi=300, bbox_inches='tight')
+print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_no_filter.png'")
+
+# Display final cumulative values
+print("\nFinal Cumulative CO2 Flux Values:")
+for crop in crop_order:
+    if crop in weekly_averages:
+        final_cumulative = weekly_averages[crop]['cumulative_flux'][-1]
+        print(f"{crop.capitalize()}: {final_cumulative:.2f} μg CO2-C/g-soil/minute n={weekly_averages[crop]['cumulative_n'][-1]}")
+
+plt.show()
+```
+
+### Cumulative flux with outlier filtering
+Filters out values beyond 1 standard deviation from the mean for that week, recalculates weekly averages, and plots the resulting cumulative flux over time.
+
+
+```{python cumulative-flux-filtering}
+# Cumulative CO2 Flux Analysis - Grouped by Crop
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Define the path to your Excel file
+# Define the path to your Excel file
+# Relative paths assume you are starting from the working directory
+excel_path = "../CO2 data/Compiled_CO2_data.xlsx"
+
+# Function to filter outliers (values beyond 1 standard deviation)
+def filter_outliers(data):
+    """Remove values beyond 1 standard deviation from the mean"""
+    mean = data.mean()
+    std = data.std()
+    return data[(data >= mean - std) & (data <= mean + std)]
+
+# Recalculate weekly_averages to include SEM and cumulative SEM
+crops = df_clean['crop'].unique()
+weekly_averages = {}
+for crop in crops:
+    crop_data = df_clean[df_clean['crop'] == crop]
+    weeks = sorted(crop_data['sampling_wk'].unique())
+    weekly_avg_list = []
+    weekly_sem_list = []
+    weekly_n_list = []
+    for week in weeks:
+        week_data = crop_data[crop_data['sampling_wk'] == week]['Flux (μg CO2-C/g-soil/minute)']
+        filtered_data = filter_outliers(week_data)
+        n_filtered = len(filtered_data)
+        if n_filtered > 0:
+            weekly_avg = filtered_data.mean()
+            weekly_sem = filtered_data.sem()
+        else:
+            weekly_avg = week_data.mean()
+            weekly_sem = week_data.sem()
+        weekly_avg_list.append(weekly_avg)
+        weekly_sem_list.append(weekly_sem)
+        weekly_n_list.append(n_filtered)
+    cumulative_flux = np.cumsum(weekly_avg_list)
+    cumulative_sem = np.sqrt(np.cumsum(np.array(weekly_sem_list) ** 2))
+    cumulative_n = np.cumsum(weekly_n_list)
+    weekly_averages[crop] = {
+        'weeks': weeks,
+        'weekly_flux': weekly_avg_list,
+        'weekly_sem': weekly_sem_list,
+        'weekly_n': weekly_n_list,
+        'cumulative_flux': cumulative_flux,
+        'cumulative_sem': cumulative_sem,
+        'cumulative_n': cumulative_n
+    }
+
+# Print summary of weekly averages in order of suberin content
+crop_order = ['noPlant', 'wheat', 'rice', 'soy']
+print("Weekly Average CO2 Flux (after outlier filtering):")
+for crop in crop_order:
+    if crop in weekly_averages:
+        print(f"\n{crop}:")
+        for i, week in enumerate(weekly_averages[crop]['weeks']):
+            avg = weekly_averages[crop]['weekly_flux'][i]
+            n = weekly_averages[crop]['weekly_n'][i]
+            print(f"  Week {week}: {avg:.2f} μg CO2-C/g-soil/minute (n={n})")
+
+# Create cumulative flux visualization
+fig, ax = plt.subplots(figsize=(12, 8))
+
+# Define colors for noPlant, wheat, rice, soy
+crop_order = ['noPlant', 'wheat', 'rice', 'soy']
+colors = ['#9F29FF', '#98C65D', '#FC9D33', '#FE318E']  # purple, green, orange, pink
+
+# Plot cumulative flux for each crop WITH error bars
+for i, crop in enumerate(crop_order):
+    if crop in weekly_averages:
+        weeks = weekly_averages[crop]['weeks']
+        cumulative = weekly_averages[crop]['cumulative_flux']
+        cumulative_sem = weekly_averages[crop]['cumulative_sem']
+        plt.errorbar(weeks, cumulative, yerr=cumulative_sem, marker='o', linestyle='-', linewidth=2.5,
+                    markersize=8, label=f'{crop}', color=colors[i], capsize=4);
+
+plt.xlabel('Sampling Week', fontsize=12);
+plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1})}$', fontsize=12);
+plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (outliers removed)', fontsize=14, pad=20);
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend(fontsize=11);
+
+# Add some styling
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+
+# Save the figure
+plt.savefig('jars_cumul_co2_flux_by_crop_filtered.png', dpi=300, bbox_inches='tight')
+print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_filtered.png'")
+
+# Display final cumulative values
+print("\nFinal Cumulative CO2 Flux Values (outliers removed):")
+for crop in crop_order:
+    if crop in weekly_averages:
+        final_cumulative = weekly_averages[crop]['cumulative_flux'][-1]
+        print(f"{crop.capitalize()}: {final_cumulative:.2f} μg CO2-C/g-soil/minute (n={weekly_averages[crop]['cumulative_n'][-1]})")
+
+plt.show()
+```
+
+# Pot data
+## Reading data & summarizing
+The following code cell loads data from an excel file and generates summary statistics (mean, standard deviation, minimum, maximum and count), grouped by crop, isotope and sampling week for δ<sup>13</sup>C<sub>VPDB</sub> (‰), at-% <sup>13</sup>C, CO<sub>2</sub> (ppm), and flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>). It saves these statistics as a new tab, "Pots_Summary_Stats", in the spreadsheet "Compiled_CO2_data.xlsx".
+```{python load-pot-data}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import openpyxl
+
+# Define the path to your Excel file
+# Define the path to your Excel file
+# Relative paths assume you are starting from the working directory
+excel_path = "../CO2 data/Compiled_CO2_data.xlsx"
+
+# Read the 'Pots' tab from the Excel file
+try:
+    df1 = pd.read_excel(excel_path, sheet_name='Pots')
+    print("Excel file loaded successfully!")
+except Exception as e:
+    print(f"Error loading Excel file: {e}")
+    import sys
+    sys.exit(1)
+
+# Display the first few rows to verify data
+print("\nFirst 5 rows of the dataframe:")
+print(df1.head())
+
+# Check column names
+print("\nColumn names:")
+print(df1.columns.tolist())
+
+# Convert isotope to integer format (removing decimals)
+df1['isotope'] = df1['isotope'].fillna(-1)  # Replace NaN with -1 temporarily
+df1['isotope'] = df1['isotope'].astype(int)  # Convert to integer
+df1.loc[df1['isotope'] == -1, 'isotope'] = np.nan  # Convert -1 back to NaN if needed
+
+# Remove rows with NaN values in key columns
+columns_to_analyze = ['δ13CVPDB (‰)', 'at-% 13C', 'CO2 (ppm) - Blank', 'Flux (μg CO2-C/cm[V/A]/minute)']
+df1_clean = df1.dropna(subset=['crop', 'isotope', 'sampling_wk'] + columns_to_analyze)
+
+print(f"\nRemoved {len(df1) - len(df1_clean)} rows with NaN values")
+print(f"Remaining rows: {len(df1_clean)}")
+
+# Generate summary statistics grouped by crop, isotope, and sampling_wk
+summary_stats1 = df1_clean.groupby(['crop', 'isotope', 'sampling_wk'])[columns_to_analyze].agg(
+    ['mean', 'std', 'min', 'max', 'count']
+)
+
+# Save the summary statistics to a new tab in the existing Excel file
+try:
+    with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        summary_stats1.to_excel(writer, sheet_name='Pots_Summary_Stats')
+    print("\nSummary statistics saved to 'Pots_Summary_Stats' tab in the existing Excel file")
+except Exception as e:
+    print(f"Error saving to Excel file: {e}")
+
+# Print a preview of the summary statistics
+print("\nSummary Statistics Preview:")
+print(summary_stats1.head())
+```
+## Plotting δ<sup>13</sup>C \& CO<sub>2</sub> flux (pots)
+The following code plots δ<sup>13</sup>C<sub>VPDB</sub> (‰) vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "pots_analysis_plots_VPDB".
+```{python plot-pot-data-VPDB}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Create figure for plotting
+fig2=plt.figure(figsize=(15, 10))
+fig2.suptitle(r'Intact Pots: $\mathrm{^{13}CO_{2}}$ Timeseries Data', fontsize=16);
+# Get unique combinations of crop and isotope
+crop_isotope_combinations1 = df1_clean[['crop', 'isotope']].drop_duplicates()
+
+# Create a color palette for consistent colors across plots
+# Use a different approach with a simple list of colors
+#num_combinations = len(crop_isotope_combinations)
+#colors = sns.color_palette('husl', num_combinations)
+colors1 = ['#FC9D33', '#FE318E', '#9F29FF','#3C57DE','#0CB2AF', '#98C65D']   # orange, pink, purple, blue, teal, green
+
+
+# Creating Plot 1: δ13CVPDB (‰) vs sampling_week
+plt.subplot(2, 1, 1);
+
+# Plot each crop & root_isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+
+    # Filter data for this combination
+    subset = df1_clean[(df1_clean['crop'] == crop) & (df1_clean['isotope'] == isotope)]
+
+    # Calculate mean and standard error for each sampling_wk
+    grouped = subset.groupby('sampling_wk')['δ13CVPDB (‰)'].agg(['mean', 'sem']).reset_index()
+
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'], 
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors1[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰)');
+plt.title(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰) vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Creating Plot 2: Flux (μg CO2-C/cm[V/A]/minute) vs sampling_wk
+plt.subplot(2, 1, 2);
+
+# Plot each crop & isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+
+    # Filter data for this combination
+    subset = df1_clean[(df1_clean['crop'] == crop) & (df1_clean['isotope'] == isotope)]
+
+    # Calculate mean and standard error for each sampling_wk
+    grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/cm[V/A]/minute)'].agg(['mean', 'sem']).reset_index()
+    
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors1[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$');
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Adjust layout and save figure
+plt.tight_layout()
+plt.savefig('pots_analysis_plots_VPDB.png', dpi=300)
+print("\nPlots saved to 'pots_analysis_plots_VPDB.png'")
+
+# Show the plots
+plt.show()
+```
+
+## Plotting atom % <sup>13</sup>C \& CO<sub>2</sub> flux (pots)
+The following code plots atom % <sup>13</sup>C vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "pots_analysis_plots_at-pct". I wrote this after noticing that JP presents isotope data in atom % rather than δ<sup>13</sup>C<sub>VPDB</sub> (‰).
+```{python plot-pot-data-at-pct}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Create figure for plotting
+fig3=plt.figure(figsize=(15, 10))
+fig3.suptitle(r'Intact Pots: $\mathrm{^{13}CO_{2}}$ Timeseries Data', fontsize=16);
+# Get unique combinations of crop and isotope
+crop_isotope_combinations1 = df1_clean[['crop', 'isotope']].drop_duplicates()
+
+# Create a color palette for consistent colors across plots
+# Use a different approach with a simple list of colors
+#num_combinations = len(crop_isotope_combinations)
+#colors = sns.color_palette('husl', num_combinations)
+colors1 = ['#FC9D33', '#FE318E', '#9F29FF','#3C57DE','#0CB2AF', '#98C65D']   # orange, pink, purple, blue, teal, green
+
+
+# Creating Plot 1: at-% 13C vs sampling_week
+plt.subplot(2, 1, 1);
+
+# Plot each crop & root_isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+
+    # Filter data for this combination
+    subset = df1_clean[(df1_clean['crop'] == crop) & (df1_clean['isotope'] == isotope)]
+
+    # Calculate mean and standard error for each sampling_wk
+    grouped = subset.groupby('sampling_wk')['at-% 13C'].agg(['mean', 'sem']).reset_index()
+
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'], 
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors1[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{at-\% \, 13C}$ (‰)');
+plt.title(r'$\mathrm{at-\% \, 13C}$ (‰) vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Creating Plot 2: Flux (μg CO2-C/cm[V/A]/minute) vs sampling_wk
+plt.subplot(2, 1, 2);
+
+# Plot each crop & isotope combination as a separate series
+for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
+    crop = row['crop']
+    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+
+    # Filter data for this combination
+    subset = df1_clean[(df1_clean['crop'] == crop) & (df1_clean['isotope'] == isotope)]
+
+    # Calculate mean and standard error for each sampling_wk
+    grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/cm[V/A]/minute)'].agg(['mean', 'sem']).reset_index()
+    
+    # Plot the mean values with predefined color from index
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
+                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors1[i]);
+
+plt.xlabel('Sampling Week');
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$');
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week');
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend();
+
+# Adjust layout and save figure
+plt.tight_layout()
+plt.savefig('pots_analysis_plots_at-pct.png', dpi=300)
+print("\nPlots saved to 'pots_analysis_plots_at-pct.png'")
+
+# Show the plots
+plt.show()
+```
+
+## Plotting pot CO<sub>2</sub> flux by crop only
+The following code plots CO<sub>2</sub> flux (μg CO<sub>2</sub>-C ⋅ cm[V/A]<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week grouped by crop only, ignoring isotope treatments. This provides a simplified view of how each crop performs overall. It really only changes noPlant and soy, the rest of the crops we only have 13C treatments.
+
+```{python plot-pot-flux-crop-only}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Create figure for plotting
+fig4=plt.figure(figsize=(12, 8))
+fig4.suptitle(r'Intact Pots: $\mathrm{CO_2}$ Flux by Crop', fontsize=16);
+
+# Get unique crops
+crops = df1_clean['crop'].unique()
+
+# Define colors for crops (matching previous plots)
+crop_colors = {'noPlant': '#9F29FF', 'wheat': '#98C65D', 'rice': '#FC9D33', 'soy': '#FE318E'}  # purple, green, orange, pink
+
+# Plot CO2 flux for each crop (ignoring isotope)
+for crop in crops:
+    # Filter data for this crop (all isotopes combined)
+    subset = df1_clean[df1_clean['crop'] == crop]
+    
+    # Calculate mean and standard error for each sampling_wk
+    grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/cm[V/A]/minute)'].agg(['mean', 'sem']).reset_index()
+    
+    # Use predefined color if available, otherwise use default
+    color = crop_colors.get(crop, '#000000')
+    
+    # Plot the mean values
+    plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
+                 marker='o', linestyle='-', label=f'{crop}', color=color, linewidth=2.5, markersize=8);
+
+plt.xlabel('Sampling Week', fontsize=12);
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$', fontsize=12);
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week by Crop', fontsize=14, pad=20);
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend(fontsize=11);
+
+# Add some styling
+ax = plt.gca()
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
+# Adjust layout and save figure
+plt.tight_layout()
+plt.savefig('pots_co2_flux_by_crop.png', dpi=300, bbox_inches='tight')
+print("\nPlot saved to 'pots_co2_flux_by_crop.png'")
+
+# Show the plot
+plt.show()
+```
+
+```{python cumulative-pot-flux, include=FALSE, echo=FALSE}
+# Cumulative CO2 Flux Analysis for Pots - Grouped by Crop
+# Function to filter outliers (values beyond 1 standard deviation)
+def filter_outliers_pots(data):
+    """Remove values beyond 1 standard deviation from the mean"""
+    mean = data.mean()
+    std = data.std()
+    return data[(data >= mean - std) & (data <= mean + std)]
+
+# Calculate weekly averages after filtering outliers for each crop (pots data)
+crops_pots = df1_clean['crop'].unique()
+weekly_averages_pots = {}
+
+for crop in crops_pots:
+    crop_data = df1_clean[df1_clean['crop'] == crop]
+    weeks = sorted(crop_data['sampling_wk'].unique())
+    
+    weekly_avg_list = []
+    for week in weeks:
+        week_data = crop_data[crop_data['sampling_wk'] == week]['Flux (μg CO2-C/cm[V/A]/minute)']
+        # Filter outliers within 1 standard deviation
+        filtered_data = filter_outliers_pots(week_data)
+        if len(filtered_data) > 0:
+            weekly_avg = filtered_data.mean()
+        else:
+            weekly_avg = week_data.mean()  # Fallback to original mean if all data filtered
+        weekly_avg_list.append(weekly_avg)
+    
+    weekly_averages_pots[crop] = {
+        'weeks': weeks,
+        'weekly_flux': weekly_avg_list,
+        'cumulative_flux': np.cumsum(weekly_avg_list)
+    }
+
+# Create cumulative flux visualization for pots
+fig5, ax = plt.subplots(figsize=(12, 8))
+
+# Define colors for crops (matching previous plots)
+crop_colors = {'noPlant': '#9F29FF', 'wheat': '#98C65D', 'rice': '#FC9D33', 'soy': '#FE318E'}  # purple, green, orange, pink
+
+# Plot cumulative flux for each crop
+for crop in crops_pots:
+    if crop in weekly_averages_pots:
+        weeks = weekly_averages_pots[crop]['weeks']
+        cumulative = weekly_averages_pots[crop]['cumulative_flux']
+        color = crop_colors.get(crop, '#000000')
+        
+        plt.plot(weeks, cumulative, marker='o', linestyle='-', linewidth=2.5, 
+                markersize=8, label=f'{crop}', color=color);
+
+plt.xlabel('Sampling Week', fontsize=12);
+plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1})}$', fontsize=12);
+plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (Pots)', fontsize=14, pad=20);
+plt.grid(True, linestyle='--', alpha=0.7);
+plt.legend(fontsize=11);
+
+# Add some styling
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+
+# Save the figure
+plt.savefig('pots_cumul_co2_flux_by_crop.png', dpi=300, bbox_inches='tight')
+print(f"\nCumulative flux plot saved to 'pots_cumul_co2_flux_by_crop.png'")
+
+# Display final cumulative values
+print("\nFinal Cumulative CO2 Flux Values (Pots):")
+for crop in crops_pots:
+    if crop in weekly_averages_pots:
+        final_cumulative = weekly_averages_pots[crop]['cumulative_flux'][-1]
+        print(f"{crop.capitalize()}: {final_cumulative:.2f} μg CO2-C/cm[V/A]/minute")
+
+plt.show()
+```
+
+

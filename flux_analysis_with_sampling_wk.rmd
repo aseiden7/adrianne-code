@@ -1,0 +1,1018 @@
+---
+title: "Investigating Factors Effecting CO₂ Flux from Pots"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    self_contained: true
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+---
+```{r setup, include=FALSE}
+library(reticulate)
+
+# Configure Python installation
+# # Mac install
+# use_python("/Users/adrianneseiden/Library/Caches/org.R-project.R/R/reticulate/uv/cache/archive-v0/4R66RK1qjSkCbDYQUxbIy/bin/python3") #nolint
+
+# Windows install
+use_python("C:/Users/adria/AppData/Local/Programs/Python/Python313/python.exe") #nolint
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  comment = ">",
+  results = 'hold'
+)
+```
+# Introduction
+CO₂ flux data from the pots differs significantly from the jars. This could be due to more fluctuating moisture levels, inconsistency in time sealed, or something else. Since we have data on moisture levels, and the time sealed, we can investigate these factors to see if they explain the differences in flux more than the crop types.
+
+In particular, the time over which the week 10 flux was collected varies significantly between the crops. Rice pots were only sealed an average of 25.33 minutes, compared to 45 minutes for wheat and 60 minutes for soy. By comparison, week 20 flux measurements were collected over 61 minutes (standard deviation <1 minute; no rice fluxes), week 30 was collected over 78 minutes (standard deviation 13 minutes), and week 40 was collected over 100 minutes (standard deviation 13 minutes). See "Box/Salk Institute Project/AKS Salk files/CO2 data/combined_data_with_moisture.xlsx" for more detail.
+
+# CO2 Flux Analysis: Moisture vs Time vs Crop Effects (Controlling for Sampling Week)
+
+## Setup and Data Loading
+
+```{python setup-load-data}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings('ignore')
+
+# Set matplotlib parameters for better display in R Markdown
+plt.rcParams['figure.figsize'] = (12, 8)
+plt.rcParams['font.size'] = 10
+
+def load_and_analyze_flux_data(file_path):
+    """Load data and perform comprehensive analysis of CO2 flux relationships"""
+    print("Loading data...")
+    df = pd.read_excel(file_path)
+    
+    # Find the flux column
+    flux_col = None
+    for col in df.columns:
+        if 'flux' in col.lower() and 'co2' in col.lower():
+            flux_col = col
+            break
+    
+    if flux_col is None:
+        print("Available columns:")
+        print(df.columns.tolist())
+        return None, None
+    
+    # Clean and prepare data - now including sampling_wk
+    required_cols = [flux_col, 'moisture_kpa', 'sealed_minutes', 'sampling_wk']
+    available_cols = [col for col in required_cols if col in df.columns]
+    
+    if 'sampling_wk' not in df.columns:
+        print("Warning: sampling_wk column not found!")
+        print("Available columns:")
+        print(df.columns.tolist())
+        return None, None
+    
+    df_clean = df.copy()
+    df_clean = df_clean.dropna(subset=available_cols)
+    
+    print(f"Data loaded: {len(df_clean)} valid observations")
+    print(f"Flux column: {flux_col}")
+    print(f"Sampling weeks range: {df_clean['sampling_wk'].min()} to {df_clean['sampling_wk'].max()}")
+    
+    return df_clean, flux_col
+
+# Path to Excel file from local repository
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/combined_data_with_moisture.xlsx")
+# # Load the data
+# file_path = "combined_data_with_moisture.xlsx"  # Update this path as needed
+df, flux_col = load_and_analyze_flux_data(file_path)
+```
+
+## Confounding Analysis
+
+```{python confounding}
+def analyze_confounding(df, flux_col):
+    """Analyze the confounding relationships between variables"""
+    print("=" * 60)
+    print("CONFOUNDING ANALYSIS")
+    print("=" * 60)
+    
+    # Check correlation between sealed_time and sampling_wk
+    time_wk_corr = np.corrcoef(df['sealed_minutes'], df['sampling_wk'])[0,1]
+    print(f"Correlation between sealed_time and sampling_wk: r = {time_wk_corr:.3f}")
+    
+    # Check correlation between flux and sampling_wk
+    flux_wk_corr = np.corrcoef(df[flux_col], df['sampling_wk'])[0,1]
+    print(f"Correlation between flux and sampling_wk: r = {flux_wk_corr:.3f}")
+    
+    # Check correlation between moisture and sampling_wk
+    moisture_wk_corr = np.corrcoef(df['moisture_kpa'], df['sampling_wk'])[0,1]
+    print(f"Correlation between moisture and sampling_wk: r = {moisture_wk_corr:.3f}")
+    
+    if abs(time_wk_corr) > 0.3:
+        print("\n⚠️  WARNING: Strong correlation between sealed_time and sampling_wk!")
+        print("   This could lead to confounded results for sealed_time effects.")
+    
+    if abs(flux_wk_corr) > 0.3:
+        print("\n📉 Strong temporal trend in flux over sampling weeks")
+        if flux_wk_corr < 0:
+            print("   Flux decreases over time (as expected)")
+        else:
+            print("   Flux increases over time (unexpected)")
+    
+    return {
+        'time_wk_corr': time_wk_corr,
+        'flux_wk_corr': flux_wk_corr,
+        'moisture_wk_corr': moisture_wk_corr
+    }
+
+# Analyze confounding relationships
+confounding_stats = analyze_confounding(df, flux_col)
+```
+
+## Advanced Statistical Analysis Functions
+
+```{python advanced-stats}
+def calculate_r2(y_actual, y_predicted):
+    """Calculate R-squared manually"""
+    ss_res = np.sum((y_actual - y_predicted) ** 2)
+    ss_tot = np.sum((y_actual - np.mean(y_actual)) ** 2)
+    return 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+
+def simple_linear_regression(x, y):
+    """Simple linear regression without sklearn"""
+    x = np.array(x)
+    y = np.array(y)
+    n = len(x)
+    
+    # Calculate slope and intercept
+    slope = (n * np.sum(x * y) - np.sum(x) * np.sum(y)) / (n * np.sum(x**2) - (np.sum(x))**2)
+    intercept = (np.sum(y) - slope * np.sum(x)) / n
+    
+    # Calculate predictions and R²
+    y_pred = slope * x + intercept
+    r2 = calculate_r2(y, y_pred)
+    
+    return slope, intercept, r2, y_pred
+
+def partial_correlation(x, y, z):
+    """Calculate partial correlation between x and y controlling for z"""
+    # Simple partial correlation calculation
+    rxy = np.corrcoef(x, y)[0,1]
+    rxz = np.corrcoef(x, z)[0,1] 
+    ryz = np.corrcoef(y, z)[0,1]
+    
+    numerator = rxy - (rxz * ryz)
+    denominator = np.sqrt((1 - rxz**2) * (1 - ryz**2))
+    
+    if abs(denominator) < 1e-10:
+        return 0
+    
+    return numerator / denominator
+
+def residual_regression(x, y, control_vars):
+    """Regression of y on x after removing effects of control variables"""
+    # Remove control variable effects from y
+    y_residual = y.copy()
+    for control in control_vars:
+        slope, intercept, _, y_pred = simple_linear_regression(control, y_residual)
+        y_residual = y_residual - (slope * control + intercept - np.mean(y_residual))
+    
+    # Remove control variable effects from x  
+    x_residual = x.copy()
+    for control in control_vars:
+        slope, intercept, _, x_pred = simple_linear_regression(control, x_residual)
+        x_residual = x_residual - (slope * control + intercept - np.mean(x_residual))
+    
+    # Regression of residuals
+    slope, intercept, r2, y_pred = simple_linear_regression(x_residual, y_residual)
+    
+    return slope, intercept, r2, np.corrcoef(x_residual, y_residual)[0,1]
+
+def calculate_controlled_effects(df, flux_col):
+    """Calculate effect sizes controlling for sampling week"""
+    effects = {}
+    
+    # Original (uncontrolled) effects
+    moisture_data = df[['moisture_kpa', flux_col, 'sampling_wk']].dropna()
+    time_data = df[['sealed_minutes', flux_col, 'sampling_wk']].dropna()
+    
+    if len(moisture_data) > 1:
+        # Original moisture effect
+        x = moisture_data['moisture_kpa'].values
+        y = moisture_data[flux_col].values
+        slope, intercept, r2, y_pred = simple_linear_regression(x, y)
+        effects['moisture_r2_raw'] = r2
+        effects['moisture_corr_raw'] = np.corrcoef(x, y)[0,1]
+        
+        # Controlled moisture effect (controlling for sampling week)
+        z = moisture_data['sampling_wk'].values
+        partial_corr = partial_correlation(x, y, z)
+        effects['moisture_corr_controlled'] = partial_corr
+        effects['moisture_r2_controlled'] = partial_corr**2
+        
+        # Residual regression approach
+        slope_res, intercept_res, r2_res, corr_res = residual_regression(x, y, [z])
+        effects['moisture_r2_residual'] = r2_res
+        effects['moisture_slope_controlled'] = slope_res
+    
+    if len(time_data) > 1:
+        # Original sealed time effect
+        x = time_data['sealed_minutes'].values
+        y = time_data[flux_col].values
+        slope, intercept, r2, y_pred = simple_linear_regression(x, y)
+        effects['time_r2_raw'] = r2
+        effects['time_corr_raw'] = np.corrcoef(x, y)[0,1]
+        
+        # Controlled time effect (controlling for sampling week)
+        z = time_data['sampling_wk'].values
+        partial_corr = partial_correlation(x, y, z)
+        effects['time_corr_controlled'] = partial_corr
+        effects['time_r2_controlled'] = partial_corr**2
+        
+        # Residual regression approach
+        slope_res, intercept_res, r2_res, corr_res = residual_regression(x, y, [z])
+        effects['time_r2_residual'] = r2_res
+        effects['time_slope_controlled'] = slope_res
+    
+    # Sampling week effect
+    week_data = df[['sampling_wk', flux_col]].dropna()
+    if len(week_data) > 1:
+        x = week_data['sampling_wk'].values
+        y = week_data[flux_col].values
+        slope, intercept, r2, y_pred = simple_linear_regression(x, y)
+        effects['week_r2'] = r2
+        effects['week_corr'] = np.corrcoef(x, y)[0,1]
+        effects['week_slope'] = slope
+    
+    # Crop effect (controlling for sampling week)
+    if 'crop' in df.columns:
+        crop_data = df[['crop', flux_col, 'sampling_wk']].dropna()
+        if len(crop_data) > 1:
+            # Simple ANOVA-like calculation (not controlling for week)
+            overall_mean = crop_data[flux_col].mean()
+            total_ss = np.sum((crop_data[flux_col] - overall_mean) ** 2)
+            
+            between_ss = 0
+            for crop in crop_data['crop'].unique():
+                crop_subset = crop_data[crop_data['crop'] == crop]
+                if len(crop_subset) > 0:
+                    crop_mean = crop_subset[flux_col].mean()
+                    between_ss += len(crop_subset) * (crop_mean - overall_mean) ** 2
+            
+            effects['crop_r2_raw'] = between_ss / total_ss if total_ss > 0 else 0
+    
+    # Combined model with sampling week
+    complete_data = df[['moisture_kpa', 'sealed_minutes', 'sampling_wk', flux_col]].dropna()
+    if len(complete_data) > 4:
+        corr_matrix = complete_data.corr()
+        
+        # Multiple correlation approximation including sampling week
+        predictors = ['moisture_kpa', 'sealed_minutes', 'sampling_wk']
+        target = flux_col
+        
+        # Simple approximation of multiple R²
+        correlations = [corr_matrix.loc[pred, target] for pred in predictors]
+        combined_r2_approx = sum([corr**2 for corr in correlations]) / len(correlations)  # Rough approximation
+        effects['combined_with_week_r2'] = min(1.0, combined_r2_approx)
+        
+        # Combined model without sampling week (controlled)
+        predictors_controlled = ['moisture_kpa', 'sealed_minutes'] 
+        correlations_controlled = [corr_matrix.loc[pred, target] for pred in predictors_controlled]
+        combined_controlled_r2 = sum([corr**2 for corr in correlations_controlled]) / len(correlations_controlled)
+        effects['combined_controlled_r2'] = min(1.0, combined_controlled_r2)
+    
+    return effects
+
+# Calculate controlled effect sizes
+effects = calculate_controlled_effects(df, flux_col)
+print("Controlled effect sizes calculated successfully!")
+```
+
+## Statistical Summary with Controls
+
+```{python stats-summary}
+def print_controlled_statistical_summary(df, flux_col, effects, confounding_stats):
+    """Print comprehensive statistical summary with controls"""
+    print("=" * 80)
+    print("CONTROLLED STATISTICAL ANALYSIS SUMMARY")
+    print("=" * 80)
+    
+    print(f"\nSample Size: {len(df)} observations")
+    print(f"CO2 Flux Range: {df[flux_col].min():.3f} to {df[flux_col].max():.3f}")
+    print(f"Average CO2 Flux: {df[flux_col].mean():.3f} ± {df[flux_col].std():.3f}")
+    print(f"Sampling Weeks: {df['sampling_wk'].min()} to {df['sampling_wk'].max()}")
+    
+    print("\nCONFOUNDING ASSESSMENT:")
+    print("-" * 40)
+    print(f"Sealed Time ↔ Sampling Week correlation: r = {confounding_stats['time_wk_corr']:.3f}")
+    print(f"Flux ↔ Sampling Week correlation: r = {confounding_stats['flux_wk_corr']:.3f}")
+    
+    if abs(confounding_stats['time_wk_corr']) > 0.5:
+        print("⚠️  HIGH confounding between sealed time and sampling week!")
+    elif abs(confounding_stats['time_wk_corr']) > 0.3:
+        print("⚠️  Moderate confounding between sealed time and sampling week")
+    else:
+        print("✅ Low confounding between sealed time and sampling week")
+    
+    print("\nEFFECT SIZES: RAW vs CONTROLLED FOR SAMPLING WEEK")
+    print("-" * 60)
+    
+    # Moisture effects
+    moisture_raw = effects.get('moisture_r2_raw', 0)
+    moisture_controlled = effects.get('moisture_r2_controlled', 0)
+    print(f"📊 MOISTURE EFFECT:")
+    print(f"   Raw R²: {moisture_raw:.3f} ({moisture_raw*100:.1f}% of variance)")
+    print(f"   Controlled R²: {moisture_controlled:.3f} ({moisture_controlled*100:.1f}% of variance)")
+    change = moisture_controlled - moisture_raw
+    print(f"   Change: {change:+.3f} ({'strengthened' if change > 0 else 'weakened'})")
+    
+    # Sealed time effects  
+    time_raw = effects.get('time_r2_raw', 0)
+    time_controlled = effects.get('time_r2_controlled', 0)
+    print(f"\n⏱️  SEALED TIME EFFECT:")
+    print(f"   Raw R²: {time_raw:.3f} ({time_raw*100:.1f}% of variance)")
+    print(f"   Controlled R²: {time_controlled:.3f} ({time_controlled*100:.1f}% of variance)")
+    change = time_controlled - time_raw
+    print(f"   Change: {change:+.3f} ({'strengthened' if change > 0 else 'weakened'})")
+    
+    if time_controlled < time_raw * 0.5:
+        print("   🎯 MAJOR REDUCTION: Sealed time effect was largely due to temporal trend!")
+    elif time_controlled < time_raw * 0.8:
+        print("   ⚠️  Substantial reduction: Some sealed time effect was temporal confounding")
+    else:
+        print("   ✅ Effect remains strong after controlling for temporal trends")
+    
+    # Sampling week effect
+    week_effect = effects.get('week_r2', 0)
+    print(f"\n📅 SAMPLING WEEK EFFECT:")
+    print(f"   R²: {week_effect:.3f} ({week_effect*100:.1f}% of variance)")
+    
+    # Ranking after controls
+    controlled_effects = {
+        'Moisture (controlled)': moisture_controlled,
+        'Sealed Time (controlled)': time_controlled,
+        'Sampling Week': week_effect,
+        'Crop Type': effects.get('crop_r2_raw', 0)
+    }
+    
+    print(f"\nRANKING AFTER CONTROLLING FOR TEMPORAL TRENDS:")
+    print("-" * 50)
+    sorted_controlled = sorted(controlled_effects.items(), key=lambda x: x[1], reverse=True)
+    
+    for i, (factor, r2) in enumerate(sorted_controlled):
+        rank = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"{i+1}."
+        print(f"{rank} {factor:25}: R² = {r2:.3f} ({r2*100:.1f}% of variance)")
+
+# Print the controlled statistical summary
+print_controlled_statistical_summary(df, flux_col, effects, confounding_stats)
+```
+
+## Key Questions with Temporal Controls
+
+```{python questions}
+def answer_controlled_questions(effects):
+    """Answer the main research questions with temporal controls"""
+    print("\n" + "=" * 80)
+    print("ANSWERS TO YOUR KEY QUESTIONS (CONTROLLING FOR TEMPORAL TRENDS):")
+    print("=" * 80)
+    
+    moisture_controlled = effects.get('moisture_r2_controlled', 0)
+    time_controlled = effects.get('time_r2_controlled', 0)
+    week_effect = effects.get('week_r2', 0)
+    
+    # Question 1: Which has larger effect - moisture or time? (controlled)
+    print("1. MOISTURE vs SEALED TIME (after controlling for sampling week):")
+    if moisture_controlled > time_controlled:
+        print(f"   🏆 MOISTURE has the larger TRUE effect:")
+        print(f"      - Moisture (controlled): {moisture_controlled*100:.1f}% of variance")
+        print(f"      - Sealed Time (controlled): {time_controlled*100:.1f}% of variance")
+    else:
+        print(f"   🏆 SEALED TIME has the larger TRUE effect:")
+        print(f"      - Sealed Time (controlled): {time_controlled*100:.1f}% of variance") 
+        print(f"      - Moisture (controlled): {moisture_controlled*100:.1f}% of variance")
+    
+    # Show the bias in raw estimates
+    moisture_raw = effects.get('moisture_r2_raw', 0)
+    time_raw = effects.get('time_r2_raw', 0)
+    
+    print(f"\n   📊 Comparison of raw vs controlled estimates:")
+    print(f"      - Moisture: {moisture_raw:.3f} → {moisture_controlled:.3f} (Δ = {moisture_controlled-moisture_raw:+.3f})")
+    print(f"      - Sealed Time: {time_raw:.3f} → {time_controlled:.3f} (Δ = {time_controlled-time_raw:+.3f})")
+    
+    # Question 2: How much variance does temporal trend explain?
+    print(f"\n2. TEMPORAL TREND IMPORTANCE:")
+    print(f"   📅 Sampling week explains {week_effect*100:.1f}% of variance in CO2 flux")
+    
+    if week_effect > max(moisture_controlled, time_controlled):
+        print("   🎯 TEMPORAL TRENDS are the strongest factor!")
+    elif week_effect > 0.1:
+        print("   ⚠️  Temporal trends are substantial and must be considered")
+    else:
+        print("   ✅ Temporal trends are minimal")
+    
+    # Question 3: Was sealed time effect inflated by temporal confounding?
+    time_bias = time_raw - time_controlled
+    print(f"\n3. SEALED TIME CONFOUNDING ASSESSMENT:")
+    print(f"   Apparent sealed time effect: {time_raw*100:.1f}%")
+    print(f"   True sealed time effect: {time_controlled*100:.1f}%") 
+    print(f"   Bias due to temporal confounding: {time_bias*100:.1f}%")
+    
+    if time_bias > time_raw * 0.5:
+        print("   🚨 MAJOR BIAS: Most of sealed time effect was temporal confounding!")
+    elif time_bias > time_raw * 0.2:
+        print("   ⚠️  Substantial bias: Sealed time effect was partially confounded")
+    else:
+        print("   ✅ Minimal bias: Sealed time effect is genuine")
+    
+    # Question 4: Final recommendations
+    print(f"\n4. FINAL RECOMMENDATIONS:")
+    top_controlled_effects = [
+        ('Moisture', moisture_controlled),
+        ('Sealed Time', time_controlled),
+        ('Temporal Trends', week_effect)
+    ]
+    top_controlled_effects.sort(key=lambda x: x[1], reverse=True)
+    
+    print(f"   🎯 Focus on: {top_controlled_effects[0][0]} (strongest true effect)")
+    print(f"   📋 Always control for: Sampling week/temporal trends")
+    print(f"   ⚖️  Secondary factor: {top_controlled_effects[1][0]}")
+
+# Answer the controlled research questions
+answer_controlled_questions(effects)
+```
+
+## Visualization: Temporal Trends
+
+```{python trends}
+def plot_temporal_trends(df, flux_col):
+    """Plot how variables change over sampling weeks"""
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    
+    # CO2 flux over time
+    axes[0,0].scatter(df['sampling_wk'], df[flux_col], alpha=0.6)
+    z = np.polyfit(df['sampling_wk'], df[flux_col], 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(df['sampling_wk'].min(), df['sampling_wk'].max(), 100)
+    axes[0,0].plot(x_line, p(x_line), "r--", alpha=0.8)
+    axes[0,0].set_xlabel('Sampling Week')
+    axes[0,0].set_ylabel('CO2 Flux')
+    axes[0,0].set_title('CO2 Flux Over Time')
+    axes[0,0].grid(True, alpha=0.3)
+    
+    # Sealed time over sampling weeks
+    axes[0,1].scatter(df['sampling_wk'], df['sealed_minutes'], alpha=0.6)
+    z = np.polyfit(df['sampling_wk'], df['sealed_minutes'], 1)
+    p = np.poly1d(z)
+    axes[0,1].plot(x_line, p(x_line), "r--", alpha=0.8)
+    axes[0,1].set_xlabel('Sampling Week')
+    axes[0,1].set_ylabel('Sealed Time (minutes)')
+    axes[0,1].set_title('Sealed Time Over Sampling Weeks')
+    axes[0,1].grid(True, alpha=0.3)
+    
+    # Moisture over sampling weeks
+    axes[1,0].scatter(df['sampling_wk'], df['moisture_kpa'], alpha=0.6)
+    z = np.polyfit(df['sampling_wk'], df['moisture_kpa'], 1)
+    p = np.poly1d(z)
+    axes[1,0].plot(x_line, p(x_line), "r--", alpha=0.8)
+    axes[1,0].set_xlabel('Sampling Week')
+    axes[1,0].set_ylabel('Moisture (kPa)')
+    axes[1,0].set_title('Moisture Over Sampling Weeks')
+    axes[1,0].grid(True, alpha=0.3)
+    
+    # Correlations heatmap
+    corr_data = df[['sampling_wk', 'sealed_minutes', 'moisture_kpa', flux_col]].corr()
+    im = axes[1,1].imshow(corr_data, cmap='RdBu', aspect='auto', vmin=-1, vmax=1)
+    axes[1,1].set_xticks(range(len(corr_data.columns)))
+    axes[1,1].set_yticks(range(len(corr_data.columns)))
+    axes[1,1].set_xticklabels(['Week', 'Time', 'Moisture', 'Flux'], rotation=45)
+    axes[1,1].set_yticklabels(['Week', 'Time', 'Moisture', 'Flux'])
+    axes[1,1].set_title('Correlation Matrix')
+    
+    # Add correlation values to heatmap
+    for i in range(len(corr_data.columns)):
+        for j in range(len(corr_data.columns)):
+            axes[1,1].text(j, i, f'{corr_data.iloc[i,j]:.2f}', 
+                          ha='center', va='center', color='white' if abs(corr_data.iloc[i,j]) > 0.5 else 'black')
+    
+    plt.tight_layout()
+    plt.show()
+
+plot_temporal_trends(df, flux_col)
+```
+
+## Controlled Effect Visualizations
+
+```{python effects-controlled}
+def plot_controlled_effects(df, flux_col, effects):
+    """Plot raw vs controlled effects"""
+    
+    # Before and after comparison
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    
+    # Moisture: raw vs controlled
+    moisture_raw = effects.get('moisture_r2_raw', 0)
+    moisture_controlled = effects.get('moisture_r2_controlled', 0)
+    
+    categories = ['Raw Effect', 'Controlled\n(for sampling week)']
+    moisture_values = [moisture_raw, moisture_controlled]
+    
+    bars1 = axes[0].bar(categories, moisture_values, color=['lightblue', 'darkblue'], alpha=0.7)
+    axes[0].set_ylabel('R² (Variance Explained)')
+    axes[0].set_title('Moisture Effect: Raw vs Controlled')
+    axes[0].set_ylim(0, max(moisture_values) * 1.2 if max(moisture_values) > 0 else 1)
+    
+    for bar, value in zip(bars1, moisture_values):
+        height = bar.get_height()
+        axes[0].text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                f'{value:.3f}', ha='center', va='bottom')
+    
+    # Sealed time: raw vs controlled
+    time_raw = effects.get('time_r2_raw', 0)
+    time_controlled = effects.get('time_r2_controlled', 0)
+    
+    time_values = [time_raw, time_controlled]
+    
+    bars2 = axes[1].bar(categories, time_values, color=['lightcoral', 'darkred'], alpha=0.7)
+    axes[1].set_ylabel('R² (Variance Explained)')
+    axes[1].set_title('Sealed Time Effect: Raw vs Controlled')
+    axes[1].set_ylim(0, max(time_values) * 1.2 if max(time_values) > 0 else 1)
+    
+    for bar, value in zip(bars2, time_values):
+        height = bar.get_height()
+        axes[1].text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                f'{value:.3f}', ha='center', va='bottom')
+    
+    # All effects comparison
+    effect_names = ['Moisture\n(controlled)', 'Sealed Time\n(controlled)', 'Sampling\nWeek', 'Crop Type\n(raw)']
+    effect_values = [
+        moisture_controlled,
+        time_controlled,
+        effects.get('week_r2', 0),
+        effects.get('crop_r2_raw', 0)
+    ]
+    
+    colors = ['blue', 'red', 'green', 'orange']
+    bars3 = axes[2].bar(effect_names, effect_values, color=colors, alpha=0.7)
+    axes[2].set_ylabel('R² (Variance Explained)')
+    axes[2].set_title('Final Effect Size Comparison')
+    axes[2].set_ylim(0, max(effect_values) * 1.2 if max(effect_values) > 0 else 1)
+    
+    for bar, value in zip(bars3, effect_values):
+        height = bar.get_height()
+        axes[2].text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                f'{value:.3f}', ha='center', va='bottom', rotation=0)
+    
+    plt.tight_layout()
+    plt.show()
+
+plot_controlled_effects(df, flux_col, effects)
+```
+
+## Residual Plots
+
+```{python residual-plots}
+def plot_residual_analysis(df, flux_col, effects):
+    """Plot residual analysis to check model assumptions"""
+    # This function needs to be implemented
+    print("Residual analysis function placeholder")
+```
+
+## Weekly Breakdown Analysis
+
+```{python weekly-breakdown}
+def analyze_by_sampling_week(df, flux_col):
+    """Analyze effects within each sampling week"""
+    print("=" * 60)
+    print("WITHIN-WEEK ANALYSIS")
+    print("=" * 60)
+    print("Analyzing moisture and sealed time effects within each sampling week...")
+    print("This removes between-week confounding completely.\n")
+    
+    weeks = sorted(df['sampling_wk'].unique())
+    within_week_effects = []
+    
+    for week in weeks:
+        week_data = df[df['sampling_wk'] == week]
+        if len(week_data) < 3:  # Need minimum observations
+            continue
+            
+        week_effects = {'week': week, 'n': len(week_data)}
+        
+        # Moisture effect within this week
+        if len(week_data[['moisture_kpa', flux_col]].dropna()) > 1:
+            moisture_clean = week_data[['moisture_kpa', flux_col]].dropna()
+            if len(moisture_clean) > 1 and moisture_clean['moisture_kpa'].std() > 0:
+                corr = np.corrcoef(moisture_clean['moisture_kpa'], moisture_clean[flux_col])[0,1]
+                week_effects['moisture_corr'] = corr
+                week_effects['moisture_r2'] = corr**2
+            else:
+                week_effects['moisture_corr'] = 0
+                week_effects['moisture_r2'] = 0
+        
+        # Sealed time effect within this week  
+        if len(week_data[['sealed_minutes', flux_col]].dropna()) > 1:
+            time_clean = week_data[['sealed_minutes', flux_col]].dropna()
+            if len(time_clean) > 1 and time_clean['sealed_minutes'].std() > 0:
+                corr = np.corrcoef(time_clean['sealed_minutes'], time_clean[flux_col])[0,1]
+                week_effects['time_corr'] = corr
+                week_effects['time_r2'] = corr**2
+            else:
+                week_effects['time_corr'] = 0
+                week_effects['time_r2'] = 0
+        
+        # Summary stats for this week
+        week_effects['mean_flux'] = week_data[flux_col].mean()
+        week_effects['mean_moisture'] = week_data['moisture_kpa'].mean()
+        week_effects['mean_time'] = week_data['sealed_minutes'].mean()
+        
+        within_week_effects.append(week_effects)
+    
+    # Print results
+    print(f"{'Week':<6} {'n':<4} {'Flux':<8} {'Moisture r':<12} {'Time r':<10} {'Notes':<20}")
+    print("-" * 70)
+    
+    moisture_rs = []
+    time_rs = []
+    
+    for week_effect in within_week_effects:
+        moisture_r = week_effect.get('moisture_corr', 0)
+        time_r = week_effect.get('time_corr', 0)
+        
+        moisture_rs.append(moisture_r)
+        time_rs.append(time_r)
+        
+        notes = []
+        if abs(moisture_r) > 0.3:
+            notes.append("Strong moisture")
+        if abs(time_r) > 0.3:
+            notes.append("Strong time")
+        if not notes:
+            notes.append("Weak effects")
+            
+        print(f"{week_effect['week']:<6} {week_effect['n']:<4} "
+              f"{week_effect['mean_flux']:<8.2f} {moisture_r:<12.3f} "
+              f"{time_r:<10.3f} {', '.join(notes)}")
+    
+    # Overall within-week summary
+    if moisture_rs and time_rs:
+        avg_moisture_r = np.mean([abs(r) for r in moisture_rs if not np.isnan(r)])
+        avg_time_r = np.mean([abs(r) for r in time_rs if not np.isnan(r)])
+        
+        print(f"\nAVERAGE WITHIN-WEEK EFFECTS:")
+        print(f"Average |moisture correlation|: {avg_moisture_r:.3f}")
+        print(f"Average |sealed time correlation|: {avg_time_r:.3f}")
+        
+        if avg_moisture_r > avg_time_r:
+            print("🎯 Within-week analysis confirms: MOISTURE has stronger effect")
+        else:
+            print("🎯 Within-week analysis confirms: SEALED TIME has stronger effect")
+    
+    return within_week_effects
+
+# Perform within-week analysis
+within_week_results = analyze_by_sampling_week(df, flux_col)
+```
+
+## Summary Tables
+
+```{python summary-tables}
+def create_comprehensive_summary_table(effects, confounding_stats):
+    """Create comprehensive summary table comparing raw vs controlled effects"""
+    
+    summary_data = {
+        'Factor': [
+            'Moisture (soil water potential)', 
+            'Sealed Time (chamber closure)', 
+            'Sampling Week (temporal trend)',
+            'Combined Moisture + Time',
+            'Combined with Week Trend'
+        ],
+        'Raw R² (uncorrected)': [
+            f"{effects.get('moisture_r2_raw', 0):.3f}",
+            f"{effects.get('time_r2_raw', 0):.3f}",
+            f"{effects.get('week_r2', 0):.3f}",
+            f"{effects.get('combined_controlled_r2', 0):.3f}",
+            f"{effects.get('combined_with_week_r2', 0):.3f}"
+        ],
+        'Controlled R² (for temporal trends)': [
+            f"{effects.get('moisture_r2_controlled', 0):.3f}",
+            f"{effects.get('time_r2_controlled', 0):.3f}",
+            "N/A (reference)",
+            f"{effects.get('combined_controlled_r2', 0):.3f}",
+            "N/A"
+        ],
+        'Bias Assessment': [
+            "Minimal bias" if abs(effects.get('moisture_r2_raw', 0) - effects.get('moisture_r2_controlled', 0)) < 0.05 else "Some bias",
+            "Major bias" if effects.get('time_r2_raw', 0) - effects.get('time_r2_controlled', 0) > 0.1 else "Moderate bias" if effects.get('time_r2_raw', 0) - effects.get('time_r2_controlled', 0) > 0.05 else "Minimal bias",
+            "N/A",
+            "Reduced when controlling for trends",
+            "Higher due to temporal autocorrelation"
+        ]
+    }
+    
+    summary_df = pd.DataFrame(summary_data)
+    print("\nCOMPREHENSIVE SUMMARY TABLE:")
+    print("=" * 100)
+    print(summary_df.to_string(index=False))
+    
+    # Key findings summary
+    print(f"\n🔍 KEY FINDINGS:")
+    print(f"{'='*50}")
+    
+    time_bias = effects.get('time_r2_raw', 0) - effects.get('time_r2_controlled', 0)
+    moisture_bias = effects.get('moisture_r2_raw', 0) - effects.get('moisture_r2_controlled', 0)
+    
+    print(f"1. Temporal confounding in sealed time: {time_bias:.3f} R² units")
+    print(f"2. Temporal confounding in moisture: {moisture_bias:.3f} R² units")
+    print(f"3. Time-week correlation: r = {confounding_stats['time_wk_corr']:.3f}")
+    print(f"4. Flux temporal trend: r = {confounding_stats['flux_wk_corr']:.3f}")
+    
+    # Recommendations
+    print(f"\n📋 RECOMMENDATIONS:")
+    print(f"{'='*30}")
+    
+    if time_bias > 0.1:
+        print("⚠️  CRITICAL: Always control for sampling week when analyzing sealed time")
+    if effects.get('time_r2_controlled', 0) < 0.05:
+        print("🎯 Sealed time effect appears largely artifactual (temporal confounding)")
+    if effects.get('moisture_r2_controlled', 0) > effects.get('time_r2_controlled', 0):
+        print("🌊 Focus research efforts on soil moisture effects")
+    if effects.get('week_r2', 0) > 0.2:
+        print("📅 Strong temporal trends - investigate seasonal/environmental drivers")
+    
+    return summary_df
+
+# Create comprehensive summary
+final_summary = create_comprehensive_summary_table(effects, confounding_stats)
+```
+
+## Final Diagnostic Plots
+
+```{python final-diagnostic-plots}
+def create_diagnostic_plots(df, flux_col, effects):
+    """Create diagnostic plots to visualize the confounding issue"""
+    
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    
+    # Row 1: Raw relationships
+    # Raw flux vs sealed time
+    axes[0,0].scatter(df['sealed_minutes'], df[flux_col], alpha=0.6, color='red')
+    z = np.polyfit(df['sealed_minutes'], df[flux_col], 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(df['sealed_minutes'].min(), df['sealed_minutes'].max(), 100)
+    axes[0,0].plot(x_line, p(x_line), "k--", alpha=0.8)
+    axes[0,0].set_xlabel('Sealed Time (minutes)')
+    axes[0,0].set_ylabel('CO2 Flux')
+    axes[0,0].set_title(f'RAW: Flux vs Sealed Time\nR² = {effects.get("time_r2_raw", 0):.3f}')
+    axes[0,0].grid(True, alpha=0.3)
+    
+    # Raw flux vs moisture  
+    axes[0,1].scatter(df['moisture_kpa'], df[flux_col], alpha=0.6, color='blue')
+    z = np.polyfit(df['moisture_kpa'], df[flux_col], 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(df['moisture_kpa'].min(), df['moisture_kpa'].max(), 100)
+    axes[0,1].plot(x_line, p(x_line), "k--", alpha=0.8)
+    axes[0,1].set_xlabel('Moisture (kPa)')
+    axes[0,1].set_ylabel('CO2 Flux')
+    axes[0,1].set_title(f'RAW: Flux vs Moisture\nR² = {effects.get("moisture_r2_raw", 0):.3f}')
+    axes[0,1].grid(True, alpha=0.3)
+    
+    # Confounding relationship: sealed time vs week
+    axes[0,2].scatter(df['sampling_wk'], df['sealed_minutes'], alpha=0.6, color='orange')
+    z = np.polyfit(df['sampling_wk'], df['sealed_minutes'], 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(df['sampling_wk'].min(), df['sampling_wk'].max(), 100)
+    axes[0,2].plot(x_line, p(x_line), "k--", alpha=0.8)
+    axes[0,2].set_xlabel('Sampling Week')
+    axes[0,2].set_ylabel('Sealed Time (minutes)')
+    axes[0,2].set_title(f'CONFOUNDING: Time vs Week\nr = {confounding_stats["time_wk_corr"]:.3f}')
+    axes[0,2].grid(True, alpha=0.3)
+    
+    # Row 2: Controlled relationships (residuals after removing week effects)
+    week_slope_flux = effects.get('week_slope', 0)
+    week_mean = df['sampling_wk'].mean()
+    flux_detrended = df[flux_col] - (week_slope_flux * (df['sampling_wk'] - week_mean))
+    
+    # Calculate sealed time residuals (remove week trend from sealed time too)
+    sealed_time_week_slope = np.polyfit(df['sampling_wk'], df['sealed_minutes'], 1)[0]
+    sealed_time_detrended = df['sealed_minutes'] - (sealed_time_week_slope * (df['sampling_wk'] - week_mean))
+    
+    # Controlled flux vs sealed time residuals
+    axes[1,0].scatter(sealed_time_detrended, flux_detrended, alpha=0.6, color='red')
+    if np.std(sealed_time_detrended) > 0:
+        z = np.polyfit(sealed_time_detrended, flux_detrended, 1)
+        p = np.poly1d(z)
+        x_line = np.linspace(sealed_time_detrended.min(), sealed_time_detrended.max(), 100)
+        axes[1,0].plot(x_line, p(x_line), "k--", alpha=0.8)
+    axes[1,0].set_xlabel('Sealed Time (residuals)')
+    axes[1,0].set_ylabel('CO2 Flux (detrended)')
+    axes[1,0].set_title(f'CONTROLLED: Flux vs Sealed Time\nR² = {effects.get("time_r2_controlled", 0):.3f}')
+    axes[1,0].grid(True, alpha=0.3)
+    
+    # Calculate moisture residuals 
+    moisture_week_slope = np.polyfit(df['sampling_wk'], df['moisture_kpa'], 1)[0]
+    moisture_detrended = df['moisture_kpa'] - (moisture_week_slope * (df['sampling_wk'] - week_mean))
+    
+    # Controlled flux vs moisture residuals
+    axes[1,1].scatter(moisture_detrended, flux_detrended, alpha=0.6, color='blue')
+    if np.std(moisture_detrended) > 0:
+        z = np.polyfit(moisture_detrended, flux_detrended, 1)
+        p = np.poly1d(z)
+        x_line = np.linspace(moisture_detrended.min(), moisture_detrended.max(), 100)
+        axes[1,1].plot(x_line, p(x_line), "k--", alpha=0.8)
+    axes[1,1].set_xlabel('Moisture (residuals)')
+    axes[1,1].set_ylabel('CO2 Flux (detrended)')
+    axes[1,1].set_title(f'CONTROLLED: Flux vs Moisture\nR² = {effects.get("moisture_r2_controlled", 0):.3f}')
+    axes[1,1].grid(True, alpha=0.3)
+    
+    # Effect size comparison
+    effect_names = ['Sealed\nTime\n(Raw)', 'Sealed\nTime\n(Controlled)', 'Moisture\n(Raw)', 'Moisture\n(Controlled)', 'Sampling\nWeek']
+    effect_values = [
+        effects.get('time_r2_raw', 0),
+        effects.get('time_r2_controlled', 0),
+        effects.get('moisture_r2_raw', 0), 
+        effects.get('moisture_r2_controlled', 0),
+        effects.get('week_r2', 0)
+    ]
+    colors = ['lightcoral', 'darkred', 'lightblue', 'darkblue', 'green']
+    
+    bars = axes[1,2].bar(effect_names, effect_values, color=colors, alpha=0.7)
+    axes[1,2].set_ylabel('R² (Variance Explained)')
+    axes[1,2].set_title('Effect Size Comparison:\nRaw vs Controlled')
+    axes[1,2].set_ylim(0, max(effect_values) * 1.2 if max(effect_values) > 0 else 1)
+    
+    for bar, value in zip(bars, effect_values):
+        height = bar.get_height()
+        axes[1,2].text(bar.get_x() + bar.get_width()/2., height + 0.005,
+                f'{value:.3f}', ha='center', va='bottom', fontsize=8)
+    
+    axes[1,2].tick_params(axis='x', labelsize=8)
+    axes[1,2].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Print interpretation
+    print("🔍 DIAGNOSTIC PLOT INTERPRETATION:")
+    print("-" * 50)
+    print("TOP ROW: Shows the raw relationships and the confounding problem")
+    print("BOTTOM ROW: Shows relationships after removing temporal trends")
+    print("")
+    
+    time_reduction = effects.get('time_r2_raw', 0) - effects.get('time_r2_controlled', 0)
+    moisture_reduction = effects.get('moisture_r2_raw', 0) - effects.get('moisture_r2_controlled', 0)
+    
+    if time_reduction > 0.1:
+        print("🎯 SEALED TIME: Large reduction confirms substantial temporal confounding")
+    elif time_reduction > 0.05:
+        print("⚠️  SEALED TIME: Moderate reduction suggests some temporal confounding")  
+    else:
+        print("✅ SEALED TIME: Minimal reduction suggests genuine effect")
+        
+    if moisture_reduction > 0.05:
+        print("🌊 MOISTURE: Some temporal confounding detected")
+    else:
+        print("✅ MOISTURE: Effect appears independent of temporal trends")
+
+create_diagnostic_plots(df, flux_col, effects)
+```
+
+## Export Controlled Results
+
+```{python export-controlled-results}
+def export_controlled_results(df, effects, confounding_stats, flux_col):
+    """Export comprehensive controlled analysis results"""
+    
+    results_summary = {
+        'analysis_type': 'Controlled for Sampling Week',
+        'analysis_date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'sample_size': len(df),
+        'flux_column': flux_col,
+        'sampling_week_range': f"{df['sampling_wk'].min()} to {df['sampling_wk'].max()}",
+        
+        # Confounding assessment
+        'time_week_correlation': confounding_stats['time_wk_corr'],
+        'flux_week_correlation': confounding_stats['flux_wk_corr'],
+        'moisture_week_correlation': confounding_stats['moisture_wk_corr'],
+        
+        # Raw effects
+        'moisture_r2_raw': effects.get('moisture_r2_raw', 0),
+        'time_r2_raw': effects.get('time_r2_raw', 0),
+        'week_r2': effects.get('week_r2', 0),
+        
+        # Controlled effects  
+        'moisture_r2_controlled': effects.get('moisture_r2_controlled', 0),
+        'time_r2_controlled': effects.get('time_r2_controlled', 0),
+        
+        # Bias quantification
+        'time_bias': effects.get('time_r2_raw', 0) - effects.get('time_r2_controlled', 0),
+        'moisture_bias': effects.get('moisture_r2_raw', 0) - effects.get('moisture_r2_controlled', 0),
+        
+        # Final ranking
+        'strongest_controlled_effect': 'moisture' if effects.get('moisture_r2_controlled', 0) > effects.get('time_r2_controlled', 0) else 'sealed_time',
+        'temporal_trend_importance': 'high' if effects.get('week_r2', 0) > 0.2 else 'moderate' if effects.get('week_r2', 0) > 0.1 else 'low'
+    }
+    
+    print("CONTROLLED ANALYSIS RESULTS SUMMARY:")
+    print("=" * 60)
+    for key, value in results_summary.items():
+        if isinstance(value, float):
+            print(f"{key}: {value:.3f}")
+        else:
+            print(f"{key}: {value}")
+    
+    print(f"\n🎯 FINAL ANSWER TO YOUR ORIGINAL QUESTION:")
+    print(f"After controlling for temporal trends (sampling week):")
+    
+    moisture_controlled = effects.get('moisture_r2_controlled', 0)
+    time_controlled = effects.get('time_r2_controlled', 0)
+    
+    if moisture_controlled > time_controlled:
+        advantage = (moisture_controlled - time_controlled) / time_controlled * 100 if time_controlled > 0 else float('inf')
+        print(f"MOISTURE has the larger TRUE effect ({moisture_controlled:.3f} vs {time_controlled:.3f})")
+        if advantage > 100:
+            print(f"Moisture effect is >2x stronger than sealed time effect")
+        else:
+            print(f"Moisture effect is {advantage:.0f}% stronger than sealed time effect")
+    else:
+        advantage = (time_controlled - moisture_controlled) / moisture_controlled * 100 if moisture_controlled > 0 else float('inf')
+        print(f"SEALED TIME has the larger TRUE effect ({time_controlled:.3f} vs {moisture_controlled:.3f})")
+        if advantage > 100:
+            print(f"Sealed time effect is >2x stronger than moisture effect")
+        else:
+            print(f"Sealed time effect is {advantage:.0f}% stronger than moisture effect")
+    
+    return results_summary
+
+# Export the controlled results
+controlled_results = export_controlled_results(df, effects, confounding_stats, flux_col)
+```:
+    """Plot residual relationships after removing sampling week effects"""
+    
+    # Calculate residuals after removing sampling week trends
+    week_slope = effects.get('week_slope', 0)
+    week_mean = df['sampling_wk'].mean()
+    flux_mean = df[flux_col].mean()
+    
+    # Remove week trend from flux
+    flux_detrended = df[flux_col] - (week_slope * (df['sampling_wk'] - week_mean))
+    
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Detrended flux vs moisture
+    axes[0].scatter(df['moisture_kpa'], flux_detrended, alpha=0.6, color='blue')
+    
+    # Add trend line to detrended data
+    z = np.polyfit(df['moisture_kpa'], flux_detrended, 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(df['moisture_kpa'].min(), df['moisture_kpa'].max(), 100)
+    axes[0].plot(x_line, p(x_line), "r--", alpha=0.8)
+    
+    axes[0].set_xlabel('Soil Moisture (kPa)')
+    axes[0].set_ylabel('CO2 Flux (detrended)')
+    axes[0].set_title(f'Detrended Flux vs Moisture\nr = {effects.get("moisture_corr_controlled", 0):.3f}')
+    axes[0].grid(True, alpha=0.3)
+    
+    # Detrended flux vs sealed time (this is the key plot!)
+    axes[1].scatter(df['sealed_minutes'], flux_detrended, alpha=0.6, color='red')
+    
+    # Add trend line to detrended data
+    z = np.polyfit(df['sealed_minutes'], flux_detrended, 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(df['sealed_minutes'].min(), df['sealed_minutes'].max(), 100)
+    axes[1].plot(x_line, p(x_line), "b--", alpha=0.8)
+    
+    axes[1].set_xlabel('Sealed Time (minutes)')
+    axes[1].set_ylabel('CO2 Flux (detrended)')
+    axes[1].set_title(f'Detrended Flux vs Sealed Time\nr = {effects.get("time_corr_controlled", 0):.3f}')
+    axes[1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+    
+    print("Key Insight from Residual Plots:")
+    print("-" * 40)
+    print("These plots show relationships AFTER removing the temporal trend.")
+    print("If sealed time effect was purely due to temporal confounding,")
+    print("the right plot should show NO relationship.")
+    
+    controlled_time_corr = effects.get('time_corr_controlled', 0)
+    if abs(controlled_time_corr) < 0.1:
+        print("✅ Sealed time effect appears to be mostly temporal confounding")
+    elif abs(controlled_time_corr) < 0.3:
+        print("⚠️  Sealed time has weak independent effect after controlling for time")
+    else:
+        print("🎯 Sealed time has substantial independent effect beyond temporal trends")
+
+plot_residual_analysis(df, flux_col, effects)

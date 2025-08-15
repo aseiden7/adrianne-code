@@ -1,0 +1,198 @@
+---
+title: "Mass-Loss from root bags"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    self_contained: true
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+```{r setup, include=FALSE}
+library(reticulate)
+
+# Configure Python installation
+# # Mac install
+# use_python("/Users/adrianneseiden/Library/Caches/org.R-project.R/R/reticulate/uv/cache/archive-v0/4R66RK1qjSkCbDYQUxbIy/bin/python3") #nolint
+
+# Windows install
+use_python("C:/Users/adria/AppData/Local/Programs/Python/Python313/python.exe") #nolint
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  comment = ">",
+  results = 'hold'
+)
+```
+
+```{python}
+# Set matplotlib backend for headless plotting
+import matplotlib
+matplotlib.use('Agg')
+```
+
+# Plotting mass loss over time
+
+### Loading data & defining get_stats
+
+```{python load-data}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+# # Path to Excel file - use relative path for portability
+# file_path = "../MassLoss_processing/massLossDataProcessing.xlsx"
+
+# Path to Excel file from local repository
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MassLoss_processing/massLossDataProcessing.xlsx")
+
+# Read the 'toPlot' sheet
+df = pd.read_excel(file_path, sheet_name='toPlot')
+
+# Rename columns for clarity
+df['litterbag mass remaining (%)'] = df['lb_remaining_perc._corr.']
+df['sifted root mass remaining (%)'] = df['root_remaining_perc._corr.']
+df['litterbag mass remaining (mg)'] = df['lb_remaining_mg_corr.']
+df['sifted root mass remaining (mg)'] = df['root_remaining_mg_corr.']
+print(df.head())
+
+# Function to calculate statistics
+def get_stats(data, value_col):
+    stats_df = data.groupby(['Isotope', 'Crop'])[value_col].agg(['mean', 'std', 'count', 'min', 'max', 'median']).reset_index()
+    return stats_df
+```
+
+## Litterbag mass remaining over time - percent
+
+```{python litterbag-percent}
+# Plot 1: remaining/noPlant_percent vs Week, grouped by Isotope and Crop
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='litterbag mass remaining (%)', hue='Crop', style='Isotope', markers=True)
+plt.title('Litterbag Mass Remaining (%) vs Time (weeks) (Grouped by Isotope and Crop)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Litterbag Mass Remaining (%)')
+plt.legend(title='Isotope / Crop')
+plt.show()
+
+# Statistics for Plot 1
+stats_df1 = get_stats(df, 'litterbag mass remaining (%)')
+print("Statistics for Plot 1:\n", stats_df1)
+
+# Plot 2: remaining/noPlant_percent vs Time (weeks), grouped by Crop only
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='litterbag mass remaining (%)', hue='Crop', marker='o')
+plt.title('Litterbag Mass Remaining (%) vs Time (weeks) (Grouped by Crop Only)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Litterbag Mass Remaining (%)')
+plt.legend(title='Crop')
+plt.show()
+
+# Statistics for Plot 2
+stats_df2 = get_stats(df, 'litterbag mass remaining (%)')
+print("Statistics for Plot 2:\n", stats_df2)
+```
+
+## Root mass remaining over time - percent
+
+```{python root-percent}
+# Plot 3: remaining_root/cleanBag_percent vs Time (weeks), grouped by Isotope and Crop
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='sifted root mass remaining (%)', hue='Crop', style='Isotope', markers=True)
+plt.title('Sifted Root Mass Remaining (%) vs Time (weeks) (Grouped by Isotope and Crop)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Sifted Root Mass Remaining (%)')
+plt.legend(title='Isotope / Crop')
+plt.show()
+
+# Statistics for Plot 3
+stats_df3 = get_stats(df, 'sifted root mass remaining (%)')
+print("Statistics for Plot 3:\n", stats_df3)
+
+# Plot 4: remaining_root/cleanBag_percent vs Time (weeks), grouped by Crop only
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='sifted root mass remaining (%)', hue='Crop', marker='o')
+plt.title('Sifted Root Mass Remaining (%) vs Time (weeks) (Grouped by Crop Only)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Sifted Root Mass Remaining (%)')
+plt.legend(title='Crop')
+plt.show()
+
+# Statistics for Plot 4
+stats_df4 = get_stats(df, 'sifted root mass remaining (%)')
+print("Statistics for Plot 4:\n", stats_df4)
+```
+
+## Litterbag mass remaining over time - milligrams
+
+```{python litterbag-mg}
+# Plot 5: remaining root mass (mg) vs Time (weeks), grouped by Isotope and Crop
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='litterbag mass remaining (mg)', hue='Crop', style='Isotope', markers=True)
+plt.title('Litterbag Mass Remaining (mg) vs Time (weeks) (Grouped by Isotope and Crop)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Litterbag Mass Remaining (mg)')
+plt.legend(title='Isotope / Crop')
+plt.show()
+
+# Statistics for Plot 5
+stats_df5 = get_stats(df, 'litterbag mass remaining (mg)')
+print("Statistics for Plot 5:\n", stats_df5)
+
+# Plot 6: remaining root mass (mg) vs Time (weeks), grouped by Crop only
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='litterbag mass remaining (mg)', hue='Crop', marker='o')
+plt.title('Litterbag Mass Remaining (mg) vs Time (weeks) (Grouped by Crop Only)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Litterbag Mass Remaining (mg)')
+plt.legend(title='Crop')
+plt.show()
+
+# Statistics for Plot 6
+stats_df6 = get_stats(df, 'litterbag mass remaining (mg)')
+print("Statistics for Plot 6:\n", stats_df6)
+```
+
+## Root mass remaining over time - milligrams
+
+```{python root-mg}
+# Plot 7: remaining root mass (mg) vs Time (weeks), grouped by Isotope and Crop
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='sifted root mass remaining (mg)', hue='Crop', style='Isotope', markers=True)
+plt.title('Sifted Root Mass Remaining (mg) vs Time (weeks) (Grouped by Isotope and Crop)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Sifted Root Mass Remaining (mg)')
+plt.legend(title='Isotope / Crop')
+plt.show()
+
+# Statistics for Plot 7
+stats_df7 = get_stats(df, 'sifted root mass remaining (mg)')
+print("Statistics for Plot 7:\n", stats_df7)
+
+# Plot 8: remaining root mass (mg) vs Time (weeks), grouped by Crop only
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='sifted root mass remaining (mg)', hue='Crop', marker='o')
+plt.title('Sifted Root Mass Remaining (mg) vs Time (weeks) (Grouped by Crop Only)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Sifted Root Mass Remaining (mg)')
+plt.legend(title='Crop')
+plt.show()
+
+# Statistics for Plot 8
+stats_df8 = get_stats(df, 'sifted root mass remaining (mg)')
+print("Statistics for Plot 8:\n", stats_df8)
+```

@@ -1,0 +1,456 @@
+---
+title: "Plotting moisture data from matric potential sensors"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = ">",
+  echo = TRUE,
+  results = "markup",
+  include = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{python}
+# Set matplotlib backend for headless plotting
+import matplotlib
+matplotlib.use('Agg')
+```
+
+# Load and plot data
+
+Load both sheets of 'Compiled.moisture.xlsx' and plot each sheet.
+
+```{python load-and-plot-functions}
+# Import Required Libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.colors as mcolors
+from datetime import datetime
+
+# Path to Excel file from local repository
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
+
+def load_and_plot_data(file_path=file_path):
+    # Load the two sheets with correct header rows
+    colibri_df = pd.read_excel(file_path, sheet_name='Colibri', header=[1, 2])
+    bare_bear_df = pd.read_excel(file_path, sheet_name='Bare-Bear', header=[1, 2])
+    
+    # Process and plot each sheet
+    plot_sheet_data(colibri_df, 'Colibri')
+    plot_sheet_data(bare_bear_df, 'Bare-Bear')
+
+def plot_sheet_data(df, sheet_name):
+    # Extract the 'Timestamp' column
+    timestamp_col = df.columns[0]
+    
+    # Convert timestamp to datetime format
+    df[timestamp_col] = pd.to_datetime(df[timestamp_col])
+    
+    # Create a figure
+    plt.figure(figsize=(12, 8))
+    
+    # Define base colors for different crop types
+    base_colors = {
+        'soy': ['turquoise', 'darkturquoise', 'lightseagreen'],
+        'wheat': ['orchid', 'mediumorchid', 'darkorchid'],
+        'rice': ['greenyellow', 'limegreen', 'forestgreen'],
+        'noplant': ['orange', 'darkorange', 'orangered', 'chocolate']
+    }
+    
+    # Assign colors to sensors
+    sensor_colors = {}
+    for crop_type, shades in base_colors.items():
+        sensor_index = 0
+        for col in df.columns:
+            if crop_type in col[0].lower():
+                sensor_colors[col] = shades[sensor_index % len(shades)]
+                sensor_index += 1
+    
+    
+    # Plot each kPa Matric Potential column
+    for col in df.columns:
+        if 'kPa Matric Potential' in col[1]:
+            # Get the corresponding sensor name from the first row
+            sensor_name = col[0]
+            
+            # Determine color based on crop type
+            color = sensor_colors.get(col, 'black')
+            
+            # Plot the data, including NaN values to create gaps
+            plt.plot(df[timestamp_col], df[col], 
+                     label=sensor_name, 
+                     color=color, 
+                     linewidth=2)
+    
+    # Configure the plot
+    plt.xlabel('Date & Time')
+    plt.ylabel('kPa Matric Potential')
+    plt.title(f'Soil Moisture Matric Potential - {sheet_name}')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    # Format the date on x-axis
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%y'))
+    plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())
+    plt.gcf().autofmt_xdate()
+    
+    # Add legend with custom positioning
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+    # Adjust layout to make room for legend
+    plt.tight_layout()
+    
+    # Save the figure with today's date in YYMMDD format
+    today_date = datetime.now().strftime('%y%m%d')
+    plt.savefig(f'{today_date}_soilMoisture_{sheet_name}.png', dpi=300, bbox_inches='tight')
+    
+    plt.show()
+
+# Execute the main function
+load_and_plot_data()
+```
+
+# kPa Matric Potential stats
+
+Create combined dataframe, describe kPa data as kpa_stats, and export kpa_stats to CSV.
+
+```{python kpa-stats}
+import pandas as pd
+# Path to Excel file from local repository
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
+
+def load_and_analyze_data(file_path=file_path):
+    # Load the two sheets with correct header rows
+    colibri_df = pd.read_excel(file_path, sheet_name='Colibri', header=[1, 2])
+    bare_bear_df = pd.read_excel(file_path, sheet_name='Bare-Bear', header=[1, 2])
+    
+    # Flatten the multi-level columns, ignoring blanks
+    colibri_df.columns = [' '.join(filter(None, map(str, col))).strip() for col in colibri_df.columns.values]
+    bare_bear_df.columns = [' '.join(filter(None, map(str, col))).strip() for col in bare_bear_df.columns.values]
+    
+    # Combine the two DataFrames
+    combined_df = pd.concat([colibri_df, bare_bear_df], ignore_index=True)
+    
+    # Rename the 'Unnamed: 0_level_0 Timestamp' column to 'Timestamp'
+    combined_df.rename(columns=lambda x: x.replace('Unnamed: 0_level_0 ', '') if 'Unnamed: 0_level_0' in x else x, inplace=True)
+    
+    # Convert 'Timestamp' column to datetime format
+    timestamp_col = 'Timestamp'
+    combined_df[timestamp_col] = pd.to_datetime(combined_df[timestamp_col])
+    
+    # Filter columns that contain 'kPa Matric Potential'
+    kpa_columns = [col for col in combined_df.columns if 'kPa Matric Potential' in col]
+    
+    # Calculate statistics for 'kPa Matric Potential' columns
+    kpa_stats = combined_df[kpa_columns].describe()
+
+    # Export kpa_stats to a CSV file
+    today_date = datetime.now().strftime('%y%m%d')
+    kpa_stats.to_csv(f'{today_date}_kpa_stats.csv', index=True)
+    
+    return combined_df, kpa_stats
+
+# Load the data and get statistics
+file_path = 'Compiled.moisture.xlsx'
+combined_df, kpa_stats = load_and_analyze_data(file_path)
+print("\nStatistics for kPa Matric Potential:")
+print(kpa_stats)
+```
+
+# Just the last 10 weeks
+
+## Analyze and export stats for the last 10 weeks of data
+
+```{python recent-stats}
+# Analyze and export stats for the last 10 weeks of data
+import pandas as pd
+import os
+from datetime import datetime, timedelta
+# Path to Excel file from local repository
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
+
+def load_and_analyze_recent_data(file_path=file_path, weeks=10):
+    # Load the two sheets with correct header rows
+    colibri_df = pd.read_excel(file_path, sheet_name='Colibri', header=[1, 2])
+    bare_bear_df = pd.read_excel(file_path, sheet_name='Bare-Bear', header=[1, 2])
+    
+    # Flatten the multi-level columns, ignoring blanks
+    colibri_df.columns = [' '.join(filter(None, map(str, col))).strip() for col in colibri_df.columns.values]
+    bare_bear_df.columns = [' '.join(filter(None, map(str, col))).strip() for col in bare_bear_df.columns.values]
+    
+    # Combine the two DataFrames
+    combined_df = pd.concat([colibri_df, bare_bear_df], ignore_index=True)
+    
+    # Rename the 'Unnamed: 0_level_0 Timestamp' column to 'Timestamp'
+    combined_df.rename(columns=lambda x: x.replace('Unnamed: 0_level_0 ', '') if 'Unnamed: 0_level_0' in x else x, inplace=True)
+    
+    # Convert 'Timestamp' column to datetime format
+    timestamp_col = 'Timestamp'
+    combined_df[timestamp_col] = pd.to_datetime(combined_df[timestamp_col])
+    
+    # Filter for the last 10 weeks
+    cutoff_date = datetime(2025,6,12) - timedelta(weeks=weeks)
+    recent_df = combined_df[combined_df[timestamp_col] >= cutoff_date]
+    
+    # Filter columns that contain 'kPa Matric Potential'
+    kpa_columns = [col for col in recent_df.columns if 'kPa Matric Potential' in col]
+    
+    # Calculate statistics for 'kPa Matric Potential' columns
+    recent_kpa_stats = recent_df[kpa_columns].describe()
+    
+    # Today's date in YYMMDD format
+    today_date = datetime.now().strftime('%y%m%d')
+    stats_file = f'{today_date}_kpa_stats.csv'
+    
+    # Check if the stats file already exists
+    if os.path.exists(stats_file):
+        # Read existing CSV to a DataFrame
+        existing_stats = pd.read_csv(stats_file, index_col=0)
+        
+        # Write both DataFrames to a new Excel file
+        with pd.ExcelWriter(f'{today_date}_kpa_stats.xlsx') as writer:
+            existing_stats.to_excel(writer, sheet_name='All_Data_Stats')
+            recent_kpa_stats.to_excel(writer, sheet_name=f'Recent_{weeks}w_Stats')
+        
+        print(f"Stats exported to {today_date}_kpa_stats.xlsx")
+    else:
+        # If the file doesn't exist yet, create a new Excel file with both sheets
+        with pd.ExcelWriter(f'{today_date}_kpa_stats.xlsx') as writer:
+            # Create an empty DataFrame for the all-data stats (will be filled later)
+            all_data_stats = pd.DataFrame()
+            all_data_stats.to_excel(writer, sheet_name='All_Data_Stats')
+            recent_kpa_stats.to_excel(writer, sheet_name=f'Recent_{weeks}w_Stats')
+        
+        print(f"Created new Excel file {today_date}_kpa_stats.xlsx with Recent_{weeks}w_Stats sheet")
+    
+    return recent_df, recent_kpa_stats
+
+# Execute the function for recent data analysis
+file_path = 'Compiled.moisture.xlsx'
+recent_df, recent_kpa_stats = load_and_analyze_recent_data(file_path, weeks=10)
+print("\nStatistics for Recent 10 Weeks kPa Matric Potential:")
+print(recent_kpa_stats)
+```
+
+## Plot the last 10 weeks
+
+```{python plot-recent-data}
+# Load and plot just the last 10 weeks of data
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.colors as mcolors
+from datetime import datetime, timedelta
+# Path to Excel file from local repository
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
+def load_and_plot_recent_data(file_path=file_path, weeks=10):
+    # Load the two sheets with correct header rows
+    colibri_df = pd.read_excel(file_path, sheet_name='Colibri', header=[1, 2])
+    bare_bear_df = pd.read_excel(file_path, sheet_name='Bare-Bear', header=[1, 2])
+    
+    # Process and plot each sheet with time filter applied
+    plot_recent_data(colibri_df, 'Colibri', weeks)
+    plot_recent_data(bare_bear_df, 'Bare-Bear', weeks)
+
+def plot_recent_data(df, sheet_name, weeks=10):
+    # Extract the 'Timestamp' column
+    timestamp_col = df.columns[0]
+    
+    # Convert timestamp to datetime format
+    df[timestamp_col] = pd.to_datetime(df[timestamp_col])
+    
+    # Filter for the last 10 weeks
+    cutoff_date = datetime(2025,6,12) - timedelta(weeks=weeks)
+    recent_df = df[df[timestamp_col] >= cutoff_date].copy()
+    
+    # Create a figure
+    plt.figure(figsize=(12, 8))
+    
+    # Define base colors for different crop types
+    base_colors = {
+        'soy': ['turquoise', 'darkturquoise', 'lightseagreen'],
+        'wheat': ['orchid', 'mediumorchid', 'darkorchid'],
+        'rice': ['greenyellow', 'limegreen', 'forestgreen'],
+        'noplant': ['orange', 'darkorange', 'orangered', 'chocolate']
+    }
+    
+    # Assign colors to sensors
+    sensor_colors = {}
+    for crop_type, shades in base_colors.items():
+        sensor_index = 0
+        for col in df.columns:
+            if crop_type in str(col[0]).lower():
+                sensor_colors[col] = shades[sensor_index % len(shades)]
+                sensor_index += 1
+    
+    # Plot each kPa Matric Potential column
+    for col in df.columns:
+        if 'kPa Matric Potential' in str(col[1]):
+            # Get the corresponding sensor name from the first row
+            sensor_name = col[0]
+            # Determine color based on crop type
+            color = sensor_colors.get(col, 'black')
+            # Plot the data, including NaN values to create gaps
+            plt.plot(recent_df[timestamp_col], recent_df[col],
+                    label=sensor_name,
+                    color=color,
+                    linewidth=2)
+    
+    # Configure the plot
+    plt.xlabel('Date & Time')
+    plt.ylabel('kPa Matric Potential')
+    plt.title(f'Soil Moisture Matric Potential - {sheet_name} (Last {weeks} Weeks)')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    # Format the date on x-axis
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%y'))
+    plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())
+    plt.gcf().autofmt_xdate()
+    
+    # Add legend with custom positioning
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+    # Adjust layout to make room for legend
+    plt.tight_layout()
+    
+    # Save the figure with today's date in YYMMDD format
+    today_date = datetime.now().strftime('%y%m%d')
+    plt.savefig(f'{today_date}_soilMoisture_{sheet_name}_recent{weeks}w.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+# Execute the function for recent data
+load_and_plot_recent_data(weeks=10)
+```
+
+## Combined plot of all sensors
+
+```{python combined-plot}
+# Import Required Libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from datetime import datetime
+# Path to Excel file from local repository
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
+
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
+def load_and_plot_data_combined(file_path=file_path):
+    # Load the two sheets with correct header rows
+    colibri_df = pd.read_excel(file_path, sheet_name='Colibri', header=[1, 2])
+    bare_bear_df = pd.read_excel(file_path, sheet_name='Bare-Bear', header=[1, 2])
+    
+    # Flatten the multi-level columns to avoid duplicate keys
+    colibri_df.columns = ['' + ' '.join(filter(None, map(str, col))).strip() for col in colibri_df.columns.values]
+    bare_bear_df.columns = [' ' + ' '.join(filter(None, map(str, col))).strip() for col in bare_bear_df.columns.values]
+    
+    # Concatenate along columns (axis=1) since timestamps may be duplicated, but columns are now unique
+    combo_df = pd.concat([colibri_df, bare_bear_df], axis=1)
+    
+    # Use the first timestamp column (from Colibri) for plotting
+    timestamp_col = combo_df.columns[0]
+    plot_sheet_data_combined(combo_df, timestamp_col)
+
+def plot_sheet_data_combined(df, timestamp_col):
+    # Convert timestamp to datetime format
+    df[timestamp_col] = pd.to_datetime(df[timestamp_col])
+    
+    # Create a figure
+    plt.figure(figsize=(12, 8))
+    
+    # Define base colors for different crop types
+    base_colors = {
+        'soy': ['turquoise', 'darkturquoise', 'lightseagreen'],
+        'wheat': ['orchid', 'mediumorchid', 'darkorchid'],
+        'rice': ['greenyellow', 'limegreen', 'forestgreen'],
+        'noplant': ['orange', 'darkorange', 'orangered', 'chocolate']
+    }
+    
+    # Assign colors to sensors
+    sensor_colors = {}
+    for crop_type, shades in base_colors.items():
+        sensor_index = 0
+        for col in df.columns:
+            if crop_type in col.lower():
+                sensor_colors[col] = shades[sensor_index % len(shades)]
+                sensor_index += 1
+    
+    # Plot each kPa Matric Potential column
+    for col in df.columns:
+        if 'kPa Matric Potential' in col:
+            # Get the corresponding sensor name from the column name
+            sensor_name = col.split(' kPa Matric Potential')[0]
+            
+            # Determine color based on crop type
+            color = sensor_colors.get(col, 'black')
+            
+            # Plot the data, including NaN values to create gaps
+            plt.plot(df[timestamp_col], df[col], 
+                     label=sensor_name, 
+                     color=color, 
+                     linewidth=2)
+    
+    # Configure the plot
+    plt.xlabel('Date & Time')
+    plt.ylabel('kPa Matric Potential')
+    plt.title('Soil Moisture Matric Potential (Combined)')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    # Format the date on x-axis
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%y'))
+    plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())
+    plt.gcf().autofmt_xdate()
+    
+    # Add legend with custom positioning
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+    # Adjust layout to make room for legend
+    plt.tight_layout()
+    
+    # Save the figure with today's date in YYMMDD format
+    today_date = datetime.now().strftime('%y%m%d')
+    plt.savefig(f'{today_date}_soilMoisture_combined.png', dpi=300, bbox_inches='tight')
+    
+    plt.show()
+
+# Run the function
+load_and_plot_data_combined()
+```
