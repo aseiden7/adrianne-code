@@ -16,6 +16,7 @@ knit: (function(inputFile, encoding) {
                      output_dir = "../adrianne-code/") })
 ---
 ```{r setup, include=FALSE}
+Sys.setenv(BOX_BASE = "/Users/adrianneseiden/Library/Cloud Storage/Box-Box")
 library(reticulate)
 
 # Configure Python installation
@@ -59,28 +60,30 @@ Since the jars had a known and constant amount of soil, flux was calculated as �
 The following code cell loads data from an excel file ("Compiled_CO2_data.xlsx") and generates summary statistics (mean, standard deviation, minimum, maximum and count), grouped by crop, isotope and sampling week for δ¹³C~VPDB~ (‰), at-% ¹³C, CO₂ (ppm) - Blank, and flux (μg CO₂-C · g-soil⁻¹ · minute⁻¹). It saves these statistics as a new tab, "Jars_Summary_Stats", in the spreadsheet "Compiled_CO2_data.xlsx".
 
 ```{python load-jar-data}
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import openpyxl
-# Define the path to your Excel file
-# Find Box on your current os
-import os
+
 box_base = os.environ.get('BOX_BASE')
 if box_base is None:
     raise ValueError("BOX_BASE environment variable is not set!")
 
+# Remove leading slash from the second argument to os.path.join
 excel_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Compiled_CO2_data.xlsx")
-
+print("Excel path:", excel_path)
 # Read the 'Jars' tab from the Excel file
 try:
     df = pd.read_excel(excel_path, sheet_name='Jars')
     print("Excel file loaded successfully!")
 except Exception as e:
     print(f"Error loading Excel file: {e}")
-    import sys
-    sys.exit(1)
+    print(f"File exists check: {os.path.exists(excel_path)}")
+    print(f"Directory exists check: {os.path.exists(os.path.dirname(excel_path))}")
+    # Don't exit, just raise the error so we can see it
+    raise e
 
 # Display the first few rows to verify data
 print("\nFirst 5 rows of the dataframe:")
