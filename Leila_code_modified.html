@@ -1820,14 +1820,23 @@ any characters for crop, for timepoint “wk” plus a digit or more, and
 then for type and notes any characters, and finally for date any 6 digit
 number again. the syntax nc::capture_first_vec is object oriented, so
 it’s saying use the object capture_first_vec from the package nc.</p>
-<p><strong><em>My filenames have this structure:</em></strong>
-&gt;DRIFTS_{pot|jar}{ID}<em>{isotope}{crop}</em>{timepoint}<em>{type}</em>{notes}_{date}.{version}.dpt</p>
-<p>The issue is that type_and_notes varies significantly: - “root”
-(simple) - “soil” (simple) - “root_qmark” (compound) - “root_recNMR”
-(compound) - “root_vial1”, “root_vial2”, “root_vial3” (compound) -
-“root_really13” (compound)</p>
-<p>so type and notes are captured together as type_and_notes, then split
-later. ## Extract metadata from wide table</p>
+<p><strong>My filenames have this structure:</strong></p>
+<blockquote>
+<p>DRIFTS_{pot|jar}{ID}_{isotope}{crop}_{timepoint}_{type}_{notes}_{date}.0.dpt</p>
+</blockquote>
+<p>The issue is that type_and_notes varies significantly:</p>
+<ul>
+<li>“root” (simple)</li>
+<li>“soil” (simple)</li>
+<li>“root_qmark” (compound)</li>
+<li>“root_recNMR” (compound)</li>
+<li>“root_vial1”, “root_vial2”, “root_vial3” (compound)</li>
+<li>“root_really13” (compound)</li>
+</ul>
+<p>So type and notes are captured together as type_and_notes, then split
+later.</p>
+<div id="extract-metadata-from-wide-table" class="section level2">
+<h2>Extract metadata from wide table</h2>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>meta_table <span class="ot">&lt;-</span> nc<span class="sc">::</span><span class="fu">capture_first_vec</span>(</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  wide_table<span class="sc">$</span>filename,</span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="st">&quot;^DRIFTS_&quot;</span>,                    <span class="co"># Skip &quot;DRIFTS_&quot; prefix</span></span>
@@ -1934,6 +1943,7 @@ later. ## Extract metadata from wide table</p>
 <span id="cb3-104"><a href="#cb3-104" tabindex="-1"></a>today <span class="ot">&lt;-</span> <span class="fu">Sys.Date</span>()</span>
 <span id="cb3-105"><a href="#cb3-105" tabindex="-1"></a>meta_wide_table_csv <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;FTIR_meta_wide_&quot;</span>, today, <span class="st">&quot;.csv&quot;</span>)</span>
 <span id="cb3-106"><a href="#cb3-106" tabindex="-1"></a><span class="fu">write.csv</span>(wide_table_with_meta, <span class="at">file =</span> meta_wide_table_csv, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+</div>
 <div id="repeat-for-the-long-table" class="section level2">
 <h2>Repeat for the long table</h2>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>meta_table_tall <span class="ot">&lt;-</span> nc<span class="sc">::</span><span class="fu">capture_first_vec</span>(</span>
