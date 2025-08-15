@@ -16,7 +16,7 @@ knit: (function(inputFile, encoding) {
                      output_dir = "../adrianne-code/") })
 ---
 ```{r setup, include=FALSE}
-Sys.setenv(BOX_BASE = "/Users/adrianneseiden/Library/Cloud Storage/Box-Box")
+Sys.setenv(BOX_BASE = "/Users/adrianneseiden/Library/CloudStorage/Box-Box")
 library(reticulate)
 
 # Configure Python installation
@@ -71,9 +71,8 @@ box_base = os.environ.get('BOX_BASE')
 if box_base is None:
     raise ValueError("BOX_BASE environment variable is not set!")
 
-# Remove leading slash from the second argument to os.path.join
 excel_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Compiled_CO2_data.xlsx")
-print("Excel path:", excel_path)
+
 # Read the 'Jars' tab from the Excel file
 try:
     df = pd.read_excel(excel_path, sheet_name='Jars')
@@ -85,13 +84,13 @@ except Exception as e:
     # Don't exit, just raise the error so we can see it
     raise e
 
-# Display the first few rows to verify data
-print("\nFirst 5 rows of the dataframe:")
-print(df.head())
+# # Display the first few rows to verify data
+# print("\nFirst 5 rows of the dataframe:")
+# print(df.head())
 
-# Check column names
-print("\nColumn names:")
-print(df.columns.tolist())
+# # Check column names
+# print("\nColumn names:")
+# print(df.columns.tolist())
 
 # Convert isotope to integer format (removing decimals)
 df['isotope'] = df['isotope'].fillna(-1)  # Replace NaN with -1 temporarily
@@ -102,8 +101,8 @@ df.loc[df['isotope'] == -1, 'isotope'] = np.nan  # Convert -1 back to NaN if nee
 columns_to_analyze = ['δ13CVPDB (‰)', 'at-% 13C', 'CO2 (ppm) - Blank', 'Flux (μg CO2-C/g-soil/minute)']
 df_clean = df.dropna(subset=['crop', 'isotope', 'sampling_wk'] + columns_to_analyze)
 
-print(f"\nRemoved {len(df) - len(df_clean)} rows with NaN values")
-print(f"Remaining rows: {len(df_clean)}")
+# print(f"\nRemoved {len(df) - len(df_clean)} rows with NaN values")
+# print(f"Remaining rows: {len(df_clean)}")
 
 # Generate summary statistics grouped by crop, isotope, and sampling_wk
 summary_stats = df_clean.groupby(['crop', 'isotope', 'sampling_wk'])[columns_to_analyze].agg(
@@ -505,11 +504,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import openpyxl
+import os
+box_base = os.environ.get('BOX_BASE')
+if box_base is None:
+    raise ValueError("BOX_BASE environment variable is not set!")
 
-# Define the path to your Excel file
-# Define the path to your Excel file
-# Relative paths assume you are starting from the working directory
-excel_path = "../CO2 data/Compiled_CO2_data.xlsx"
+excel_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Compiled_CO2_data.xlsx")
 
 # Read the 'Pots' tab from the Excel file
 try:
@@ -520,13 +520,13 @@ except Exception as e:
     import sys
     sys.exit(1)
 
-# Display the first few rows to verify data
-print("\nFirst 5 rows of the dataframe:")
-print(df1.head())
+# # Display the first few rows to verify data
+# print("\nFirst 5 rows of the dataframe:")
+# print(df1.head())
 
-# Check column names
-print("\nColumn names:")
-print(df1.columns.tolist())
+# # Check column names
+# print("\nColumn names:")
+# print(df1.columns.tolist())
 
 # Convert isotope to integer format (removing decimals)
 df1['isotope'] = df1['isotope'].fillna(-1)  # Replace NaN with -1 temporarily
@@ -537,8 +537,8 @@ df1.loc[df1['isotope'] == -1, 'isotope'] = np.nan  # Convert -1 back to NaN if n
 columns_to_analyze = ['δ13CVPDB (‰)', 'at-% 13C', 'CO2 (ppm) - Blank', 'Flux (μg CO2-C/cm[V/A]/minute)']
 df1_clean = df1.dropna(subset=['crop', 'isotope', 'sampling_wk'] + columns_to_analyze)
 
-print(f"\nRemoved {len(df1) - len(df1_clean)} rows with NaN values")
-print(f"Remaining rows: {len(df1_clean)}")
+# print(f"\nRemoved {len(df1) - len(df1_clean)} rows with NaN values")
+# print(f"Remaining rows: {len(df1_clean)}")
 
 # Generate summary statistics grouped by crop, isotope, and sampling_wk
 summary_stats1 = df1_clean.groupby(['crop', 'isotope', 'sampling_wk'])[columns_to_analyze].agg(
