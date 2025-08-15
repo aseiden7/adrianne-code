@@ -46,6 +46,8 @@ knitr::opts_chunk$set(
   results = "markup",
   include = TRUE
 )
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
 ## Installing packages ##
 list_of_packages <- c(
   "plyr",
@@ -81,7 +83,8 @@ box_base <- Sys.getenv("BOX_BASE")
 if (box_base == "") stop("BOX_BASE environment variable is not set!")
 
 dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
-
+integrated_ftir_csv <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/leila_code_output_csv")
+integrated_ftir_plots <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/leila_code_output_plots")
 ```
 
 # Load the data
@@ -260,7 +263,7 @@ print("\nDimensions of final table:")
 print(dim(wide_table_with_meta))
 # Save as CSV
 today <- Sys.Date()
-meta_wide_table_csv <- paste0("FTIR_meta_wide_", today, ".csv")
+meta_wide_table_csv <- paste0(integrated_ftir_csv, "/FTIR_meta_wide_", today, ".csv")
 write.csv(wide_table_with_meta, file = meta_wide_table_csv, row.names = FALSE)
 ```
 
@@ -326,13 +329,12 @@ head(meta_long_table)
 
 # Save as CSV
 today <- Sys.Date()
-meta_long_table_csv <- paste0("FTIR_meta_long_", today, ".csv")
+meta_long_table_csv <- paste0(integrated_ftir_csv, "/FTIR_meta_long_", today, ".csv")
 write.csv(meta_long_table, file = meta_long_table_csv, row.names = FALSE)
 ```
 # Integrating spectral data
 This code is modified from "Integration_Code_Example.R" (not found in "Integration_Code_Premliminary_Data.R")
 Importing the list of file names is possibly not necessary, because we already have the filenames in the wide_table and long_table.
-Also, I export a csv file in every chunk, for troubleshooting purposes. This is not necessary for the final code.
 
 ## Importing the list of file names
 Felt cute, might delete later.
@@ -409,10 +411,10 @@ comb$wavelength <- as.numeric(as.character(comb$wavelength))
 # Then proceed with rounding
 comb$wave <- round(comb$wavelength, 0)
 
-##export to check
-today <- format(Sys.Date(), "%Y-%m-%d")
-comb_name <- paste0("spectra_combined_test_", today, ".csv")
-write.csv(comb, file = comb_name, row.names = FALSE)
+# ##export to check
+# today <- format(Sys.Date(), "%Y-%m-%d")
+# comb_name <- paste0(integrated_ftir_csv,"/spectra_combined_test_", today, ".csv")
+# write.csv(comb, file = comb_name, row.names = FALSE)
 ```
 
 ### Isolate the spectra of interest
@@ -465,10 +467,10 @@ names(ints)[8:9] <- c("int_2839_2870", "int_2898_2976")
 names(ints)[10:11] <- c("int_1580_1660", "int_1500_1550")
 head(ints)
 
-##export to check - note there are no absorbance values yet
-today <- format(Sys.Date(), "%Y-%m-%d")
-comb_names <- paste0("spectra_combined_names_test_", today, ".csv")
-write.csv(ints, file = comb_names, row.names = FALSE)
+# ##export to check - note there are no absorbance values yet
+# today <- format(Sys.Date(), "%Y-%m-%d")
+# comb_names <- paste0(integrated_ftir_csv, "/spectra_combined_names_test_", today, ".csv")
+# write.csv(ints, file = comb_names, row.names = FALSE)
 ```
 
 ## Binning and correcting spectra
@@ -514,10 +516,10 @@ for (i in seq_len(nrow(ints))) {
     )
   }
 }
-#export data to csv
 head(ints)
+#export data to csv
 today <- format(Sys.Date(), "%Y-%m-%d")
-ints_name <- paste0("integrated_peak_data_", today, ".csv")
+ints_name <- paste0(integrated_ftir_csv, "/integrated_peak_data_", today, ".csv")
 write.csv(ints, file = ints_name, row.names = FALSE)
 ```
 # Calculating derived metrics
@@ -553,7 +555,7 @@ ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$mic
 
 # Save processed data
 today <- format(Sys.Date(), "%Y-%m-%d")
-proc_name <- paste0("processed_int_data_", today, ".csv")
+proc_name <- paste0(integrated_ftir_csv, "/processed_int_data_", today, ".csv")
 write.csv(ftir_data, file = proc_name, row.names = FALSE)
 
 # Create subset data frames based on your actual data structure
@@ -608,9 +610,9 @@ timepoint_stats <- calculate_group_stats(ftir_data, "timepoint")
 isotope_crop_stats <- calculate_group_stats(ftir_data, c("isotope", "crop"))
 
 # Save summary statistics
-write.csv(crop_timepoint_stats, "FTIR_Stats_Crop_Timepoint.csv", row.names = FALSE)
-write.csv(crop_stats, "FTIR_Stats_Crop.csv", row.names = FALSE)
-write.csv(timepoint_stats, "FTIR_Stats_Timepoint.csv", row.names = FALSE)
+write.csv(crop_timepoint_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop_Timepoint.csv"), row.names = FALSE)
+write.csv(crop_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop.csv"), row.names = FALSE)
+write.csv(timepoint_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Timepoint.csv"), row.names = FALSE)
 ```
 # Visualizing the data
 This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
@@ -678,13 +680,13 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
 crop_plots <- create_proportion_plots(crop_stats, "crop", "")
 crop_combined <- plot_grid(crop_plots$p1, crop_plots$p2, crop_plots$p3, nrow = 1, labels = "auto")
 print(crop_combined)
-ggsave("FTIR_by_Crop.pdf", plot = crop_combined, width = 18, height = 9, units = "in", dpi = 300)
+ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Crop.pdf"), plot = crop_combined, width = 18, height = 9, units = "in", dpi = 300)
 
 # Create plots by timepoint
 timepoint_plots <- create_proportion_plots(timepoint_stats, "timepoint", "")
 timepoint_combined <- plot_grid(timepoint_plots$p1, timepoint_plots$p2, timepoint_plots$p3, nrow = 1, labels = "auto")
 print(timepoint_combined)
-ggsave("FTIR_by_Timepoint.pdf", plot = timepoint_combined, width = 18, height = 9, units = "in", dpi = 300)
+ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Timepoint.pdf"), plot = timepoint_combined, width = 18, height = 9, units = "in", dpi = 300)
 
 # Create interaction plot (crop x timepoint)
 interaction_plot <- ggplot(crop_timepoint_stats) +
@@ -705,7 +707,7 @@ interaction_plot <- ggplot(crop_timepoint_stats) +
         axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(interaction_plot)
-ggsave("FTIR_Crop_Timepoint_Interaction.pdf", plot = interaction_plot, 
+ggsave(paste0(integrated_ftir_plots, "/FTIR_Crop_Timepoint_Interaction.pdf"), plot = interaction_plot, 
        width = 10, height = 9, units = "in", dpi = 300)
 
 # Stacked bar plots (similar to your original stacked plots)
@@ -764,7 +766,7 @@ combined_stacked <- plot_grid(
 )
 print(combined_stacked)
 ggsave(
-  "FTIR_Stacked_Plots.pdf",
+  paste0(integrated_ftir_plots, "/FTIR_Stacked_Plots.pdf"),
   plot = combined_stacked,
   width = 20,
   height = 10,
