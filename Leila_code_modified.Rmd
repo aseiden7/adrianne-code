@@ -619,6 +619,20 @@ This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
 ```{r visualize-data, echo=TRUE}
 # Plotting functions
 create_proportion_plots <- function(stats_data, group_col, title_prefix) {
+  # Define color palettes
+  crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E')
+  # Use the same timepoint colors as interaction plot
+  timepoint_colors <- c("#440154", "#31688e")
+  
+  # Select appropriate colors based on group_col
+  if (group_col == "crop") {
+    fill_colors <- crop_colors
+  } else if (group_col == "timepoint") {
+    fill_colors <- timepoint_colors
+  } else {
+    # Default to viridis for other variables
+    fill_colors <- NULL
+  }
 
   p1 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_simple_plant_prop", fill = group_col)) +
     geom_col(alpha = 0.8) +
@@ -629,7 +643,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     ),
     width = 0.2) +
     theme_classic() +
-    scale_fill_viridis_d(option = "plasma") +
+    {if (!is.null(fill_colors)) scale_fill_manual(values = fill_colors) else scale_fill_viridis_d()} +
     labs(title = paste(title_prefix, "Simple Plant OM"),
          x = str_to_title(group_col),
          y = "Proportion") +
@@ -647,7 +661,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     ),
     width = 0.2) +
     theme_classic() +
-    scale_fill_viridis_d(option = "plasma") +
+    {if (!is.null(fill_colors)) scale_fill_manual(values = fill_colors) else scale_fill_viridis_d()} +
     labs(title = paste(title_prefix, "Complex Plant OM"),
          x = str_to_title(group_col),
          y = "Proportion") +
@@ -665,7 +679,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     ),
     width = 0.2) +
     theme_classic() +
-    scale_fill_viridis_d(option = "plasma") +
+    {if (!is.null(fill_colors)) scale_fill_manual(values = fill_colors) else scale_fill_viridis_d()} +
     labs(title = paste(title_prefix, "Microbial OM"),
          x = str_to_title(group_col),
          y = "Proportion") +

@@ -522,8 +522,8 @@ soiln <- soil %>%
 ## Plotting by timepoint and type
 ### Week 0
 ```{r plotting wk0, message=FALSE, warning=FALSE, comment=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
-           "wheat" = "#D66327", "soy" = "#159C78")
+palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
+           "wheat" = "#98C65D", "soy" = "#FE318E")
 #roots week 0
 root0 <- rootsn %>%
   filter(timepoint == "wk0") %>%
@@ -587,8 +587,8 @@ ggsave(file.path(outputs_folder, "Root_week0_FTIR.png"), plot = root0_plot)
 
 ### Week 10
 ```{r plotting wk10, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
-           "wheat" = "#D66327", "soy" = "#159C78")
+palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
+           "wheat" = "#98C65D", "soy" = "#FE318E")
 #roots week 10
 root10 <- rootsn %>%
   filter(timepoint == "wk10")
