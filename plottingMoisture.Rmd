@@ -51,6 +51,7 @@ if box_base is None:
     raise ValueError("BOX_BASE environment variable is not set!")
 
 file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
+output_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/code-outputs")
 
 def load_and_plot_data(file_path=file_path):
     # Load the two sheets with correct header rows
@@ -123,8 +124,8 @@ def plot_sheet_data(df, sheet_name):
     
     # Save the figure with today's date in YYMMDD format
     today_date = datetime.now().strftime('%y%m%d')
-    plt.savefig(f'{today_date}_soilMoisture_{sheet_name}.png', dpi=300, bbox_inches='tight')
-    
+    plt.savefig(f'{output_folder}/{today_date}_soilMoisture_{sheet_name}.png', dpi=300, bbox_inches='tight')
+
     plt.show()
 
 # Execute the main function
@@ -172,12 +173,13 @@ def load_and_analyze_data(file_path=file_path):
 
     # Export kpa_stats to a CSV file
     today_date = datetime.now().strftime('%y%m%d')
-    kpa_stats.to_csv(f'{today_date}_kpa_stats.csv', index=True)
-    
+    output_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/code-outputs")
+    kpa_stats.to_csv(f'{output_folder}/{today_date}_kpa_stats.csv', index=True)
+
     return combined_df, kpa_stats
 
 # Load the data and get statistics
-file_path = 'Compiled.moisture.xlsx'
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
 combined_df, kpa_stats = load_and_analyze_data(file_path)
 print("\nStatistics for kPa Matric Potential:")
 print(kpa_stats)
@@ -231,7 +233,8 @@ def load_and_analyze_recent_data(file_path=file_path, weeks=10):
     
     # Today's date in YYMMDD format
     today_date = datetime.now().strftime('%y%m%d')
-    stats_file = f'{today_date}_kpa_stats.csv'
+    output_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/code-outputs")
+    stats_file = f'{output_folder}/{today_date}_kpa_stats.csv'
     
     # Check if the stats file already exists
     if os.path.exists(stats_file):
@@ -239,14 +242,14 @@ def load_and_analyze_recent_data(file_path=file_path, weeks=10):
         existing_stats = pd.read_csv(stats_file, index_col=0)
         
         # Write both DataFrames to a new Excel file
-        with pd.ExcelWriter(f'{today_date}_kpa_stats.xlsx') as writer:
+        with pd.ExcelWriter(f'{output_folder}/{today_date}_kpa_stats.xlsx') as writer:
             existing_stats.to_excel(writer, sheet_name='All_Data_Stats')
             recent_kpa_stats.to_excel(writer, sheet_name=f'Recent_{weeks}w_Stats')
         
         print(f"Stats exported to {today_date}_kpa_stats.xlsx")
     else:
         # If the file doesn't exist yet, create a new Excel file with both sheets
-        with pd.ExcelWriter(f'{today_date}_kpa_stats.xlsx') as writer:
+        with pd.ExcelWriter(f'{output_folder}/{today_date}_kpa_stats.xlsx') as writer:
             # Create an empty DataFrame for the all-data stats (will be filled later)
             all_data_stats = pd.DataFrame()
             all_data_stats.to_excel(writer, sheet_name='All_Data_Stats')
@@ -257,7 +260,7 @@ def load_and_analyze_recent_data(file_path=file_path, weeks=10):
     return recent_df, recent_kpa_stats
 
 # Execute the function for recent data analysis
-file_path = 'Compiled.moisture.xlsx'
+file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/MoistureData/Compiled.moisture.xlsx")
 recent_df, recent_kpa_stats = load_and_analyze_recent_data(file_path, weeks=10)
 print("\nStatistics for Recent 10 Weeks kPa Matric Potential:")
 print(recent_kpa_stats)
@@ -351,7 +354,7 @@ def plot_recent_data(df, sheet_name, weeks=10):
     
     # Save the figure with today's date in YYMMDD format
     today_date = datetime.now().strftime('%y%m%d')
-    plt.savefig(f'{today_date}_soilMoisture_{sheet_name}_recent{weeks}w.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{output_folder}/{today_date}_soilMoisture_{sheet_name}_recent{weeks}w.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 # Execute the function for recent data
@@ -447,8 +450,8 @@ def plot_sheet_data_combined(df, timestamp_col):
     
     # Save the figure with today's date in YYMMDD format
     today_date = datetime.now().strftime('%y%m%d')
-    plt.savefig(f'{today_date}_soilMoisture_combined.png', dpi=300, bbox_inches='tight')
-    
+    plt.savefig(f'{output_folder}/{today_date}_soilMoisture_combined.png', dpi=300, bbox_inches='tight')
+
     plt.show()
 
 # Run the function
