@@ -16,7 +16,9 @@ knit: (function(inputFile, encoding) {
                      output_dir = "../adrianne-code/") })
 ---
 ```{r setup, include=FALSE}
-Sys.setenv(BOX_BASE = "/Users/adrianneseiden/Library/CloudStorage/Box-Box")
+# # Manually defining BOX_BASE; hopefully not necessary
+# Sys.setenv(BOX_BASE = "/Users/adrianneseiden/Library/CloudStorage/Box-Box")
+
 library(reticulate)
 
 # Configure Python installation
