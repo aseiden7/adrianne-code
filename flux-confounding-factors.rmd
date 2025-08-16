@@ -16,11 +16,11 @@ output:
 library(reticulate)
 
 # Configure Python installation
-# # Mac install
-# use_python("/Users/adrianneseiden/Library/Caches/org.R-project.R/R/reticulate/uv/cache/archive-v0/4R66RK1qjSkCbDYQUxbIy/bin/python3") #nolint
+# Mac install
+use_python("/Users/adrianneseiden/Library/Caches/org.R-project.R/R/reticulate/uv/cache/archive-v0/4R66RK1qjSkCbDYQUxbIy/bin/python3") #nolint
 
-# Windows install
-use_python("C:/Users/adria/AppData/Local/Programs/Python/Python313/python.exe") #nolint
+# # Windows install
+# use_python("C:/Users/adria/AppData/Local/Programs/Python/Python313/python.exe") #nolint
 
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -93,6 +93,7 @@ if box_base is None:
     raise ValueError("BOX_BASE environment variable is not set!")
 
 file_path = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/combined_data_with_moisture.xlsx")
+output_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/confounding-factors-outputs")
 # # Load the data
 # file_path = "combined_data_with_moisture.xlsx"  # Update this path as needed
 df, flux_col = load_and_analyze_flux_data(file_path)
@@ -506,7 +507,11 @@ def plot_temporal_trends(df, flux_col):
                           ha='center', va='center', color='white' if abs(corr_data.iloc[i,j]) > 0.5 else 'black')
     
     plt.tight_layout()
+    
+    import os
+    plt.savefig(os.path.join(output_folder, "temporal_trends.png"))
     plt.show()
+    plt.close()
 
 plot_temporal_trends(df, flux_col)
 ```
@@ -574,9 +579,11 @@ def plot_controlled_effects(df, flux_col, effects):
                 f'{value:.3f}', ha='center', va='bottom', rotation=0)
     
     plt.tight_layout()
+        
+    import os
+    plt.savefig(os.path.join(output_folder, "controlled_effects.png"))
     plt.show()
-
-plot_controlled_effects(df, flux_col, effects)
+    plt.close()
 ```
 
 ## Residual Plots
@@ -760,6 +767,7 @@ final_summary = create_comprehensive_summary_table(effects, confounding_stats)
 ## Final Diagnostic Plots
 
 ```{python final-diagnostic-plots}
+
 def create_diagnostic_plots(df, flux_col, effects):
     """Create diagnostic plots to visualize the confounding issue"""
     
@@ -861,7 +869,6 @@ def create_diagnostic_plots(df, flux_col, effects):
     axes[1,2].grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.show()
     
     # Print interpretation
     print("🔍 DIAGNOSTIC PLOT INTERPRETATION:")
@@ -884,6 +891,11 @@ def create_diagnostic_plots(df, flux_col, effects):
         print("🌊 MOISTURE: Some temporal confounding detected")
     else:
         print("✅ MOISTURE: Effect appears independent of temporal trends")
+
+    import os
+    plt.savefig(os.path.join(output_folder, "diagnostic_plots.png"))
+    plt.show()
+    plt.close()
 
 create_diagnostic_plots(df, flux_col, effects)
 ```
@@ -957,62 +969,4 @@ def export_controlled_results(df, effects, confounding_stats, flux_col):
 
 # Export the controlled results
 controlled_results = export_controlled_results(df, effects, confounding_stats, flux_col)
-```:
-    """Plot residual relationships after removing sampling week effects"""
-    
-    # Calculate residuals after removing sampling week trends
-    week_slope = effects.get('week_slope', 0)
-    week_mean = df['sampling_wk'].mean()
-    flux_mean = df[flux_col].mean()
-    
-    # Remove week trend from flux
-    flux_detrended = df[flux_col] - (week_slope * (df['sampling_wk'] - week_mean))
-    
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
-    
-    # Detrended flux vs moisture
-    axes[0].scatter(df['moisture_kpa'], flux_detrended, alpha=0.6, color='blue')
-    
-    # Add trend line to detrended data
-    z = np.polyfit(df['moisture_kpa'], flux_detrended, 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(df['moisture_kpa'].min(), df['moisture_kpa'].max(), 100)
-    axes[0].plot(x_line, p(x_line), "r--", alpha=0.8)
-    
-    axes[0].set_xlabel('Soil Moisture (kPa)')
-    axes[0].set_ylabel('CO2 Flux (detrended)')
-    axes[0].set_title(f'Detrended Flux vs Moisture\nr = {effects.get("moisture_corr_controlled", 0):.3f}')
-    axes[0].grid(True, alpha=0.3)
-    
-    # Detrended flux vs sealed time (this is the key plot!)
-    axes[1].scatter(df['sealed_minutes'], flux_detrended, alpha=0.6, color='red')
-    
-    # Add trend line to detrended data
-    z = np.polyfit(df['sealed_minutes'], flux_detrended, 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(df['sealed_minutes'].min(), df['sealed_minutes'].max(), 100)
-    axes[1].plot(x_line, p(x_line), "b--", alpha=0.8)
-    
-    axes[1].set_xlabel('Sealed Time (minutes)')
-    axes[1].set_ylabel('CO2 Flux (detrended)')
-    axes[1].set_title(f'Detrended Flux vs Sealed Time\nr = {effects.get("time_corr_controlled", 0):.3f}')
-    axes[1].grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.show()
-    
-    print("Key Insight from Residual Plots:")
-    print("-" * 40)
-    print("These plots show relationships AFTER removing the temporal trend.")
-    print("If sealed time effect was purely due to temporal confounding,")
-    print("the right plot should show NO relationship.")
-    
-    controlled_time_corr = effects.get('time_corr_controlled', 0)
-    if abs(controlled_time_corr) < 0.1:
-        print("✅ Sealed time effect appears to be mostly temporal confounding")
-    elif abs(controlled_time_corr) < 0.3:
-        print("⚠️  Sealed time has weak independent effect after controlling for time")
-    else:
-        print("🎯 Sealed time has substantial independent effect beyond temporal trends")
-
-plot_residual_analysis(df, flux_col, effects)
+```
