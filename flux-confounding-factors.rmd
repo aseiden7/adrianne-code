@@ -67,22 +67,24 @@ def load_and_analyze_flux_data(file_path):
         print(df.columns.tolist())
         return None, None
     
-    # Clean and prepare data - now including sampling_wk
-    required_cols = [flux_col, 'moisture_kpa', 'sealed_minutes', 'sampling_wk']
-    available_cols = [col for col in required_cols if col in df.columns]
-    
-    if 'sampling_wk' not in df.columns:
-        print("Warning: sampling_wk column not found!")
-        print("Available columns:")
-        print(df.columns.tolist())
-        return None, None
-    
-    df_clean = df.copy()
-    df_clean = df_clean.dropna(subset=available_cols)
+    # Modified cleaning: require flux, sealed_minutes, and sampling_wk, but allow missing moisture
+    essential_cols = [flux_col, 'sealed_minutes', 'sampling_wk']
+    df_clean = df.dropna(subset=essential_cols)
     
     print(f"Data loaded: {len(df_clean)} valid observations")
     print(f"Flux column: {flux_col}")
     print(f"Sampling weeks range: {df_clean['sampling_wk'].min()} to {df_clean['sampling_wk'].max()}")
+    
+    # Report on moisture data availability
+    moisture_missing = df_clean['moisture_kpa'].isna().sum()
+    moisture_available = len(df_clean) - moisture_missing
+    print(f"Moisture data: {moisture_available} available, {moisture_missing} missing ({moisture_missing/len(df_clean)*100:.1f}%)")
+    
+    if moisture_missing > 0:
+        print("Missing moisture data by week:")
+        missing_by_week = df_clean[df_clean['moisture_kpa'].isna()].groupby(['sampling_wk', 'crop']).size()
+        for (week, crop), count in missing_by_week.items():
+            print(f"  Week {week}, {crop}: {count} observations")
     
     return df_clean, flux_col
 
@@ -97,6 +99,110 @@ output_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO
 # # Load the data
 # file_path = "combined_data_with_moisture.xlsx"  # Update this path as needed
 df, flux_col = load_and_analyze_flux_data(file_path)
+
+# Investigate missing data at week 20 and week 29
+print("\nINVESTIGATING MISSING DATA:")
+print("="*50)
+
+# Check what sampling weeks we have
+print("Available sampling weeks:")
+print(sorted(df['sampling_wk'].unique()))
+
+# Check data availability by week and crop
+print("\nData availability by week and crop:")
+availability = df.groupby(['sampling_wk', 'crop']).size().reset_index(name='count')
+availability_pivot = availability.pivot(index='sampling_wk', columns='crop', values='count').fillna(0)
+print(availability_pivot)
+
+# Check specifically for problematic weeks
+problem_weeks = [20, 29]
+for week in problem_weeks:
+    week_data = df[df['sampling_wk'] == week]
+    print(f"\n--- WEEK {week} ANALYSIS ---")
+    if len(week_data) > 0:
+        print(f"Week {week} data found: {len(week_data)} observations")
+        print(f"Week {week} data by crop:")
+        print(week_data['crop'].value_counts())
+        
+        # Check for missing values in key columns
+        print(f"\nWeek {week} missing values check:")
+        key_cols = [flux_col, 'moisture_kpa', 'sealed_minutes', 'sampling_wk']
+        for col in key_cols:
+            if col in week_data.columns:
+                missing = week_data[col].isna().sum()
+                print(f"  {col}: {missing} missing values")
+            else:
+                print(f"  {col}: column not found!")
+    else:
+        print(f"No data found for week {week} in cleaned dataset!")
+        
+        # Check the original data before cleaning
+        print(f"Checking original data for week {week}...")
+        import pandas as pd
+        df_original = pd.read_excel(file_path)
+        if 'sampling_wk' in df_original.columns:
+            week_original = df_original[df_original['sampling_wk'] == week]
+            print(f"  Week {week} in original data: {len(week_original)} rows")
+            if len(week_original) > 0:
+                print(f"  Week {week} crops in original data:")
+                print(week_original['crop'].value_counts())
+                
+                # Check what columns have missing values in the original week data
+                key_cols_original = []
+                for col in df_original.columns:
+                    if 'flux' in col.lower() and 'co2' in col.lower():
+                        key_cols_original.append(col)
+                        break
+                key_cols_original.extend(['moisture_kpa', 'sealed_minutes'])
+                
+                print(f"  Missing values in original week {week} data:")
+                for col in key_cols_original:
+                    if col in week_original.columns:
+                        missing = week_original[col].isna().sum()
+                        total = len(week_original)
+                        print(f"    {col}: {missing}/{total} missing ({missing/total*100:.1f}%)")
+        else:
+            print(f"  No 'sampling_wk' column found in original data")
+
+# Additional analysis: show the full data cleaning process
+print(f"\n--- DATA CLEANING ANALYSIS ---")
+df_original = pd.read_excel(file_path)
+print(f"Original data size: {len(df_original)} rows")
+
+# Find flux column in original data
+flux_col_original = None
+for col in df_original.columns:
+    if 'flux' in col.lower() and 'co2' in col.lower():
+        flux_col_original = col
+        break
+
+if flux_col_original:
+    print(f"Flux column found: '{flux_col_original}'")
+    required_cols = [flux_col_original, 'moisture_kpa', 'sealed_minutes', 'sampling_wk']
+    
+    # Check each required column
+    print("\nRequired columns analysis:")
+    for col in required_cols:
+        if col in df_original.columns:
+            missing = df_original[col].isna().sum()
+            total = len(df_original)
+            print(f"  {col}: {missing}/{total} missing ({missing/total*100:.1f}%)")
+        else:
+            print(f"  {col}: COLUMN NOT FOUND!")
+    
+    # Show data loss by week
+    print("\nData loss by sampling week:")
+    for week in sorted(df_original['sampling_wk'].unique()):
+        week_before = len(df_original[df_original['sampling_wk'] == week])
+        df_week_clean = df_original[df_original['sampling_wk'] == week].dropna(subset=required_cols)
+        week_after = len(df_week_clean)
+        loss = week_before - week_after
+        if loss > 0:
+            print(f"  Week {week}: {week_before} → {week_after} (lost {loss} rows, {loss/week_before*100:.1f}%)")
+else:
+    print("No flux column found in original data!")
+    print("Available columns:")
+    print(df_original.columns.tolist())
 ```
 
 ## Confounding Analysis
@@ -201,12 +307,16 @@ def residual_regression(x, y, control_vars):
     return slope, intercept, r2, np.corrcoef(x_residual, y_residual)[0,1]
 
 def calculate_controlled_effects(df, flux_col):
-    """Calculate effect sizes controlling for sampling week"""
+    """Calculate effect sizes controlling for sampling week (handling missing moisture data)"""
     effects = {}
     
-    # Original (uncontrolled) effects
+    # Separate data with and without moisture
     moisture_data = df[['moisture_kpa', flux_col, 'sampling_wk']].dropna()
     time_data = df[['sealed_minutes', flux_col, 'sampling_wk']].dropna()
+    
+    print(f"Calculating effects with:")
+    print(f"  Moisture analysis: {len(moisture_data)} observations")
+    print(f"  Time analysis: {len(time_data)} observations")
     
     if len(moisture_data) > 1:
         # Original moisture effect
@@ -226,6 +336,13 @@ def calculate_controlled_effects(df, flux_col):
         slope_res, intercept_res, r2_res, corr_res = residual_regression(x, y, [z])
         effects['moisture_r2_residual'] = r2_res
         effects['moisture_slope_controlled'] = slope_res
+    else:
+        print("Warning: Insufficient data for moisture analysis")
+        effects['moisture_r2_raw'] = 0
+        effects['moisture_corr_raw'] = 0
+        effects['moisture_corr_controlled'] = 0
+        effects['moisture_r2_controlled'] = 0
+        effects['moisture_slope_controlled'] = 0
     
     if len(time_data) > 1:
         # Original sealed time effect
@@ -246,7 +363,7 @@ def calculate_controlled_effects(df, flux_col):
         effects['time_r2_residual'] = r2_res
         effects['time_slope_controlled'] = slope_res
     
-    # Sampling week effect
+    # Sampling week effect (using all available data)
     week_data = df[['sampling_wk', flux_col]].dropna()
     if len(week_data) > 1:
         x = week_data['sampling_wk'].values
@@ -272,26 +389,6 @@ def calculate_controlled_effects(df, flux_col):
                     between_ss += len(crop_subset) * (crop_mean - overall_mean) ** 2
             
             effects['crop_r2_raw'] = between_ss / total_ss if total_ss > 0 else 0
-    
-    # Combined model with sampling week
-    complete_data = df[['moisture_kpa', 'sealed_minutes', 'sampling_wk', flux_col]].dropna()
-    if len(complete_data) > 4:
-        corr_matrix = complete_data.corr()
-        
-        # Multiple correlation approximation including sampling week
-        predictors = ['moisture_kpa', 'sealed_minutes', 'sampling_wk']
-        target = flux_col
-        
-        # Simple approximation of multiple R²
-        correlations = [corr_matrix.loc[pred, target] for pred in predictors]
-        combined_r2_approx = sum([corr**2 for corr in correlations]) / len(correlations)  # Rough approximation
-        effects['combined_with_week_r2'] = min(1.0, combined_r2_approx)
-        
-        # Combined model without sampling week (controlled)
-        predictors_controlled = ['moisture_kpa', 'sealed_minutes'] 
-        correlations_controlled = [corr_matrix.loc[pred, target] for pred in predictors_controlled]
-        combined_controlled_r2 = sum([corr**2 for corr in correlations_controlled]) / len(correlations_controlled)
-        effects['combined_controlled_r2'] = min(1.0, combined_controlled_r2)
     
     return effects
 
@@ -771,131 +868,176 @@ final_summary = create_comprehensive_summary_table(effects, confounding_stats)
 def create_diagnostic_plots(df, flux_col, effects):
     """Create diagnostic plots to visualize the confounding issue"""
     
-    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    # Check if we have enough data for diagnostic plots
+    if len(df) < 10:
+        print("Warning: Insufficient data for diagnostic plots")
+        return
     
-    # Row 1: Raw relationships
-    # Raw flux vs sealed time
-    axes[0,0].scatter(df['sealed_minutes'], df[flux_col], alpha=0.6, color='red')
-    z = np.polyfit(df['sealed_minutes'], df[flux_col], 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(df['sealed_minutes'].min(), df['sealed_minutes'].max(), 100)
-    axes[0,0].plot(x_line, p(x_line), "k--", alpha=0.8)
-    axes[0,0].set_xlabel('Sealed Time (minutes)')
-    axes[0,0].set_ylabel('CO2 Flux')
-    axes[0,0].set_title(f'RAW: Flux vs Sealed Time\nR² = {effects.get("time_r2_raw", 0):.3f}')
-    axes[0,0].grid(True, alpha=0.3)
-    
-    # Raw flux vs moisture  
-    axes[0,1].scatter(df['moisture_kpa'], df[flux_col], alpha=0.6, color='blue')
-    z = np.polyfit(df['moisture_kpa'], df[flux_col], 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(df['moisture_kpa'].min(), df['moisture_kpa'].max(), 100)
-    axes[0,1].plot(x_line, p(x_line), "k--", alpha=0.8)
-    axes[0,1].set_xlabel('Moisture (kPa)')
-    axes[0,1].set_ylabel('CO2 Flux')
-    axes[0,1].set_title(f'RAW: Flux vs Moisture\nR² = {effects.get("moisture_r2_raw", 0):.3f}')
-    axes[0,1].grid(True, alpha=0.3)
-    
-    # Confounding relationship: sealed time vs week
-    axes[0,2].scatter(df['sampling_wk'], df['sealed_minutes'], alpha=0.6, color='orange')
-    z = np.polyfit(df['sampling_wk'], df['sealed_minutes'], 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(df['sampling_wk'].min(), df['sampling_wk'].max(), 100)
-    axes[0,2].plot(x_line, p(x_line), "k--", alpha=0.8)
-    axes[0,2].set_xlabel('Sampling Week')
-    axes[0,2].set_ylabel('Sealed Time (minutes)')
-    axes[0,2].set_title(f'CONFOUNDING: Time vs Week\nr = {confounding_stats["time_wk_corr"]:.3f}')
-    axes[0,2].grid(True, alpha=0.3)
-    
-    # Row 2: Controlled relationships (residuals after removing week effects)
-    week_slope_flux = effects.get('week_slope', 0)
-    week_mean = df['sampling_wk'].mean()
-    flux_detrended = df[flux_col] - (week_slope_flux * (df['sampling_wk'] - week_mean))
-    
-    # Calculate sealed time residuals (remove week trend from sealed time too)
-    sealed_time_week_slope = np.polyfit(df['sampling_wk'], df['sealed_minutes'], 1)[0]
-    sealed_time_detrended = df['sealed_minutes'] - (sealed_time_week_slope * (df['sampling_wk'] - week_mean))
-    
-    # Controlled flux vs sealed time residuals
-    axes[1,0].scatter(sealed_time_detrended, flux_detrended, alpha=0.6, color='red')
-    if np.std(sealed_time_detrended) > 0:
-        z = np.polyfit(sealed_time_detrended, flux_detrended, 1)
-        p = np.poly1d(z)
-        x_line = np.linspace(sealed_time_detrended.min(), sealed_time_detrended.max(), 100)
-        axes[1,0].plot(x_line, p(x_line), "k--", alpha=0.8)
-    axes[1,0].set_xlabel('Sealed Time (residuals)')
-    axes[1,0].set_ylabel('CO2 Flux (detrended)')
-    axes[1,0].set_title(f'CONTROLLED: Flux vs Sealed Time\nR² = {effects.get("time_r2_controlled", 0):.3f}')
-    axes[1,0].grid(True, alpha=0.3)
-    
-    # Calculate moisture residuals 
-    moisture_week_slope = np.polyfit(df['sampling_wk'], df['moisture_kpa'], 1)[0]
-    moisture_detrended = df['moisture_kpa'] - (moisture_week_slope * (df['sampling_wk'] - week_mean))
-    
-    # Controlled flux vs moisture residuals
-    axes[1,1].scatter(moisture_detrended, flux_detrended, alpha=0.6, color='blue')
-    if np.std(moisture_detrended) > 0:
-        z = np.polyfit(moisture_detrended, flux_detrended, 1)
-        p = np.poly1d(z)
-        x_line = np.linspace(moisture_detrended.min(), moisture_detrended.max(), 100)
-        axes[1,1].plot(x_line, p(x_line), "k--", alpha=0.8)
-    axes[1,1].set_xlabel('Moisture (residuals)')
-    axes[1,1].set_ylabel('CO2 Flux (detrended)')
-    axes[1,1].set_title(f'CONTROLLED: Flux vs Moisture\nR² = {effects.get("moisture_r2_controlled", 0):.3f}')
-    axes[1,1].grid(True, alpha=0.3)
-    
-    # Effect size comparison
-    effect_names = ['Sealed\nTime\n(Raw)', 'Sealed\nTime\n(Controlled)', 'Moisture\n(Raw)', 'Moisture\n(Controlled)', 'Sampling\nWeek']
-    effect_values = [
-        effects.get('time_r2_raw', 0),
-        effects.get('time_r2_controlled', 0),
-        effects.get('moisture_r2_raw', 0), 
-        effects.get('moisture_r2_controlled', 0),
-        effects.get('week_r2', 0)
-    ]
-    colors = ['lightcoral', 'darkred', 'lightblue', 'darkblue', 'green']
-    
-    bars = axes[1,2].bar(effect_names, effect_values, color=colors, alpha=0.7)
-    axes[1,2].set_ylabel('R² (Variance Explained)')
-    axes[1,2].set_title('Effect Size Comparison:\nRaw vs Controlled')
-    axes[1,2].set_ylim(0, max(effect_values) * 1.2 if max(effect_values) > 0 else 1)
-    
-    for bar, value in zip(bars, effect_values):
-        height = bar.get_height()
-        axes[1,2].text(bar.get_x() + bar.get_width()/2., height + 0.005,
-                f'{value:.3f}', ha='center', va='bottom', fontsize=8)
-    
-    axes[1,2].tick_params(axis='x', labelsize=8)
-    axes[1,2].grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    
-    # Print interpretation
-    print("🔍 DIAGNOSTIC PLOT INTERPRETATION:")
-    print("-" * 50)
-    print("TOP ROW: Shows the raw relationships and the confounding problem")
-    print("BOTTOM ROW: Shows relationships after removing temporal trends")
-    print("")
-    
-    time_reduction = effects.get('time_r2_raw', 0) - effects.get('time_r2_controlled', 0)
-    moisture_reduction = effects.get('moisture_r2_raw', 0) - effects.get('moisture_r2_controlled', 0)
-    
-    if time_reduction > 0.1:
-        print("🎯 SEALED TIME: Large reduction confirms substantial temporal confounding")
-    elif time_reduction > 0.05:
-        print("⚠️  SEALED TIME: Moderate reduction suggests some temporal confounding")  
-    else:
-        print("✅ SEALED TIME: Minimal reduction suggests genuine effect")
+    try:
+        fig, axes = plt.subplots(2, 3, figsize=(18, 12))
         
-    if moisture_reduction > 0.05:
-        print("🌊 MOISTURE: Some temporal confounding detected")
-    else:
-        print("✅ MOISTURE: Effect appears independent of temporal trends")
-
-    import os
-    plt.savefig(os.path.join(output_folder, "diagnostic_plots.png"))
-    plt.show()
-    plt.close()
+        # Row 1: Raw relationships
+        # Raw flux vs sealed time
+        if df['sealed_minutes'].std() > 0 and df[flux_col].std() > 0:
+            axes[0,0].scatter(df['sealed_minutes'], df[flux_col], alpha=0.6, color='red')
+            try:
+                z = np.polyfit(df['sealed_minutes'], df[flux_col], 1)
+                p = np.poly1d(z)
+                x_line = np.linspace(df['sealed_minutes'].min(), df['sealed_minutes'].max(), 100)
+                axes[0,0].plot(x_line, p(x_line), "k--", alpha=0.8)
+            except np.linalg.LinAlgError:
+                print("Warning: Could not fit trend line for sealed time vs flux")
+        axes[0,0].set_xlabel('Sealed Time (minutes)')
+        axes[0,0].set_ylabel('CO2 Flux')
+        axes[0,0].set_title(f'RAW: Flux vs Sealed Time\nR² = {effects.get("time_r2_raw", 0):.3f}')
+        axes[0,0].grid(True, alpha=0.3)
+        
+        # Raw flux vs moisture (only for data with moisture)
+        moisture_data = df.dropna(subset=['moisture_kpa'])
+        if len(moisture_data) > 5 and moisture_data['moisture_kpa'].std() > 0:
+            axes[0,1].scatter(moisture_data['moisture_kpa'], moisture_data[flux_col], alpha=0.6, color='blue')
+            try:
+                z = np.polyfit(moisture_data['moisture_kpa'], moisture_data[flux_col], 1)
+                p = np.poly1d(z)
+                x_line = np.linspace(moisture_data['moisture_kpa'].min(), moisture_data['moisture_kpa'].max(), 100)
+                axes[0,1].plot(x_line, p(x_line), "k--", alpha=0.8)
+            except np.linalg.LinAlgError:
+                print("Warning: Could not fit trend line for moisture vs flux")
+        else:
+            axes[0,1].text(0.5, 0.5, 'Insufficient\nMoisture Data', ha='center', va='center', transform=axes[0,1].transAxes)
+        
+        axes[0,1].set_xlabel('Moisture (kPa)')
+        axes[0,1].set_ylabel('CO2 Flux')
+        axes[0,1].set_title(f'RAW: Flux vs Moisture\nR² = {effects.get("moisture_r2_raw", 0):.3f}')
+        axes[0,1].grid(True, alpha=0.3)
+        
+        # Confounding relationship: sealed time vs week
+        if df['sampling_wk'].std() > 0 and df['sealed_minutes'].std() > 0:
+            axes[0,2].scatter(df['sampling_wk'], df['sealed_minutes'], alpha=0.6, color='orange')
+            try:
+                z = np.polyfit(df['sampling_wk'], df['sealed_minutes'], 1)
+                p = np.poly1d(z)
+                x_line = np.linspace(df['sampling_wk'].min(), df['sampling_wk'].max(), 100)
+                axes[0,2].plot(x_line, p(x_line), "k--", alpha=0.8)
+            except np.linalg.LinAlgError:
+                print("Warning: Could not fit trend line for time vs week")
+        axes[0,2].set_xlabel('Sampling Week')
+        axes[0,2].set_ylabel('Sealed Time (minutes)')
+        axes[0,2].set_title(f'CONFOUNDING: Time vs Week\nr = {effects.get("time_wk_corr", 0):.3f}')
+        axes[0,2].grid(True, alpha=0.3)
+        
+        # Row 2: Controlled relationships (residuals after removing week effects)
+        week_slope_flux = effects.get('week_slope', 0)
+        week_mean = df['sampling_wk'].mean()
+        flux_detrended = df[flux_col] - (week_slope_flux * (df['sampling_wk'] - week_mean))
+        
+        # Calculate sealed time residuals (remove week trend from sealed time too)
+        if df['sampling_wk'].std() > 0 and df['sealed_minutes'].std() > 0:
+            try:
+                sealed_time_week_slope = np.polyfit(df['sampling_wk'], df['sealed_minutes'], 1)[0]
+                sealed_time_detrended = df['sealed_minutes'] - (sealed_time_week_slope * (df['sampling_wk'] - week_mean))
+            except np.linalg.LinAlgError:
+                sealed_time_detrended = df['sealed_minutes'] - df['sealed_minutes'].mean()
+        else:
+            sealed_time_detrended = df['sealed_minutes'] - df['sealed_minutes'].mean()
+        
+        # Controlled flux vs sealed time residuals
+        axes[1,0].scatter(sealed_time_detrended, flux_detrended, alpha=0.6, color='red')
+        if np.std(sealed_time_detrended) > 1e-10:
+            try:
+                z = np.polyfit(sealed_time_detrended, flux_detrended, 1)
+                p = np.poly1d(z)
+                x_line = np.linspace(sealed_time_detrended.min(), sealed_time_detrended.max(), 100)
+                axes[1,0].plot(x_line, p(x_line), "k--", alpha=0.8)
+            except np.linalg.LinAlgError:
+                print("Warning: Could not fit trend line for controlled time vs flux")
+        axes[1,0].set_xlabel('Sealed Time (residuals)')
+        axes[1,0].set_ylabel('CO2 Flux (detrended)')
+        axes[1,0].set_title(f'CONTROLLED: Flux vs Sealed Time\nR² = {effects.get("time_r2_controlled", 0):.3f}')
+        axes[1,0].grid(True, alpha=0.3)
+        
+        # Calculate moisture residuals (only for data with moisture)
+        moisture_complete = df.dropna(subset=['moisture_kpa'])
+        if len(moisture_complete) > 5:
+            try:
+                moisture_week_slope = np.polyfit(moisture_complete['sampling_wk'], moisture_complete['moisture_kpa'], 1)[0]
+                moisture_detrended = moisture_complete['moisture_kpa'] - (moisture_week_slope * (moisture_complete['sampling_wk'] - week_mean))
+                flux_detrended_moisture = moisture_complete[flux_col] - (week_slope_flux * (moisture_complete['sampling_wk'] - week_mean))
+                
+                axes[1,1].scatter(moisture_detrended, flux_detrended_moisture, alpha=0.6, color='blue')
+                if np.std(moisture_detrended) > 1e-10:
+                    try:
+                        z = np.polyfit(moisture_detrended, flux_detrended_moisture, 1)
+                        p = np.poly1d(z)
+                        x_line = np.linspace(moisture_detrended.min(), moisture_detrended.max(), 100)
+                        axes[1,1].plot(x_line, p(x_line), "k--", alpha=0.8)
+                    except np.linalg.LinAlgError:
+                        print("Warning: Could not fit trend line for controlled moisture vs flux")
+            except np.linalg.LinAlgError:
+                axes[1,1].text(0.5, 0.5, 'Insufficient\nMoisture Data\nfor Detrending', ha='center', va='center', transform=axes[1,1].transAxes)
+        else:
+            axes[1,1].text(0.5, 0.5, 'Insufficient\nMoisture Data', ha='center', va='center', transform=axes[1,1].transAxes)
+        axes[1,1].set_xlabel('Moisture (residuals)')
+        axes[1,1].set_ylabel('CO2 Flux (detrended)')
+        axes[1,1].set_title(f'CONTROLLED: Flux vs Moisture\nR² = {effects.get("moisture_r2_controlled", 0):.3f}')
+        axes[1,1].grid(True, alpha=0.3)
+        
+        # Effect size comparison
+        effect_names = ['Sealed\nTime\n(Raw)', 'Sealed\nTime\n(Controlled)', 'Moisture\n(Raw)', 'Moisture\n(Controlled)', 'Sampling\nWeek']
+        effect_values = [
+            effects.get('time_r2_raw', 0),
+            effects.get('time_r2_controlled', 0),
+            effects.get('moisture_r2_raw', 0), 
+            effects.get('moisture_r2_controlled', 0),
+            effects.get('week_r2', 0)
+        ]
+        colors = ['lightcoral', 'darkred', 'lightblue', 'darkblue', 'green']
+        
+        bars = axes[1,2].bar(effect_names, effect_values, color=colors, alpha=0.7)
+        axes[1,2].set_ylabel('R² (Variance Explained)')
+        axes[1,2].set_title('Effect Size Comparison:\nRaw vs Controlled')
+        axes[1,2].set_ylim(0, max(effect_values) * 1.2 if max(effect_values) > 0 else 1)
+        
+        for bar, value in zip(bars, effect_values):
+            height = bar.get_height()
+            axes[1,2].text(bar.get_x() + bar.get_width()/2., height + 0.005,
+                    f'{value:.3f}', ha='center', va='bottom', fontsize=8)
+        
+        axes[1,2].tick_params(axis='x', labelsize=8)
+        axes[1,2].grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        import os
+        plt.savefig(os.path.join(output_folder, "diagnostic_plots.png"))
+        plt.show()
+        plt.close()
+        
+        # Print interpretation
+        print("🔍 DIAGNOSTIC PLOT INTERPRETATION:")
+        print("-" * 50)
+        print("TOP ROW: Shows the raw relationships and the confounding problem")
+        print("BOTTOM ROW: Shows relationships after removing temporal trends")
+        print("")
+        
+        time_reduction = effects.get('time_r2_raw', 0) - effects.get('time_r2_controlled', 0)
+        moisture_reduction = effects.get('moisture_r2_raw', 0) - effects.get('moisture_r2_controlled', 0)
+        
+        if time_reduction > 0.1:
+            print("🎯 SEALED TIME: Large reduction confirms substantial temporal confounding")
+        elif time_reduction > 0.05:
+            print("⚠️  SEALED TIME: Moderate reduction suggests some temporal confounding")  
+        else:
+            print("✅ SEALED TIME: Minimal reduction suggests genuine effect")
+            
+        if moisture_reduction > 0.05:
+            print("🌊 MOISTURE: Some temporal confounding detected")
+        else:
+            print("✅ MOISTURE: Effect appears independent of temporal trends")
+            
+    except Exception as e:
+        print(f"Error creating diagnostic plots: {str(e)}")
+        print("Skipping diagnostic plots due to numerical issues")
+        return
 
 create_diagnostic_plots(df, flux_col, effects)
 ```
@@ -969,4 +1111,274 @@ def export_controlled_results(df, effects, confounding_stats, flux_col):
 
 # Export the controlled results
 controlled_results = export_controlled_results(df, effects, confounding_stats, flux_col)
+```
+
+## Corrected Flux Data for Crop Analysis
+
+```{python corrected-flux}
+def correct_flux_for_confounders(df, flux_col, effects):
+    """Correct CO2 flux data by removing sealed time effects (and moisture when available)"""
+    
+    # Create a copy of the dataframe
+    df_corrected = df.copy()
+    
+    # Get the raw flux values
+    flux_raw = df_corrected[flux_col].copy()
+    
+    # Start with raw flux
+    flux_corrected = flux_raw.copy()
+    
+    # Remove sealed time effect for ALL data (using controlled slope)
+    time_slope = effects.get('time_slope_controlled', 0)
+    time_mean = df_corrected['sealed_minutes'].mean()
+    flux_corrected = flux_corrected - (time_slope * (df_corrected['sealed_minutes'] - time_mean))
+    
+    # Remove moisture effect ONLY where moisture data is available
+    moisture_slope = effects.get('moisture_slope_controlled', 0)
+    has_moisture = ~df_corrected['moisture_kpa'].isna()
+    
+    if has_moisture.sum() > 0 and moisture_slope != 0:
+        moisture_mean = df_corrected.loc[has_moisture, 'moisture_kpa'].mean()
+        # Apply moisture correction only to rows with moisture data
+        flux_corrected.loc[has_moisture] = (
+            flux_corrected.loc[has_moisture] - 
+            (moisture_slope * (df_corrected.loc[has_moisture, 'moisture_kpa'] - moisture_mean))
+        )
+    
+    # Add corrected flux as new column
+    df_corrected['flux_corrected'] = flux_corrected
+    
+    # Create a flag for which corrections were applied
+    df_corrected['time_corrected'] = True
+    df_corrected['moisture_corrected'] = has_moisture
+    
+    print("Flux corrections applied:")
+    print(f"Original flux range: {flux_raw.min():.3f} to {flux_raw.max():.3f}")
+    print(f"Corrected flux range: {flux_corrected.min():.3f} to {flux_corrected.max():.3f}")
+    print(f"Time correction applied to: {len(df_corrected)} observations")
+    print(f"Moisture correction applied to: {has_moisture.sum()} observations")
+    print(f"Only time correction (no moisture): {(~has_moisture).sum()} observations")
+    
+    # Show which weeks/crops have missing moisture data
+    missing_moisture = df_corrected[~has_moisture]
+    if len(missing_moisture) > 0:
+        print("\nObservations with missing moisture data (time-only correction):")
+        missing_summary = missing_moisture.groupby(['sampling_wk', 'crop']).size()
+        for (week, crop), count in missing_summary.items():
+            print(f"  Week {week}, {crop}: {count} observations")
+    
+    return df_corrected
+
+def visualize_crop_effects(df_corrected, flux_col):
+    """Visualize crop effects before and after correction"""
+    
+    if 'crop' not in df_corrected.columns:
+        print("Warning: 'crop' column not found. Cannot analyze crop effects.")
+        return
+    
+    # Define crop colors
+    crop_colors = {'noPlant': '#9F29FF', 'wheat': '#98C65D', 'rice': '#FC9D33', 'soy': '#FE318E'}
+    
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # Raw flux by crop
+    crops = df_corrected['crop'].unique()
+    
+    for crop in crops:
+        crop_data = df_corrected[df_corrected['crop'] == crop]
+        color = crop_colors.get(crop, '#000000')  # Default to black if crop not in color dict
+        axes[0,0].scatter(crop_data['sampling_wk'], crop_data[flux_col], 
+                         alpha=0.6, label=crop, color=color)
+    
+    axes[0,0].set_xlabel('Sampling Week')
+    axes[0,0].set_ylabel('Raw CO2 Flux')
+    axes[0,0].set_title('Raw CO2 Flux by Crop Over Time')
+    axes[0,0].legend()
+    axes[0,0].grid(True, alpha=0.3)
+    
+    # Corrected flux by crop
+    for crop in crops:
+        crop_data = df_corrected[df_corrected['crop'] == crop]
+        color = crop_colors.get(crop, '#000000')
+        axes[0,1].scatter(crop_data['sampling_wk'], crop_data['flux_corrected'], 
+                         alpha=0.6, label=crop, color=color)
+    
+    axes[0,1].set_xlabel('Sampling Week')
+    axes[0,1].set_ylabel('Corrected CO2 Flux (moisture & time effects removed)')
+    axes[0,1].set_title('Corrected CO2 Flux by Crop Over Time')
+    axes[0,1].legend()
+    axes[0,1].grid(True, alpha=0.3)
+    
+    # Box plots - Raw flux
+    crop_names = []
+    raw_flux_by_crop = []
+    colors_ordered = []
+    for crop in crops:
+        crop_data = df_corrected[df_corrected['crop'] == crop]
+        if len(crop_data) > 0:
+            crop_names.append(crop)
+            raw_flux_by_crop.append(crop_data[flux_col].values)
+            colors_ordered.append(crop_colors.get(crop, '#000000'))
+    
+    box1 = axes[1,0].boxplot(raw_flux_by_crop, labels=crop_names, patch_artist=True)
+    for patch, color in zip(box1['boxes'], colors_ordered):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+    
+    axes[1,0].set_ylabel('Raw CO2 Flux')
+    axes[1,0].set_title('Raw Flux Distribution by Crop')
+    axes[1,0].tick_params(axis='x', rotation=45)
+    axes[1,0].grid(True, alpha=0.3)
+    
+    # Box plots - Corrected flux
+    corrected_flux_by_crop = []
+    for crop in crops:
+        crop_data = df_corrected[df_corrected['crop'] == crop]
+        if len(crop_data) > 0:
+            corrected_flux_by_crop.append(crop_data['flux_corrected'].values)
+    
+    box2 = axes[1,1].boxplot(corrected_flux_by_crop, labels=crop_names, patch_artist=True)
+    for patch, color in zip(box2['boxes'], colors_ordered):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+    
+    axes[1,1].set_ylabel('Corrected CO2 Flux (moisture & time effects removed)')
+    axes[1,1].set_title('Corrected Flux Distribution by Crop')
+    axes[1,1].tick_params(axis='x', rotation=45)
+    axes[1,1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    import os
+    plt.savefig(os.path.join(output_folder, "crop_effects_comparison.png"))
+    plt.show()
+    plt.close()
+    
+    # Statistical comparison
+    print("\nCROP EFFECT ANALYSIS:")
+    print("="*50)
+    
+    # Calculate means and differences
+    for crop in crops:
+        crop_data = df_corrected[df_corrected['crop'] == crop]
+        if len(crop_data) > 0:
+            raw_mean = crop_data[flux_col].mean()
+            corrected_mean = crop_data['flux_corrected'].mean()
+            print(f"{crop}:")
+            print(f"  Raw flux mean: {raw_mean:.3f}")
+            print(f"  Corrected flux mean: {corrected_mean:.3f}")
+            print(f"  Difference: {corrected_mean - raw_mean:.3f}")
+            print()
+
+def export_corrected_data(df_corrected, flux_col):
+    """Export corrected data for further analysis"""
+    
+    # Create summary statistics
+    summary_stats = df_corrected.groupby('crop').agg({
+        flux_col: ['count', 'mean', 'std'],
+        'flux_corrected': ['mean', 'std'],
+        'moisture_kpa': 'mean',
+        'sealed_minutes': 'mean',
+        'sampling_wk': ['min', 'max']
+    }).round(3)
+    
+    print("\nSUMMARY STATISTICS BY CROP:")
+    print("="*60)
+    print(summary_stats)
+    
+    # Export to CSV
+    import os
+    corrected_file = os.path.join(output_folder, "flux_data_corrected.csv")
+    df_corrected.to_csv(corrected_file, index=False)
+    print(f"\nCorrected data exported to: {corrected_file}")
+    
+    # Export summary statistics
+    summary_file = os.path.join(output_folder, "crop_summary_statistics.csv")
+    summary_stats.to_csv(summary_file)
+    print(f"Summary statistics exported to: {summary_file}")
+    
+    return summary_stats
+
+# Apply corrections and visualize
+print("Correcting flux data for confounding factors...")
+df_corrected = correct_flux_for_confounders(df, flux_col, effects)
+visualize_crop_effects(df_corrected, flux_col)
+summary_stats = export_corrected_data(df_corrected, flux_col)
+```
+
+## Corrected Flux Plot (Matching Original Style)
+
+```{python corrected-flux-plot-styled}
+def create_corrected_flux_plot_styled(df_corrected, flux_col):
+    """Create a corrected flux plot matching the original pot flux plot style"""
+    
+    if 'crop' not in df_corrected.columns:
+        print("Warning: 'crop' column not found. Cannot create plot.")
+        return
+    
+    # Create figure for plotting (matching original style)
+    fig = plt.figure(figsize=(12, 8))
+    fig.suptitle(r'Intact Pots: $\mathrm{CO_2}$ Flux by Crop (Corrected for Moisture & Time Effects)', fontsize=16)
+
+    # Get unique crops
+    crops = df_corrected['crop'].unique()
+
+    # Define colors for crops (matching original plots)
+    crop_colors = {'noPlant': '#9F29FF', 'wheat': '#98C65D', 'rice': '#FC9D33', 'soy': '#FE318E'}  # purple, green, orange, pink
+
+    # Plot corrected CO2 flux for each crop
+    for crop in crops:
+        # Filter data for this crop
+        subset = df_corrected[df_corrected['crop'] == crop]
+        
+        # Calculate mean and standard error for each sampling_wk using corrected flux
+        grouped = subset.groupby('sampling_wk')['flux_corrected'].agg(['mean', 'sem']).reset_index()
+        
+        # Use predefined color if available, otherwise use default
+        color = crop_colors.get(crop, '#000000')
+        
+        # Plot the mean values (matching original style exactly)
+        plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
+                     marker='o', linestyle='-', label=f'{crop}', color=color, linewidth=2.5, markersize=8)
+
+    # Labels and styling (matching original exactly)
+    plt.xlabel('Sampling Week', fontsize=12)
+    plt.ylabel(r'Corrected $\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$', fontsize=12)
+    plt.title(r'Corrected $\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week by Crop', fontsize=14, pad=20)
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend(fontsize=11)
+
+    # Add styling (matching original)
+    ax = plt.gca()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    # Adjust layout and save figure
+    plt.tight_layout()
+    import os
+    plt.savefig(os.path.join(output_folder, "corrected_flux_by_crop_styled.png"), dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+    
+    print("\nCorrected flux plot (styled) saved successfully!")
+    
+    # Print comparison of means
+    print("\nCOMPARISON: Raw vs Corrected Flux Means by Crop")
+    print("="*55)
+    
+    for crop in crops:
+        crop_data = df_corrected[df_corrected['crop'] == crop]
+        if len(crop_data) > 0:
+            raw_mean = crop_data[flux_col].mean()
+            corrected_mean = crop_data['flux_corrected'].mean()
+            difference = corrected_mean - raw_mean
+            percent_change = (difference / raw_mean * 100) if raw_mean != 0 else 0
+            
+            print(f"{crop}:")
+            print(f"  Raw mean:       {raw_mean:.3f}")
+            print(f"  Corrected mean: {corrected_mean:.3f}")
+            print(f"  Difference:     {difference:+.3f} ({percent_change:+.1f}%)")
+            print()
+
+# Create the styled corrected flux plot
+create_corrected_flux_plot_styled(df_corrected, flux_col)
 ```
