@@ -196,7 +196,8 @@ plt.legend();
 
 # Adjust layout and save figure
 plt.tight_layout()
-plt.savefig('jars_analysis_plots_VPDB.png', dpi=300)
+plots_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Plots/")
+plt.savefig(os.path.join(plots_folder, 'jars_analysis_plots_VPDB.png'), dpi=300)
 print("\nPlots saved to 'jars_analysis_plots_VPDB.png'")
 
 # Show the plots
@@ -274,7 +275,8 @@ plt.legend();
 
 # Adjust layout and save figure
 plt.tight_layout()
-plt.savefig('jars_analysis_plots_at-pct.png', dpi=300)
+plots_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Plots/")
+plt.savefig(os.path.join(plots_folder, 'jars_analysis_plots_at-pct.png'), dpi=300)
 print("\nPlots saved to 'jars_analysis_plots_at-pct.png'")
 
 # Show the plots
@@ -373,7 +375,8 @@ ax.spines['right'].set_visible(False)
 plt.tight_layout()
 
 # Save the figure
-plt.savefig('jars_cumul_co2_flux_by_crop_no_filter.png', dpi=300, bbox_inches='tight')
+plots_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Plots/")
+plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_no_filter.png'), dpi=300, bbox_inches='tight')
 print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_no_filter.png'")
 
 # Display final cumulative values
@@ -482,7 +485,7 @@ ax.spines['right'].set_visible(False)
 plt.tight_layout()
 
 # Save the figure
-plt.savefig('jars_cumul_co2_flux_by_crop_filtered.png', dpi=300, bbox_inches='tight')
+plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_filtered.png'), dpi=300, bbox_inches='tight')
 print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_filtered.png'")
 
 # Display final cumulative values
@@ -628,7 +631,8 @@ plt.legend();
 
 # Adjust layout and save figure
 plt.tight_layout()
-plt.savefig('pots_analysis_plots_VPDB.png', dpi=300)
+plots_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Plots/")
+plt.savefig(os.path.join(plots_folder, 'pots_analysis_plots_VPDB.png'), dpi=300)
 print("\nPlots saved to 'pots_analysis_plots_VPDB.png'")
 
 # Show the plots
@@ -706,7 +710,7 @@ plt.legend();
 
 # Adjust layout and save figure
 plt.tight_layout()
-plt.savefig('pots_analysis_plots_at-pct.png', dpi=300)
+plt.savefig(os.path.join(plots_folder, 'pots_analysis_plots_at-pct.png'), dpi=300)
 print("\nPlots saved to 'pots_analysis_plots_at-pct.png'")
 
 # Show the plots
@@ -760,7 +764,7 @@ ax.spines['right'].set_visible(False)
 
 # Adjust layout and save figure
 plt.tight_layout()
-plt.savefig('pots_co2_flux_by_crop.png', dpi=300, bbox_inches='tight')
+plt.savefig(os.path.join(plots_folder, 'pots_co2_flux_by_crop.png'), dpi=300, bbox_inches='tight')
 print("\nPlot saved to 'pots_co2_flux_by_crop.png'")
 
 # Show the plot
@@ -829,7 +833,7 @@ ax.spines['right'].set_visible(False)
 plt.tight_layout()
 
 # Save the figure
-plt.savefig('pots_cumul_co2_flux_by_crop.png', dpi=300, bbox_inches='tight')
+plt.savefig(os.path.join(plots_folder, 'pots_cumul_co2_flux_by_crop.png'), dpi=300, bbox_inches='tight')
 print(f"\nCumulative flux plot saved to 'pots_cumul_co2_flux_by_crop.png'")
 
 # Display final cumulative values
