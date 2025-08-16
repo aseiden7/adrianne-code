@@ -33,7 +33,8 @@ if (box_base == "") stop("BOX_BASE environment variable is not set!")
 corr_spectra <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files")
 # set dpt_folder path
 dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
-
+# set outputs folder path
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/OPUS_code_outputs")
 ```
 
 # Reading OPUS files
@@ -394,7 +395,7 @@ dfw <- dpt_data %>%
 
 # Save to CSV with today's date
 today <- Sys.Date()
-csvName <- paste0("FTIR_wide_", today, ".csv") # nolint: object_name_linter.
+csvName <- paste0(outputs_folder, "FTIR_wide_", today, ".csv") # nolint: object_name_linter.
 write_csv(dfw, csvName)
 ```
 
@@ -488,8 +489,7 @@ dfw2 <- dpt_data %>%
 
 # Save to CSV with today's date
 today <- Sys.Date()
-csvName2 <- paste0("FTIR_wide_info_", # nolint: object_name_linter.
-                   today, ".csv")
+csvName2 <- paste0(outputs_folder, "FTIR_wide_info_", today, ".csv")
 write_csv(dfw2, csvName2)
 ```
 
@@ -550,7 +550,7 @@ root0_plot <- root0 %>%
   ggtitle("Roots at week 0")
 root0_plot
 unique(root0$ID)
-ggsave("Root_week0_FTIR.png", plot = root0_plot)
+ggsave(file.path(outputs_folder, "Root_week0_FTIR.png"), plot = root0_plot)
 
 
 # Soils week 0
@@ -582,7 +582,7 @@ ggsave("Root_week0_FTIR.png", plot = root0_plot)
 #   ggtitle("Soils at week 0") # nolint: commented_code_linter.
 # soil0_plot
 # unique(soil0$ID) # nolint: commented_code_linter.
-# ggsave("Soil_week0_FTIR.png", plot = soil0_plot) # nolint
+# ggsave(file.path(outputs_folder, "Soil_week0_FTIR.png"), plot = soil0_plot) # nolint
 ```
 
 ### Week 10
@@ -614,7 +614,7 @@ root10_plot <- root10 %>%
   ggtitle("Roots at week 10")
 root10_plot
 unique(root10$ID)
-ggsave("Root_week10_FTIR.png", plot = root10_plot)
+ggsave(file.path(outputs_folder, "Root_week10_FTIR.png"), plot = root10_plot)
 
 # Soils week 10
 soil10 <- soiln %>%
@@ -644,7 +644,7 @@ soil10_plot <- soil10 %>%
   ggtitle("Soils at week 10")
 soil10_plot
 unique(soil10$ID)
-ggsave("Soil_week10_FTIR.png", plot = soil10_plot)
+ggsave(file.path(outputs_folder, "Soil_week10_FTIR.png"), plot = soil10_plot)
 ```
 ## Plotting by crop
 ### wheat roots
