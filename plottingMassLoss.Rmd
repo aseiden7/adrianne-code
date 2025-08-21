@@ -19,11 +19,11 @@ knit: (function(inputFile, encoding) {
 library(reticulate)
 
 # Configure Python installation
-# Mac install
-use_python("/Users/adrianneseiden/Library/Caches/org.R-project.R/R/reticulate/uv/cache/archive-v0/4R66RK1qjSkCbDYQUxbIy/bin/python3") #nolint
+# # Mac install
+# use_python("/Users/adrianneseiden/Library/Caches/org.R-project.R/R/reticulate/uv/cache/archive-v0/4R66RK1qjSkCbDYQUxbIy/bin/python3") #nolint
 
-# # Windows install
-# use_python("C:/Users/adria/AppData/Local/Programs/Python/Python313/python.exe") #nolint
+# Windows install
+use_python("C:/Users/adria/AppData/Local/Programs/Python/Python313/python.exe") #nolint
 
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -69,6 +69,7 @@ df['litterbag mass remaining (%)'] = df['lb_remaining_perc._corr.']
 df['sifted root mass remaining (%)'] = df['root_remaining_perc._corr.']
 df['litterbag mass remaining (mg)'] = df['lb_remaining_mg_corr.']
 df['sifted root mass remaining (mg)'] = df['root_remaining_mg_corr.']
+df['litterbag mass remaining new (%)'] = df['lb_remaining_perc._corr.2']
 print(df.head())
 
 # Function to calculate statistics
@@ -108,6 +109,36 @@ plt.show()
 # Statistics for Plot 2
 stats_df2 = get_stats(df, 'litterbag mass remaining (%)')
 print("Statistics for Plot 2:\n", stats_df2)
+```
+## Trying another correction
+Dividing the percent mass remaining by the average T0 percent remaining (after 2 days), grouped by Isotope and Crop. Previous chunk divided by average noPlant mass remaining (across all time points).
+
+```{python litterbag-percent-new}
+# Plot 1: remaining/noPlant_percent vs Week, grouped by Isotope and Crop
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='litterbag mass remaining new (%)', hue='Crop', style='Isotope', markers=True, palette=crop_colors)
+plt.title('Litterbag Mass Remaining (%) vs Time (weeks) (Grouped by Isotope and Crop)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Litterbag Mass Remaining (%)')
+plt.legend(title='Isotope / Crop')
+plt.show()
+
+# Statistics for Plot 1
+stats_dfn = get_stats(df, 'litterbag mass remaining new (%)')
+print("Statistics for Plot 1:\n", stats_dfn)
+
+# Plot 2: remaining/noPlant_percent vs Time (weeks), grouped by Crop only
+plt.figure(figsize=(12, 8))
+sns.lineplot(data=df, x='Time (weeks)', y='litterbag mass remaining new (%)', hue='Crop', marker='o', palette=crop_colors)
+plt.title('Litterbag Mass Remaining (%) vs Time (weeks) (Grouped by Crop Only)')
+plt.xlabel('Time (weeks)')
+plt.ylabel('Litterbag Mass Remaining (%)')
+plt.legend(title='Crop')
+plt.show()
+
+# Statistics for Plot 2
+stats_dfn1 = get_stats(df, 'litterbag mass remaining new (%)')
+print("Statistics for Plot 2:\n", stats_dfn1)
 ```
 
 ## Root mass remaining over time - percent
