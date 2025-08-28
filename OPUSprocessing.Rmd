@@ -615,7 +615,9 @@ palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
            "wheat" = "#98C65D", "soy" = "#FE318E")
 #roots week 10
 root10 <- rootsn %>%
-  filter(timepoint == "wk10")
+  filter(timepoint == "wk10") %>%
+  filter(ID != "094") # 94 has a huge ~3500 peak compared to other wk10 soy
+#Plot
 #Plot
 root10_plot <- root10 %>%
   ggplot(mapping = aes(x = wavenumber,
@@ -776,7 +778,8 @@ unique(rice$ID)
 # soy
 soy <- rootsn %>%
   group_by(timepoint) %>%
-  filter(crop == "soy")
+  filter(crop == "soy") %>%
+  filter(ID != "094") # 94 has a huge ~3500 peak compared to other wk10 soy
 
 soy$absorbance <- as.numeric(soy$absorbance)
 
