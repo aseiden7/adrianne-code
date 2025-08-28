@@ -91,22 +91,6 @@ integrated_ftir_plots <- file.path(box_base, "Salk Institute Project/AKS Salk fi
 The first 4 code chunks are modified from "Integration_Code_Premliminary_Data.R",
 also found in the beginning of "Integration_Code_Example.R"
 ```{r load-data, echo=TRUE, message=FALSE, warning=FALSE}
-# # Set working directory where data files are located
-# setwd("C:/Users/adria/Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata") # nolint: line_length_linter.
-
-# This first section of the code is loading data from the DPT files
-
-# Set data folder (don't need to change working directory)
-# # Windows path
-# dpt_folder <- "C:/Users/adria/Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files" # nolint: line_length_linter.
-# # relative path
-# dpt_folder <- "../Adrianne_FTIRdata/DPT_files"
-
-# # path from local repository
-# box_base <- Sys.getenv("BOX_BASE")
-# if (box_base == "") stop("BOX_BASE environment variable is not set!")
-
-# dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
 
 # Check if folder exists and list files
 if (!dir.exists(dpt_folder)) {
@@ -126,11 +110,6 @@ cat("Number of .dpt files:", length(DPTfiles), "\n")
 # Read files and extract data
 Read each DPT file and store in a list
 ```{r read-files, echo=TRUE, message=FALSE, warning=FALSE}
-# # folder path from local repository
-# box_base <- Sys.getenv("BOX_BASE")
-# if (box_base == "") stop("BOX_BASE environment variable is not set!")
-
-# dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
 
 dpt_data_list <- list()
 
@@ -339,25 +318,6 @@ Importing the list of file names is possibly not necessary, because we already h
 ## Importing the list of file names
 Felt cute, might delete later.
 ```{r import-filenames, echo=TRUE, message=FALSE, warning=FALSE}
-# Need to have all of the datafiles you want to import in the same directory.
-# # Windows path
-# data1 <- list.files(
-#   path = "C:/Users/adria/Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files", # nolint: line_length_linter.
-#   full.names = TRUE
-# )
-# # relative path
-# data1 <- list.files(
-#   path = "../Adrianne_FTIRdata/DPT_files",
-#   full.names = TRUE
-# )
-
-# # path from local repository
-# box_base <- Sys.getenv("BOX_BASE")
-# if (box_base == "") stop("BOX_BASE environment variable is not set!")
-# data1 <- list.files(
-#   path = file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files",
-#   full.names = TRUE
-# )
 
 # using predefined path
 data1 <- list.files(
@@ -561,19 +521,29 @@ write.csv(ftir_data, file = proc_name, row.names = FALSE)
 # Create subset data frames based on your actual data structure
 wk0_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk0", ]
 wk10_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk10", ]
+#wk20_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk20", ]
+#wk30_root_data <- ftir_data[ftir_data$type == "root" & (ftir_data$timepoint == "wk30" | ftir_data$timepoint == "wk29"), ]
 wk40_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk40", ]
 # Crop-specific subsets
 wk0_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk0", ]
 wk10_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk10", ]
+#wk20_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk20", ]
+#wk30_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk30", ]
 wk40_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk40", ]
 
 wk0_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk0", ]
 wk10_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk10", ]
+#wk30_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk29", ]
 wk40_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk40", ]
 
 wk0_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk0", ]
 wk10_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk10", ]
+#wk20_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk20", ]
+#wk30_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk30", ]
 wk40_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk40", ]
+
+#wk30_noPlant_root_data <- ftir_data[ftir_data$crop == "noPlant" & ftir_data$timepoint == "wk30", ]
+#wk40_noPlant_root_data <- ftir_data[ftir_data$crop == "noPlant" & ftir_data$timepoint == "wk40", ]
 # Function to calculate summary statistics for any grouping
 calculate_group_stats <- function(data, group_vars) {
   data %>%
@@ -624,7 +594,7 @@ This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
 # Plotting functions
 create_proportion_plots <- function(stats_data, group_col, title_prefix) {
   # Define color palettes
-  crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E')
+  crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#2E4057')
   # Use the same timepoint colors as interaction plot
   timepoint_colors <- c("#440154", "#31688e", "#9FB8AD", "#F9A03F", "#D5C6E0")
 
@@ -716,7 +686,7 @@ interaction_plot <- ggplot(crop_timepoint_stats) +
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
   theme_classic() +
-  scale_fill_manual("Timepoint", values = c("#440154", "#31688e", "#9FB8AD", "#F9A03F")) +
+  scale_fill_manual("Timepoint", values = c("#440154", "#31688e", "#9FB8AD", "#F9A03F", "#D5C6E0")) +
   labs(title = "Simple Plant OM by Crop and Timepoint",
        x = "Crop Type",
        y = "Simple Plant OM Proportion") +
