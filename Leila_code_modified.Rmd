@@ -561,15 +561,19 @@ write.csv(ftir_data, file = proc_name, row.names = FALSE)
 # Create subset data frames based on your actual data structure
 wk0_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk0", ]
 wk10_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk10", ]
-
+wk40_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk40", ]
 # Crop-specific subsets
 wk0_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk0", ]
 wk10_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk10", ]
+wk40_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk40", ]
+
 wk0_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk0", ]
 wk10_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk10", ]
+wk40_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk40", ]
+
 wk0_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk0", ]
 wk10_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk10", ]
-
+wk40_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk40", ]
 # Function to calculate summary statistics for any grouping
 calculate_group_stats <- function(data, group_vars) {
   data %>%
@@ -622,8 +626,8 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
   # Define color palettes
   crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E')
   # Use the same timepoint colors as interaction plot
-  timepoint_colors <- c("#440154", "#31688e")
-  
+  timepoint_colors <- c("#440154", "#31688e", "#9FB8AD", "#F9A03F", "#D5C6E0")
+
   # Select appropriate colors based on group_col
   if (group_col == "crop") {
     fill_colors <- crop_colors
@@ -712,7 +716,7 @@ interaction_plot <- ggplot(crop_timepoint_stats) +
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
   theme_classic() +
-  scale_fill_manual("Timepoint", values = c("#440154", "#31688e")) +
+  scale_fill_manual("Timepoint", values = c("#440154", "#31688e", "#9FB8AD", "#F9A03F")) +
   labs(title = "Simple Plant OM by Crop and Timepoint",
        x = "Crop Type",
        y = "Simple Plant OM Proportion") +
