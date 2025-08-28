@@ -201,31 +201,44 @@ extract_sample_type <- function(filename) {
   }
 }
 
-# Group files by sample number & sample type
+# Helper to extract timepoint (e.g., "wk0", "wk40")
+extract_timepoint <- function(filename) {
+  m <- regexpr("wk[0-9]+", filename, ignore.case = TRUE)
+  if (m[1] != -1) {
+    tolower(regmatches(filename, m))
+  } else {
+    NA
+  }
+}
+
+# Group files by sample number, sample type, and timepoint
 sample_numbers <- sapply(names(data_test), extract_sample_number)
 sample_types <- sapply(names(data_test), extract_sample_type)
+timepoints <- sapply(names(data_test), extract_timepoint)
 
-# Create unique combinations of sample number and sample type
-sample_combinations <- paste(sample_numbers, sample_types, sep = "_")
+# Create unique combinations of sample number, sample type, and timepoint
+sample_combinations <- paste(sample_numbers, sample_types, timepoints, sep = "_")
 unique_combinations <- unique(sample_combinations[!is.na(sample_numbers)
-                                                  & !is.na(sample_types)])
+                                                  & !is.na(sample_types)
+                                                  & !is.na(timepoints)])
 
 # Plot stacked spectra for each unique combination
 library(RColorBrewer)
 for (combination in unique_combinations) {
   idx <- which(sample_combinations == combination)
   if (length(idx) > 1) {
-    # Extract sample number and type from combination
+    # Extract sample number, type, and timepoint from combination
     parts <- strsplit(combination, "_")[[1]]
     sample_num <- parts[1]
     sample_type <- parts[2]
+    timepoint <- parts[3]
 
     spectra <- data_test[idx]
     colors <- brewer.pal(min(length(spectra), 8), "Set1")
     plot(NULL, xlim = rev(range(spectra[[1]]$ab$wavenumbers)),
          ylim = range(sapply(spectra, function(x) x$ab$data), na.rm = TRUE),
          xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
-         main = paste("Stacked spectra for", sample_num, "-", sample_type),
+         main = paste("Stacked spectra for", sample_num, "-", sample_type, "-", timepoint),
          bty = "l")
     for (i in seq_along(spectra)) {
       ab_data <- spectra[[i]]$ab
@@ -264,17 +277,25 @@ extract_time <- function(filename) {
   m <- regexpr("wk[0-9]+", filename, ignore.case = TRUE)
   if (m[1] != -1) tolower(regmatches(filename, m)) else NA
 }
-
+extract_sample_type <- function(filename) {
+  m <- regexpr("root|soil", filename, ignore.case = TRUE)
+  if (m[1] != -1) {
+    tolower(regmatches(filename, m))
+  } else {
+    NA
+  }
+}
 # Get crop and time for each file
 crops <- sapply(names(data_test), extract_crop)
 times <- sapply(names(data_test), extract_time)
+types <- sapply(names(data_test), extract_sample_type)
 
 # Unique crop-time combinations
-combos <- na.omit(unique(paste(crops, times, sep = "_")))
+combos <- na.omit(unique(paste(crops, times, types, sep = "_")))
 
 library(RColorBrewer)
 for (combo in combos) {
-  idx <- which(paste(crops, times, sep = "_") == combo)
+  idx <- which(paste(crops, times, types, sep = "_") == combo)
   if (length(idx) > 1) {
     spectra <- data_test[idx]
     colors <- brewer.pal(min(length(spectra), 8), "Set1")
