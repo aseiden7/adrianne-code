@@ -393,6 +393,13 @@ dpt_data <- dpt_data[complete.cases(dpt_data), ]
 # filter out KBr
 dpt_data <- dpt_data[!grepl("KBr", dpt_data$filename), ]
 
+#filter out anomalous spectra
+anomalous_spectra <- c("DRIFTS_pot103_13Crice_wk0_root_recNMR_250725.0.dpt",
+                       "DRIFTS_pot103_13Crice_wk0_root_vial1_250725.0.dpt",
+                       "DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt")
+
+dpt_data <- dpt_data[!dpt_data$filename %in% anomalous_spectra, ]
+
 # Create wide format table
 dfw <- dpt_data %>%
   pivot_wider(names_from = filename,
@@ -400,7 +407,7 @@ dfw <- dpt_data %>%
 
 # Save to CSV with today's date
 today <- Sys.Date()
-csvName <- paste0(outputs_folder, "FTIR_wide_", today, ".csv") # nolint: object_name_linter.
+csvName <- paste0(outputs_folder, "/FTIR_wide_", today, ".csv") # nolint: object_name_linter.
 write_csv(dfw, csvName)
 ```
 
@@ -494,7 +501,7 @@ dfw2 <- dpt_data %>%
 
 # Save to CSV with today's date
 today <- Sys.Date()
-csvName2 <- paste0(outputs_folder, "FTIR_wide_info_", today, ".csv")
+csvName2 <- paste0(outputs_folder, "/FTIR_wide_info_", today, ".csv")
 write_csv(dfw2, csvName2)
 ```
 ### Normalize absorbance data
