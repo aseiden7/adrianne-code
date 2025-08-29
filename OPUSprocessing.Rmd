@@ -171,13 +171,7 @@ knitr::opts_chunk$set(
 library(opusreader2)
 library(RColorBrewer)
 
-#save the path to your corrected spectra
-# # Mac path
-# corr_spectra <- "/Users/adrianneseiden/Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files" # nolint
-#  # Windows path
-# corr_spectra <- "C:/Users/adria/Box/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/Corrected_files" # nolint
-# Relative path
-# corr_spectra <- "../Adrianne_FTIRdata/Corrected_files"
+
 
 data_test <- read_opus(dsn = corr_spectra)
 
@@ -551,8 +545,7 @@ palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
 #roots week 0
 root0 <- rootsn %>%
   filter(timepoint == "wk0") %>%
-  filter(ID != "047") %>% # 047 has a weird peak at the start
-  filter(ID != "107") # 107 is different from other rice wk 0
+  filter(ID != "047") # 47 has a weird peak at the start
 #Plot
 root0_plot <- root0 %>%
   ggplot(mapping = aes(x = wavenumber,
@@ -754,8 +747,7 @@ rice <- rootsn %>%
 
 rice <- rice %>%
   group_by(ID) %>%
-  filter(ID != "047") %>% # 047 has a weird peak at the start
-  filter(ID != "107") # 107 is different from other rice wk 0
+  filter(ID != "047") # 47 has a weird peak at the start
 
 rice$absorbance <- as.numeric(rice$absorbance)
 
