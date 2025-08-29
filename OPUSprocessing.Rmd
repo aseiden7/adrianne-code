@@ -551,7 +551,8 @@ palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
 #roots week 0
 root0 <- rootsn %>%
   filter(timepoint == "wk0") %>%
-  filter(ID != "047") # 47 has a weird peak at the start
+  filter(ID != "047") %>% # 047 has a weird peak at the start
+  filter(ID != "107") # 107 is different from other rice wk 0
 #Plot
 root0_plot <- root0 %>%
   ggplot(mapping = aes(x = wavenumber,
@@ -753,7 +754,8 @@ rice <- rootsn %>%
 
 rice <- rice %>%
   group_by(ID) %>%
-  filter(ID != "047") # 47 has a weird peak at the start
+  filter(ID != "047") %>% # 047 has a weird peak at the start
+  filter(ID != "107") # 107 is different from other rice wk 0
 
 rice$absorbance <- as.numeric(rice$absorbance)
 

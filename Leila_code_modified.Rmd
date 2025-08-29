@@ -149,6 +149,14 @@ setDT(long_table)  # convert in-place to data.table
 # Filter out KBr files
 long_table <- long_table[!grepl("KBr", long_table$filename), ]
 
+# Filter out anomalous spectra
+anomalous_spectra <- c("DRIFTS_pot094_13Csoy_wk10_root_250725.0.dpt",
+                     "DRIFTS_pot107_12Crice_wk0_root_really13_250725.0.dpt")
+long_table <- long_table[!long_table$filename %in% anomalous_spectra, ]
+
+cat("Filtered out", length(anomalous_spectra), "anomalous spectra\n")
+cat("Remaining files:", length(unique(long_table$filename)), "\n")
+
 # dcast is a reshaping tool that will convert "long" (columnar) data into "wide"
 # first argument is our long_table, and then the second argument is the formula
 wide_table <- dcast(long_table, filename ~ wavenumber, value.var = "absorbance")
@@ -327,6 +335,13 @@ data1 <- list.files(
 
 
 data1 <- data1[!grepl("KBr", data1)]  # Exclude KBr files
+
+# Filter out anomalous spectra files
+anomalous_files <- c("DRIFTS_pot094_13Csoy_wk10_root_250725.0.dpt",
+                     "DRIFTS_pot107_12Crice_wk0_root_really13_250725.0.dpt")
+data1 <- data1[!basename(data1) %in% anomalous_files]
+
+cat("Filtered file list - remaining files:", length(data1), "\n")
 str(data1)
 # Import as space-delimited files
 import_list <- llply(data1, read.table, header = FALSE, sep = "")
