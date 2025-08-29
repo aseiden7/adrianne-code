@@ -691,10 +691,15 @@ ftir_deviations <- ftir_deviations %>%
     zscore_complex_plant_prop = ifelse(sd_complex_plant_prop > 0, dev_complex_plant_prop / sd_complex_plant_prop, 0),
     zscore_microbial_prop = ifelse(sd_microbial_prop > 0, dev_microbial_prop / sd_microbial_prop, 0),
     zscore_simple_microbial_prop = ifelse(sd_simple_microbial_prop > 0, dev_simple_microbial_prop / sd_simple_microbial_prop, 0),
-    zscore_complex_microbial_prop = ifelse(sd_complex_microbial_prop > 0, dev_complex_microbial_prop / sd_complex_microbial_prop, 0)
+    zscore_complex_microbial_prop = ifelse(sd_complex_microbial_prop > 0, dev_complex_microbial_prop / sd_complex_microbial_prop, 0),
+    sumsq_ints = zscore_aliphatic^2 + zscore_int_microbial^2 + zscore_int_complex_plant^2,
+    sumsq_tot_prop = zscore_simple_plant_prop^2 + zscore_complex_plant_prop^2 + zscore_microbial_prop^2,
+    sumsq_microb_prop = zscore_simple_microbial_prop^2 + zscore_complex_microbial_prop^2,
+    sumsq_all_prop = sumsq_tot_prop + sumsq_microb_prop,
+    sumsq_all = sumsq_ints + sumsq_all_prop
   ) %>%
-  # Remove the temporary sd columns
-  select(-starts_with("sd_"))
+  # Remove the temporary sd and dev columns
+  select(-starts_with("sd_"),-starts_with("dev_"))
 
 # Save deviations data
 today <- format(Sys.Date(), "%Y-%m-%d")

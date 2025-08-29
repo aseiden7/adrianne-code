@@ -2974,26 +2974,31 @@ Still troubleshooting this code.</p>
 <span id="cb8-187"><a href="#cb8-187" tabindex="-1"></a>    <span class="at">zscore_complex_plant_prop =</span> <span class="fu">ifelse</span>(sd_complex_plant_prop <span class="sc">&gt;</span> <span class="dv">0</span>, dev_complex_plant_prop <span class="sc">/</span> sd_complex_plant_prop, <span class="dv">0</span>),</span>
 <span id="cb8-188"><a href="#cb8-188" tabindex="-1"></a>    <span class="at">zscore_microbial_prop =</span> <span class="fu">ifelse</span>(sd_microbial_prop <span class="sc">&gt;</span> <span class="dv">0</span>, dev_microbial_prop <span class="sc">/</span> sd_microbial_prop, <span class="dv">0</span>),</span>
 <span id="cb8-189"><a href="#cb8-189" tabindex="-1"></a>    <span class="at">zscore_simple_microbial_prop =</span> <span class="fu">ifelse</span>(sd_simple_microbial_prop <span class="sc">&gt;</span> <span class="dv">0</span>, dev_simple_microbial_prop <span class="sc">/</span> sd_simple_microbial_prop, <span class="dv">0</span>),</span>
-<span id="cb8-190"><a href="#cb8-190" tabindex="-1"></a>    <span class="at">zscore_complex_microbial_prop =</span> <span class="fu">ifelse</span>(sd_complex_microbial_prop <span class="sc">&gt;</span> <span class="dv">0</span>, dev_complex_microbial_prop <span class="sc">/</span> sd_complex_microbial_prop, <span class="dv">0</span>)</span>
-<span id="cb8-191"><a href="#cb8-191" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb8-192"><a href="#cb8-192" tabindex="-1"></a>  <span class="co"># Remove the temporary sd columns</span></span>
-<span id="cb8-193"><a href="#cb8-193" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;sd_&quot;</span>))</span>
-<span id="cb8-194"><a href="#cb8-194" tabindex="-1"></a></span>
-<span id="cb8-195"><a href="#cb8-195" tabindex="-1"></a><span class="co"># Save deviations data</span></span>
-<span id="cb8-196"><a href="#cb8-196" tabindex="-1"></a>today <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
-<span id="cb8-197"><a href="#cb8-197" tabindex="-1"></a>deviations_name <span class="ot">&lt;-</span> <span class="fu">paste0</span>(integrated_ftir_csv, <span class="st">&quot;/FTIR_Sample_Deviations_&quot;</span>, today, <span class="st">&quot;.csv&quot;</span>)</span>
-<span id="cb8-198"><a href="#cb8-198" tabindex="-1"></a><span class="fu">write.csv</span>(ftir_deviations, <span class="at">file =</span> deviations_name, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-190"><a href="#cb8-190" tabindex="-1"></a>    <span class="at">zscore_complex_microbial_prop =</span> <span class="fu">ifelse</span>(sd_complex_microbial_prop <span class="sc">&gt;</span> <span class="dv">0</span>, dev_complex_microbial_prop <span class="sc">/</span> sd_complex_microbial_prop, <span class="dv">0</span>),</span>
+<span id="cb8-191"><a href="#cb8-191" tabindex="-1"></a>    <span class="at">sumsq_ints =</span> zscore_aliphatic<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> zscore_int_microbial<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> zscore_int_complex_plant<span class="sc">^</span><span class="dv">2</span>,</span>
+<span id="cb8-192"><a href="#cb8-192" tabindex="-1"></a>    <span class="at">sumsq_tot_prop =</span> zscore_simple_plant_prop<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> zscore_complex_plant_prop<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> zscore_microbial_prop<span class="sc">^</span><span class="dv">2</span>,</span>
+<span id="cb8-193"><a href="#cb8-193" tabindex="-1"></a>    <span class="at">sumsq_microb_prop =</span> zscore_simple_microbial_prop<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> zscore_complex_microbial_prop<span class="sc">^</span><span class="dv">2</span>,</span>
+<span id="cb8-194"><a href="#cb8-194" tabindex="-1"></a>    <span class="at">sumsq_all_prop =</span> sumsq_tot_prop <span class="sc">+</span> sumsq_microb_prop,</span>
+<span id="cb8-195"><a href="#cb8-195" tabindex="-1"></a>    <span class="at">sumsq_all =</span> sumsq_ints <span class="sc">+</span> sumsq_all_prop</span>
+<span id="cb8-196"><a href="#cb8-196" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb8-197"><a href="#cb8-197" tabindex="-1"></a>  <span class="co"># Remove the temporary sd and dev columns</span></span>
+<span id="cb8-198"><a href="#cb8-198" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;sd_&quot;</span>),<span class="sc">-</span><span class="fu">starts_with</span>(<span class="st">&quot;dev_&quot;</span>))</span>
 <span id="cb8-199"><a href="#cb8-199" tabindex="-1"></a></span>
-<span id="cb8-200"><a href="#cb8-200" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Sample deviations calculated and saved to:&quot;</span>, deviations_name, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-201"><a href="#cb8-201" tabindex="-1"></a><span class="co">#&gt; Sample deviations calculated and saved to: /Users/adrianneseiden/Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/leila_code_output_csv/FTIR_Sample_Deviations_2025-08-28.csv</span></span>
-<span id="cb8-202"><a href="#cb8-202" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Deviation metrics calculated:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-203"><a href="#cb8-203" tabindex="-1"></a><span class="co">#&gt; Deviation metrics calculated:</span></span>
-<span id="cb8-204"><a href="#cb8-204" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;- Raw deviations (dev_*): Sample value - group mean</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-205"><a href="#cb8-205" tabindex="-1"></a><span class="co">#&gt; - Raw deviations (dev_*): Sample value - group mean</span></span>
-<span id="cb8-206"><a href="#cb8-206" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;- Z-scores (zscore_*): Standardized deviations (dev / group SD)</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-207"><a href="#cb8-207" tabindex="-1"></a><span class="co">#&gt; - Z-scores (zscore_*): Standardized deviations (dev / group SD)</span></span>
-<span id="cb8-208"><a href="#cb8-208" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Groups defined by: crop × timepoint × type</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-209"><a href="#cb8-209" tabindex="-1"></a><span class="co">#&gt; Groups defined by: crop × timepoint × type</span></span></code></pre></div>
+<span id="cb8-200"><a href="#cb8-200" tabindex="-1"></a><span class="co"># Save deviations data</span></span>
+<span id="cb8-201"><a href="#cb8-201" tabindex="-1"></a>today <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<span id="cb8-202"><a href="#cb8-202" tabindex="-1"></a>deviations_name <span class="ot">&lt;-</span> <span class="fu">paste0</span>(integrated_ftir_csv, <span class="st">&quot;/FTIR_Sample_Deviations_&quot;</span>, today, <span class="st">&quot;.csv&quot;</span>)</span>
+<span id="cb8-203"><a href="#cb8-203" tabindex="-1"></a><span class="fu">write.csv</span>(ftir_deviations, <span class="at">file =</span> deviations_name, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-204"><a href="#cb8-204" tabindex="-1"></a></span>
+<span id="cb8-205"><a href="#cb8-205" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Sample deviations calculated and saved to:&quot;</span>, deviations_name, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-206"><a href="#cb8-206" tabindex="-1"></a><span class="co">#&gt; Sample deviations calculated and saved to: /Users/adrianneseiden/Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/leila_code_output_csv/FTIR_Sample_Deviations_2025-08-28.csv</span></span>
+<span id="cb8-207"><a href="#cb8-207" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Deviation metrics calculated:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-208"><a href="#cb8-208" tabindex="-1"></a><span class="co">#&gt; Deviation metrics calculated:</span></span>
+<span id="cb8-209"><a href="#cb8-209" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;- Raw deviations (dev_*): Sample value - group mean</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-210"><a href="#cb8-210" tabindex="-1"></a><span class="co">#&gt; - Raw deviations (dev_*): Sample value - group mean</span></span>
+<span id="cb8-211"><a href="#cb8-211" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;- Z-scores (zscore_*): Standardized deviations (dev / group SD)</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-212"><a href="#cb8-212" tabindex="-1"></a><span class="co">#&gt; - Z-scores (zscore_*): Standardized deviations (dev / group SD)</span></span>
+<span id="cb8-213"><a href="#cb8-213" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Groups defined by: crop × timepoint × type</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-214"><a href="#cb8-214" tabindex="-1"></a><span class="co">#&gt; Groups defined by: crop × timepoint × type</span></span></code></pre></div>
 </div>
 <div id="visualizing-the-data" class="section level1">
 <h1>Visualizing the data</h1>
