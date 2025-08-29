@@ -518,14 +518,24 @@ library(forcats)
 # Read your processed data (assuming 'ints' is your integrated data frame)
 ftir_data <- ints # ints is defined in the previous chunk
 
+# rename ints columns
+names(ftir_data)[11:12] <- c(
+  "int_microbial",
+  "int_complex_plant"
+)
+
 # Calculate derived metrics (same as original)
 ftir_data$aliphatic <- ftir_data$int_2839_2870 + ftir_data$int_2898_2976
-ftir_data$total_peak_area <- ftir_data$aliphatic + ftir_data$int_1580_1660 + ftir_data$int_1500_1550
+ftir_data$total_peak_area <- ftir_data$aliphatic + ftir_data$int_microbial + ftir_data$int_complex_plant
 ftir_data$simple_plant_prop <- ftir_data$aliphatic / ftir_data$total_peak_area
-ftir_data$complex_plant_prop <- ftir_data$int_1500_1550 / ftir_data$total_peak_area
-ftir_data$microbial_plant_prop <- ftir_data$int_1580_1660 / ftir_data$total_peak_area
-ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_plant_prop
-ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_plant_prop
+ftir_data$complex_plant_prop <- ftir_data$int_complex_plant / ftir_data$total_peak_area
+ftir_data$microbial_prop <- ftir_data$int_microbial / ftir_data$total_peak_area
+ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_prop
+ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_prop
+
+# drop int_2839_2870 and int_2898_2976
+ftir_data <- ftir_data %>%
+  select(-int_2839_2870, -int_2898_2976)
 
 # Save processed data
 today <- format(Sys.Date(), "%Y-%m-%d")
@@ -567,21 +577,21 @@ calculate_group_stats <- function(data, group_vars) {
       Mean_aliphatic = mean(aliphatic, na.rm = TRUE),
       SD_aliphatic = sd(aliphatic, na.rm = TRUE),
       SE_aliphatic = sd(aliphatic, na.rm = TRUE) / sqrt(n()),
-      Mean_1580_1660 = mean(int_1580_1660, na.rm = TRUE),
-      SD_1580_1660 = sd(int_1580_1660, na.rm = TRUE),
-      SE_1580_1660 = sd(int_1580_1660, na.rm = TRUE) / sqrt(n()),
-      Mean_1500_1550 = mean(int_1500_1550, na.rm = TRUE),
-      SD_1500_1550 = sd(int_1500_1550, na.rm = TRUE),
-      SE_1500_1550 = sd(int_1500_1550, na.rm = TRUE) / sqrt(n()),
+      Mean_microbial = mean(int_microbial, na.rm = TRUE),
+      SD_microbial = sd(int_microbial, na.rm = TRUE),
+      SE_microbial = sd(int_microbial, na.rm = TRUE) / sqrt(n()),
+      Mean_complex = mean(int_complex_plant, na.rm = TRUE),
+      SD_complex = sd(int_complex_plant, na.rm = TRUE),
+      SE_complex = sd(int_complex_plant, na.rm = TRUE) / sqrt(n()),
       Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
       SD_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE),
       SE_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE) / sqrt(n()),
       Mean_complex_plant_prop = mean(complex_plant_prop, na.rm = TRUE),
       SD_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE),
       SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
-      Mean_microbial_prop = mean(microbial_plant_prop, na.rm = TRUE),
-      SD_microbial_prop = sd(microbial_plant_prop, na.rm = TRUE),
-      SE_microbial_prop = sd(microbial_plant_prop, na.rm = TRUE) / sqrt(n()),
+      Mean_microbial_prop = mean(microbial_prop, na.rm = TRUE),
+      SD_microbial_prop = sd(microbial_prop, na.rm = TRUE),
+      SE_microbial_prop = sd(microbial_prop, na.rm = TRUE) / sqrt(n()),
       Mean_simple_microbial = mean(simple_microbial_prop, na.rm = TRUE),
       SD_simple_microbial = sd(simple_microbial_prop, na.rm = TRUE),
       SE_simple_microbial = sd(simple_microbial_prop, na.rm = TRUE) / sqrt(n()),
@@ -625,6 +635,77 @@ write.csv(type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Type.csv"), row.n
 write.csv(crop_type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop_Type.csv"), row.names = FALSE)
 write.csv(timepoint_type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Timepoint_Type.csv"), row.names = FALSE)
 write.csv(crop_timepoint_type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop_Timepoint_Type.csv"), row.names = FALSE)
+
+# Calculate deviations for each sample from their group means
+# Define the metrics to analyze
+metrics <- c("int_microbial", "int_complex_plant", "aliphatic", 
+             "simple_plant_prop", "complex_plant_prop", "microbial_prop", 
+             "simple_microbial_prop", "complex_microbial_prop")
+
+# Calculate group means for crop × timepoint × type combination
+group_means <- ftir_data %>%
+  group_by(crop, timepoint, type) %>%
+  summarise(
+    across(all_of(metrics), ~ mean(.x, na.rm = TRUE), .names = "mean_{.col}"),
+    .groups = "drop"
+  )
+
+# Merge back with original data to calculate deviations
+ftir_deviations <- ftir_data %>%
+  left_join(group_means, by = c("crop", "timepoint", "type")) %>%
+  mutate(
+    # Calculate deviations (sample value - group mean)
+    dev_int_microbial = int_microbial - mean_int_microbial,
+    dev_int_complex_plant = int_complex_plant - mean_int_complex_plant,
+    dev_aliphatic = aliphatic - mean_aliphatic,
+    dev_simple_plant_prop = simple_plant_prop - mean_simple_plant_prop,
+    dev_complex_plant_prop = complex_plant_prop - mean_complex_plant_prop,
+    dev_microbial_prop = microbial_prop - mean_microbial_prop,
+    dev_simple_microbial_prop = simple_microbial_prop - mean_simple_microbial_prop,
+    dev_complex_microbial_prop = complex_microbial_prop - mean_complex_microbial_prop,
+    
+    # Calculate standardized deviations (z-scores) - optional
+    # First calculate group standard deviations
+    .by = c(crop, timepoint, type)
+  ) %>%
+  # Remove the temporary mean columns to keep output clean
+  select(-starts_with("mean_"))
+
+# Calculate group standard deviations for z-scores
+group_sds <- ftir_data %>%
+  group_by(crop, timepoint, type) %>%
+  summarise(
+    across(all_of(metrics), ~ sd(.x, na.rm = TRUE), .names = "sd_{.col}"),
+    .groups = "drop"
+  )
+
+# Add z-scores (standardized deviations)
+ftir_deviations <- ftir_deviations %>%
+  left_join(group_sds, by = c("crop", "timepoint", "type")) %>%
+  mutate(
+    # Calculate z-scores (deviation / group standard deviation)
+    zscore_int_microbial = ifelse(sd_int_microbial > 0, dev_int_microbial / sd_int_microbial, 0),
+    zscore_int_complex_plant = ifelse(sd_int_complex_plant > 0, dev_int_complex_plant / sd_int_complex_plant, 0),
+    zscore_aliphatic = ifelse(sd_aliphatic > 0, dev_aliphatic / sd_aliphatic, 0),
+    zscore_simple_plant_prop = ifelse(sd_simple_plant_prop > 0, dev_simple_plant_prop / sd_simple_plant_prop, 0),
+    zscore_complex_plant_prop = ifelse(sd_complex_plant_prop > 0, dev_complex_plant_prop / sd_complex_plant_prop, 0),
+    zscore_microbial_prop = ifelse(sd_microbial_prop > 0, dev_microbial_prop / sd_microbial_prop, 0),
+    zscore_simple_microbial_prop = ifelse(sd_simple_microbial_prop > 0, dev_simple_microbial_prop / sd_simple_microbial_prop, 0),
+    zscore_complex_microbial_prop = ifelse(sd_complex_microbial_prop > 0, dev_complex_microbial_prop / sd_complex_microbial_prop, 0)
+  ) %>%
+  # Remove the temporary sd columns
+  select(-starts_with("sd_"))
+
+# Save deviations data
+today <- format(Sys.Date(), "%Y-%m-%d")
+deviations_name <- paste0(integrated_ftir_csv, "/FTIR_Sample_Deviations_", today, ".csv")
+write.csv(ftir_deviations, file = deviations_name, row.names = FALSE)
+
+cat("Sample deviations calculated and saved to:", deviations_name, "\n")
+cat("Deviation metrics calculated:\n")
+cat("- Raw deviations (dev_*): Sample value - group mean\n")
+cat("- Z-scores (zscore_*): Standardized deviations (dev / group SD)\n")
+cat("Groups defined by: crop × timepoint × type\n")
 ```
 # Visualizing the data
 This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
