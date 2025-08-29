@@ -150,8 +150,8 @@ setDT(long_table)  # convert in-place to data.table
 long_table <- long_table[!grepl("KBr", long_table$filename), ]
 
 # Filter out anomalous spectra
-anomalous_spectra <- c("DRIFTS_pot094_13Csoy_wk10_root_250725.0.dpt",
-                     "DRIFTS_pot107_12Crice_wk0_root_really13_250725.0.dpt")
+# keeping 047 because the peak at ~3800 is the only anomalous part, and is not included in the peak integrations an
+anomalous_spectra <- "DRIFTS_pot103_13Crice_wk0_root_recNMR_250725.0.dpt"
 long_table <- long_table[!long_table$filename %in% anomalous_spectra, ]
 
 cat("Filtered out", length(anomalous_spectra), "anomalous spectra\n")
@@ -337,8 +337,8 @@ data1 <- list.files(
 data1 <- data1[!grepl("KBr", data1)]  # Exclude KBr files
 
 # Filter out anomalous spectra files
-anomalous_files <- c("DRIFTS_pot094_13Csoy_wk10_root_250725.0.dpt",
-                     "DRIFTS_pot107_12Crice_wk0_root_really13_250725.0.dpt")
+anomalous_files <- "DRIFTS_pot103_13Crice_wk0_root_recNMR_250725.0.dpt"
+
 data1 <- data1[!basename(data1) %in% anomalous_files]
 
 cat("Filtered file list - remaining files:", length(data1), "\n")
@@ -405,41 +405,40 @@ red3 <- comb[comb$wavelength > 1580 & comb$wavelength < 1660, ]
 red4 <- comb[comb$wavelength > 1500 & comb$wavelength < 1550, ]
 
 #make a new data frame to hold corrected data
-# First, define the sample variable
+# First, define the sample variable for counting
 sample <- unique(comb$sample)
 
-# Then create the data frame with the correct number of rows
-ints <- as.data.frame(matrix(NA, nrow = length(sample), ncol = 11))
-
-# Now assign the sample column
-ints$sample <- sample
+# Create the data frame with the correct number of rows and columns (including notes)
+ints <- as.data.frame(matrix(NA, nrow = length(sample), ncol = 12))
 
 # Check dimensions match before assigning metadata
 print(paste("ints rows:", nrow(ints)))
 print(paste("meta_table rows:", nrow(meta_table)))
 print(paste("Number of unique samples:", length(sample)))
 
-# Assign metadata columns
-ints[1] <- meta_table[, 1]
-ints[2] <- meta_table[, 2]
-ints[3] <- meta_table[, 3]
-ints[4] <- meta_table[, 4]
-ints[5] <- meta_table[, 5]
-ints[6] <- meta_table[, 6]
-ints[7] <- meta_table[, 8]
+# Assign metadata columns (including notes)
+ints[1] <- meta_table[, 1]  # source
+ints[2] <- meta_table[, 2]  # ID
+ints[3] <- meta_table[, 3]  # isotope
+ints[4] <- meta_table[, 4]  # crop
+ints[5] <- meta_table[, 5]  # timepoint
+ints[6] <- meta_table[, 6]  # type
+ints[7] <- meta_table[, 7]  # notes
+ints[8] <- meta_table[, 8]  # run_date
 
-# Set column names
-names(ints)[1:7] <- c(
+# Set column names (including notes)
+names(ints)[1:8] <- c(
   "source",
   "ID",
   "isotope",
   "crop",
   "timepoint",
   "type",
+  "notes",
   "run_date"
 )
-names(ints)[8:9] <- c("int_2839_2870", "int_2898_2976")
-names(ints)[10:11] <- c("int_1580_1660", "int_1500_1550")
+names(ints)[9:10] <- c("int_2839_2870", "int_2898_2976")
+names(ints)[11:12] <- c("int_1580_1660", "int_1500_1550")
 head(ints)
 
 # ##export to check - note there are no absorbance values yet
@@ -458,7 +457,7 @@ calculated as the distance between endpoints, which needs to be subtracted
 
 # Calculate integrated areas for each spectral window and sample
 for (i in seq_len(nrow(ints))) {
-  current_sample <- ints$sample[i]
+  current_sample <- sample[i]  # Use the sample vector instead of ints$sample
 
   # Extract data for current sample from each spectral window
   sample_red1 <- red1[red1$sample == current_sample, ]
@@ -540,25 +539,25 @@ wk10_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "w
 #wk30_root_data <- ftir_data[ftir_data$type == "root" & (ftir_data$timepoint == "wk30" | ftir_data$timepoint == "wk29"), ]
 wk40_root_data <- ftir_data[ftir_data$type == "root" & ftir_data$timepoint == "wk40", ]
 # Crop-specific subsets
-wk0_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk0", ]
-wk10_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk10", ]
-#wk20_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk20", ]
-#wk30_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk30", ]
-wk40_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$timepoint == "wk40", ]
+wk0_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$type == "root" & ftir_data$timepoint == "wk0", ]
+wk10_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$type == "root" & ftir_data$timepoint == "wk10", ]
+#wk20_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$type == "root" & ftir_data$timepoint == "wk20", ]
+#wk30_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$type == "root" & ftir_data$timepoint == "wk30", ]
+wk40_wheat_root_data <- ftir_data[ftir_data$crop == "wheat" & ftir_data$type == "root" & ftir_data$timepoint == "wk40", ]
 
-wk0_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk0", ]
-wk10_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk10", ]
-#wk30_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk29", ]
-wk40_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$timepoint == "wk40", ]
+wk0_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$type == "root" & ftir_data$timepoint == "wk0", ]
+wk10_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$type == "root" & ftir_data$timepoint == "wk10", ]
+#wk30_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$type == "root" & ftir_data$timepoint == "wk29", ]
+wk40_rice_root_data <- ftir_data[ftir_data$crop == "rice" & ftir_data$type == "root" & ftir_data$timepoint == "wk40", ]
 
-wk0_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk0", ]
-wk10_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk10", ]
-#wk20_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk20", ]
-#wk30_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk30", ]
-wk40_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$timepoint == "wk40", ]
+wk0_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$type == "root" & ftir_data$timepoint == "wk0", ]
+wk10_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$type == "root" & ftir_data$timepoint == "wk10", ]
+#wk20_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$type == "root" & ftir_data$timepoint == "wk20", ]
+#wk30_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$type == "root" & ftir_data$timepoint == "wk30", ]
+wk40_soy_root_data <- ftir_data[ftir_data$crop == "soy" & ftir_data$type == "root" & ftir_data$timepoint == "wk40", ]
 
-#wk30_noPlant_root_data <- ftir_data[ftir_data$crop == "noPlant" & ftir_data$timepoint == "wk30", ]
-#wk40_noPlant_root_data <- ftir_data[ftir_data$crop == "noPlant" & ftir_data$timepoint == "wk40", ]
+#wk30_noPlant_root_data <- ftir_data[ftir_data$crop == "noPlant" & ftir_data$type == "root" & ftir_data$timepoint == "wk30", ]
+#wk40_noPlant_root_data <- ftir_data[ftir_data$crop == "noPlant" & ftir_data$type == "root" & ftir_data$timepoint == "wk40", ]
 # Function to calculate summary statistics for any grouping
 calculate_group_stats <- function(data, group_vars) {
   data %>%
@@ -566,20 +565,28 @@ calculate_group_stats <- function(data, group_vars) {
     summarise(
       n_samples = n(),
       Mean_aliphatic = mean(aliphatic, na.rm = TRUE),
+      SD_aliphatic = sd(aliphatic, na.rm = TRUE),
       SE_aliphatic = sd(aliphatic, na.rm = TRUE) / sqrt(n()),
       Mean_1580_1660 = mean(int_1580_1660, na.rm = TRUE),
+      SD_1580_1660 = sd(int_1580_1660, na.rm = TRUE),
       SE_1580_1660 = sd(int_1580_1660, na.rm = TRUE) / sqrt(n()),
       Mean_1500_1550 = mean(int_1500_1550, na.rm = TRUE),
+      SD_1500_1550 = sd(int_1500_1550, na.rm = TRUE),
       SE_1500_1550 = sd(int_1500_1550, na.rm = TRUE) / sqrt(n()),
       Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
+      SD_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE),
       SE_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE) / sqrt(n()),
       Mean_complex_plant_prop = mean(complex_plant_prop, na.rm = TRUE),
+      SD_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE),
       SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
       Mean_microbial_prop = mean(microbial_plant_prop, na.rm = TRUE),
+      SD_microbial_prop = sd(microbial_plant_prop, na.rm = TRUE),
       SE_microbial_prop = sd(microbial_plant_prop, na.rm = TRUE) / sqrt(n()),
       Mean_simple_microbial = mean(simple_microbial_prop, na.rm = TRUE),
+      SD_simple_microbial = sd(simple_microbial_prop, na.rm = TRUE),
       SE_simple_microbial = sd(simple_microbial_prop, na.rm = TRUE) / sqrt(n()),
       Mean_complex_microbial = mean(complex_microbial_prop, na.rm = TRUE),
+      SD_complex_microbial = sd(complex_microbial_prop, na.rm = TRUE),
       SE_complex_microbial = sd(complex_microbial_prop, na.rm = TRUE) / sqrt(n()),
       .groups = "drop"
     )
@@ -595,6 +602,18 @@ crop_stats <- calculate_group_stats(ftir_data, "crop")
 # By timepoint only
 timepoint_stats <- calculate_group_stats(ftir_data, "timepoint")
 
+# By type only (soil vs root)
+type_stats <- calculate_group_stats(ftir_data, "type")
+
+# By crop and type (separate soil from root for each crop)
+crop_type_stats <- calculate_group_stats(ftir_data, c("crop", "type"))
+
+# By timepoint and type (separate soil from root for each timepoint)
+timepoint_type_stats <- calculate_group_stats(ftir_data, c("timepoint", "type"))
+
+# By crop, timepoint, and type (most detailed grouping)
+crop_timepoint_type_stats <- calculate_group_stats(ftir_data, c("crop", "timepoint", "type"))
+
 # By isotope and crop (if you want to compare 12C vs 13C)
 isotope_crop_stats <- calculate_group_stats(ftir_data, c("isotope", "crop"))
 
@@ -602,6 +621,10 @@ isotope_crop_stats <- calculate_group_stats(ftir_data, c("isotope", "crop"))
 write.csv(crop_timepoint_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop_Timepoint.csv"), row.names = FALSE)
 write.csv(crop_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop.csv"), row.names = FALSE)
 write.csv(timepoint_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Timepoint.csv"), row.names = FALSE)
+write.csv(type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Type.csv"), row.names = FALSE)
+write.csv(crop_type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop_Type.csv"), row.names = FALSE)
+write.csv(timepoint_type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Timepoint_Type.csv"), row.names = FALSE)
+write.csv(crop_timepoint_type_stats, paste0(integrated_ftir_csv, "/FTIR_Stats_Crop_Timepoint_Type.csv"), row.names = FALSE)
 ```
 # Visualizing the data
 This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
@@ -612,12 +635,16 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
   crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#2E4057')
   # Use the same timepoint colors as interaction plot
   timepoint_colors <- c("#440154", "#31688e", "#9FB8AD", "#F9A03F", "#D5C6E0")
+  # Type colors for soil vs root
+  type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
 
   # Select appropriate colors based on group_col
   if (group_col == "crop") {
     fill_colors <- crop_colors
   } else if (group_col == "timepoint") {
     fill_colors <- timepoint_colors
+  } else if (group_col == "type") {
+    fill_colors <- type_colors
   } else {
     # Default to viridis for other variables
     fill_colors <- NULL
@@ -690,6 +717,34 @@ timepoint_plots <- create_proportion_plots(timepoint_stats, "timepoint", "")
 timepoint_combined <- plot_grid(timepoint_plots$p1, timepoint_plots$p2, timepoint_plots$p3, nrow = 1, labels = "auto")
 print(timepoint_combined)
 ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Timepoint.pdf"), plot = timepoint_combined, width = 18, height = 9, units = "in", dpi = 300)
+
+# Create plots by type (soil vs root)
+type_plots <- create_proportion_plots(type_stats, "type", "")
+type_combined <- plot_grid(type_plots$p1, type_plots$p2, type_plots$p3, nrow = 1, labels = "auto")
+print(type_combined)
+ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Type.pdf"), plot = type_combined, width = 18, height = 9, units = "in", dpi = 300)
+
+# Create interaction plot (crop x type)
+crop_type_interaction_plot <- ggplot(crop_type_stats) +
+  geom_col(aes(x = crop, y = Mean_simple_plant_prop, fill = type),
+           position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_simple_plant_prop - SE_simple_plant_prop,
+                    ymax = Mean_simple_plant_prop + SE_simple_plant_prop,
+                    group = type),
+                position = position_dodge(0.9), width = 0.2) +
+  theme_classic() +
+  scale_fill_manual("Type", values = c("root" = "#8B4513", "soil" = "#DEB887")) +
+  labs(title = "Simple Plant OM by Crop and Sample Type",
+       x = "Crop Type",
+       y = "Simple Plant OM Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(crop_type_interaction_plot)
+ggsave(paste0(integrated_ftir_plots, "/FTIR_Crop_Type_Interaction.pdf"), plot = crop_type_interaction_plot, 
+       width = 10, height = 9, units = "in", dpi = 300)
 
 # Create interaction plot (crop x timepoint)
 interaction_plot <- ggplot(crop_timepoint_stats) +
