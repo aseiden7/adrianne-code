@@ -808,33 +808,33 @@ timepoint_combined <- plot_grid(timepoint_plots$p1, timepoint_plots$p2, timepoin
 print(timepoint_combined)
 ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Timepoint.pdf"), plot = timepoint_combined, width = 18, height = 9, units = "in", dpi = 300)
 
-# Create plots by type (soil vs root)
-type_plots <- create_proportion_plots(type_stats, "type", "")
-type_combined <- plot_grid(type_plots$p1, type_plots$p2, type_plots$p3, nrow = 1, labels = "auto")
-print(type_combined)
-ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Type.pdf"), plot = type_combined, width = 18, height = 9, units = "in", dpi = 300)
+# # Create plots by type (soil vs root)
+# type_plots <- create_proportion_plots(type_stats, "type", "")
+# type_combined <- plot_grid(type_plots$p1, type_plots$p2, type_plots$p3, nrow = 1, labels = "auto")
+# print(type_combined)
+# ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Type.pdf"), plot = type_combined, width = 18, height = 9, units = "in", dpi = 300)
 
-# Create interaction plot (crop x type)
-crop_type_interaction_plot <- ggplot(crop_type_stats) +
-  geom_col(aes(x = crop, y = Mean_simple_plant_prop, fill = type),
-           position = "dodge", alpha = 0.8) +
-  geom_errorbar(aes(x = crop,
-                    ymin = Mean_simple_plant_prop - SE_simple_plant_prop,
-                    ymax = Mean_simple_plant_prop + SE_simple_plant_prop,
-                    group = type),
-                position = position_dodge(0.9), width = 0.2) +
-  theme_classic() +
-  scale_fill_manual("Type", values = c("root" = "#8B4513", "soil" = "#DEB887")) +
-  labs(title = "Simple Plant OM by Crop and Sample Type",
-       x = "Crop Type",
-       y = "Simple Plant OM Proportion") +
-  theme(legend.position = "top",
-        plot.margin = margin(20, 20, 20, 20),
-        axis.text.x = element_text(angle = 45, hjust = 1))
+# # Create interaction plot (crop x type)
+# crop_type_interaction_plot <- ggplot(crop_type_stats) +
+#   geom_col(aes(x = crop, y = Mean_simple_plant_prop, fill = type),
+#            position = "dodge", alpha = 0.8) +
+#   geom_errorbar(aes(x = crop,
+#                     ymin = Mean_simple_plant_prop - SE_simple_plant_prop,
+#                     ymax = Mean_simple_plant_prop + SE_simple_plant_prop,
+#                     group = type),
+#                 position = position_dodge(0.9), width = 0.2) +
+#   theme_classic() +
+#   scale_fill_manual("Type", values = c("root" = "#8B4513", "soil" = "#DEB887")) +
+#   labs(title = "Simple Plant OM by Crop and Sample Type",
+#        x = "Crop Type",
+#        y = "Simple Plant OM Proportion") +
+#   theme(legend.position = "top",
+#         plot.margin = margin(20, 20, 20, 20),
+#         axis.text.x = element_text(angle = 45, hjust = 1))
 
-print(crop_type_interaction_plot)
-ggsave(paste0(integrated_ftir_plots, "/FTIR_Crop_Type_Interaction.pdf"), plot = crop_type_interaction_plot, 
-       width = 10, height = 9, units = "in", dpi = 300)
+# print(crop_type_interaction_plot)
+# ggsave(paste0(integrated_ftir_plots, "/FTIR_Crop_Type_Interaction.pdf"), plot = crop_type_interaction_plot, 
+#        width = 10, height = 9, units = "in", dpi = 300)
 
 # Create interaction plot (crop x timepoint)
 interaction_plot <- ggplot(crop_timepoint_stats) +
