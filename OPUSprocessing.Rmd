@@ -564,10 +564,14 @@ root0_plot <- root0 %>%
   geom_density_ridges(stat = "identity",
                       scale = 3,
                       alpha = 0.25) +
-  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+ geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.5) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.5) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.5) +
+  # geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.5) +
+  # geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.5) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.5) +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -630,10 +634,14 @@ root10_plot <- root10 %>%
   geom_density_ridges(stat = "identity",
                       scale = 3,
                       alpha = 0.25) +
-  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.5) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.5) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.5) +
+  # geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.5) +
+  # geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.5) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.5) +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
