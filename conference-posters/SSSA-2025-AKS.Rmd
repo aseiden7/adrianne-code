@@ -51,7 +51,7 @@ main_fontfamily: "Lexend Giga"
 main_textsize: "120px"
 main_findings:
   - "Placeholder for **salient points** and **key figures**."
-  - '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar.png){.main_pic}'
+  - '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar+suberin.png){.main_pic}'
 main_picwidth: "15in"
 logoleft_name: '![](""){.main-img-left}'
 logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
