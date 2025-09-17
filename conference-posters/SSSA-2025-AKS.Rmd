@@ -1,5 +1,7 @@
 ---
 title: Does Root Suberin Content Influence Belowground Carbon Cycling?
+poster_height: "32in"
+poster_width: "44in"
 author:
   - name: Adrianne Seiden
     affil: 1
@@ -8,6 +10,10 @@ author:
 affiliation:
   - num: 1
     address: Department of Life and Environmental Sciences, University of California, Merced, CA, USA
+primary_colour: "#2b180c"
+secondary_colour: "#5D4432"
+accent_colour: "#74C365"
+
 main_findings:
   - "Make **better posters** with RMarkdown + **posterdown**."
   - '![](https://raw.githubusercontent.com/brentthorne/posterdown/master/images/betterhexlogo.png){.main_pic}'
@@ -42,7 +48,7 @@ dev.off()
 
 # Introduction
 
-This is the `posterdown_betterland` template for the {posterdown} package! I was inspired by the twitter thread of [Mike Morrison](https://mobile.twitter.com/mikemorrison/status/1110191245035479041) and wanted to apply the `#betterposter` concept to the reproducible (yet simple to use) functionality of the {posterdown} package [@R-posterdown]. If you're not an R user don't sweat as you do **NOT** need to use it at all! Feel free to use only the Markdown functionality of this package :)
+Root-derived carbon is a key input to soil organic matter (SOM) in both managed and natural ecosystems, yet the role of roots’ chemical composition in determining SOM persistence remains uncertain. Suberin—a hydrophobic, carbon-rich biopolymer found in root cell walls—has been hypothesized to enhance long-term soil carbon storage, but its contribution is debated in light of emerging OM-stability paradigms that emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance. This study investigates how varying suberin content influences mineralization rates and chemical transformations of root-derived organic matter in soil. Using 13C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30–40 weeks.
 
 ```{r, include=FALSE}
 knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
