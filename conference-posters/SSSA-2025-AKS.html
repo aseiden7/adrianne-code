@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+
+<title>Does Root Suberin Content Influence Belowground Carbon Cycling?</title>
+
+
+
+
+
+
+
+<!--
+Font-awesome icons ie github or twitter
+-->
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/brands.css" integrity="sha384-n9+6/aSqa9lBidZMRCQHTHKJscPq6NW4pCQBiMmHdUCvPN8ZOg2zJJTkC7WIezWv" crossorigin="anonymous">
+
+<!--
+Google fonts api stuff
+-->
+<link href='https://fonts.googleapis.com/css?family=Special Elite' rel='stylesheet'>
+<link href='https://fonts.googleapis.com/css?family=Rasa' rel='stylesheet'>
+
+<!--
+Here are the required style attributes for css to make this poster work :)
+-->
+<style>
+@page {
+size: 44in 32in;
+margin: 0;
+padding: 0;
+background-color: #ffffff;
+}
+body {
+margin: 0px;
+padding: 0px;
+width: 44in;
+height: 32in;
+text-align: justify;
+font-size: 45px;
+background-color: #FFFFFF;
+color: #000000;
+}
+/* RMarkdown Class Styles */
+/* center align leaflet map,
+from https://stackoverflow.com/questions/52112119/center-leaflet-in-a-rmarkdown-document */
+.html-widget {
+margin: auto;
+position: sticky;
+margin-top: 2cm;
+margin-bottom: 2cm;
+}
+.leaflet.html-widget.html-widget-static-bound.leaflet-container.leaflet-touch.leaflet-fade-anim.leaflet-grab.leaflet-touch-drag.leaflet-touch-zoom {
+position: sticky;
+width: 100%;
+}
+pre.sourceCode.r, pre.sourceCode.python {
+background-color: #ffffff20;
+border: solid #2b180c 1mm;
+border-radius: 0.5em;
+padding: 4mm;
+margin: auto;
+margin-top: 1em;
+margin-bottom: 1em;
+/* align-items: center; */
+}
+div.sourceCode {
+background-color: transparent;
+width: 85%;
+margin-left: auto;
+margin-right: auto;
+}
+code.sourceCode.r, code.sourceCode.python {
+background-color: transparent;
+font-size: 20pt;
+border-radius: 2mm;
+}
+code {
+font-size: 25pt;
+font-family: monospace;
+background-color: #2b180c24;
+color: #2b180c;
+padding: 1.2mm;
+line-height: 1;
+border-radius: 2mm;
+}
+caption {
+margin-bottom: 10px;
+font-size: 20pt;
+font-style: italic;
+}
+
+tbody tr:nth-child(odd) {
+    background-color: #5D443220;
+}
+.table>thead>tr>th, .table>tbody>tr>th, .table>tfoot>tr>th, .table>thead>tr>td, .table>tbody>tr>td, .table>tfoot>tr>td{
+  border-spacing: 0;
+  font-size: 40%;
+  border-style: none;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-right: 1em;
+  padding-left: 1em;
+  line-height: 1em;
+}
+table {
+  margin: auto;
+}
+th {
+  padding-left: 5mm;
+  padding-right: 5mm;
+}
+.caption {
+font-size: 20pt;
+font-style: italic;
+padding-top: 0;
+}
+.references {
+font-size: 20px;
+line-height: 90%;
+}
+/* Create three unequal columns that floats next to each other */
+.column {
+float: left;
+padding: 0px;
+}
+.outer {
+width: 44in;
+height: 32in;
+-webkit-column-count: 2; /* Chrome, Safari, Opera */
+-moz-column-count: 2; /* Firefox */
+column-count: 2;
+-webkit-column-fill: auto;
+-moz-column-fill: auto;
+column-fill: auto;
+-webkit-column-rule-width: 0.4;
+-moz-column-rule-width: 0.4;
+column-rule-width: 0.4;
+-webkit-column-rule-style: solid;
+-moz-column-rule-style: solid;
+column-rule-style: solid;
+-webkit-column-rule-color: black;
+-moz-column-rule-color: black;
+column-rule-color: black;
+-webkit-column-gap: calc(0.4 * 100%);
+background-color: #ffffff;
+font-family: Rasa;
+color: #000000;
+}
+span.citation {
+  color: #2b180c;
+  font-weight: bold;
+}
+a {
+text-decoration: none;
+color: #2b180c;
+}
+#title {
+font-size: 125pt;
+text-align: left;
+margin: 0;
+line-height: 90%;
+border-bottom: 0;
+}
+#author {
+color: #5D4432;
+margin: 0;
+text-align: left;
+line-height: 65%;
+font-size: 1.17em;
+}
+#affiliation {
+padding-top: 1em;
+color: #00000060;
+font-style: italic;
+font-size: 25px;
+margin: 0;
+}
+sup {
+color: #74C365;
+}
+.affiliation sup {
+font-size: 20px;
+}
+.author sup {
+font-size: 30px;
+}
+.author_extra {
+color: #2b180c;
+margin: 0;
+line-height: 85%;
+font-size: 35px;
+}
+.outer h1 {
+text-align: center;
+margin-top: 0.5in;
+margin-bottom: 0.5in;
+}
+.outer h2 {
+text-align: center;
+}
+.outer p {
+color: #000000;
+}
+.outer ol {
+text-align: left;
+}
+.main {
+width: calc(44in * 0.4);
+height: 32in;
+position: absolute;
+margin-left: calc(44in * ((1 - 0.4) / 2));
+background-color: #5D4432;
+color: #FFFFFF90;
+font-family: Special Elite;
+background-image: linear-gradient(#5D4432 50%, #2b180c);
+}
+.main strong {
+color: #FFFFFF;
+}
+img.main-img-left {
+width: 20%;
+left: 0.5in;
+bottom: 0.2in;
+position: absolute;
+}
+img.main-img-right {
+width: 18%;
+right: 0.5in;
+bottom: 0.2in;
+position: absolute;
+}
+.main p {
+padding-top: 20%;
+font-size: 170px;
+text-align: left;
+}
+.fab {
+color: #00000060;
+font-size: 25px;
+}
+.twitter, i {
+color: #00000060;
+font-size: 35px;
+text-decoration: none;
+}
+a.email {
+text-decoration: none;
+color: #00000060;
+font-size: 35px;
+}
+.envelope {
+color: #00000060;
+font-size: 5px;
+text-decoration: none;
+}
+.globe {
+color: #00000060;
+font-size: 5px;
+text-decoration: none;
+}
+.github > .fab {
+color: #00000060;
+font-size: 40px;
+text-decoration: none;
+}
+.globetext {
+color: #00000060;
+font-size: 35px;
+text-decoration: none;
+}
+.poster_wrap {
+width: 44in;
+height: 32in;
+padding: 0cm;
+background-color: #ffffff;
+}
+span > #tab:mytable {
+  font-weight: bold;
+}
+.section {
+  padding-left: 10mm;
+  padding-right: 10mm;
+}
+.main p {
+  padding-left: 30mm;
+  padding-right: 30mm;
+}
+.main_pic {
+  width: 50%;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.orcid img {
+  width: 3%;
+}
+</style>
+</head>
+<body>
+
+
+<div class="poster_wrap">
+<div class="column outer">
+<br>
+<div class="title section">
+<h1 id="title">Does Root Suberin Content Influence Belowground Carbon Cycling?</h1>
+<br>
+<h3 id="author" class="author">
+
+Adrianne Seiden<sup> 1</sup><br>
+
+<a class='envelope'><i class="fas fa-envelope"></i></a> <a href="mailto:aseiden2@ucmerced.edu" class="email">aseiden2@ucmerced.edu</a> <br>
+</h3>
+
+<h5 id="author_extra" class="author_extra">
+</h5>
+
+<p id="affiliation" class="affiliation">
+<sup>1</sup> Department of Life and Environmental Sciences, University of California, Merced, CA, USA
+</p>
+
+</div>
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>Root-derived carbon is a key input to soil organic matter (SOM) in both managed and natural ecosystems, yet the role of roots’ chemical composition in determining SOM persistence remains uncertain. Suberin—a hydrophobic, carbon-rich biopolymer found in root cell walls—has been hypothesized to enhance long-term soil carbon storage, but its contribution is debated in light of emerging OM-stability paradigms that emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance. This study investigates how varying suberin content influences mineralization rates and chemical transformations of root-derived organic matter in soil. Using 13C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30–40 weeks.</p>
+</div>
+
+</div>
+<div class="main">
+<p>Make <strong>better posters</strong> with RMarkdown + <strong>posterdown</strong>.<br><br> <img src="https://raw.githubusercontent.com/brentthorne/posterdown/master/images/betterhexlogo.png" class="main_pic" /></p>
+<img src="https://raw.githubusercontent.com/brentthorne/posterdown/master/images/qr-code-black.png" class="main-img-left" />
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png" class="main-img-right" />
+</div>
+</div>
+
+
+
+</body>
+</html>

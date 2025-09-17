@@ -1,0 +1,8 @@
+/* CSS to scale down poster for VS Code preview */
+body {
+  zoom: 0.4 !important;
+}
+
+html {
+  zoom: 0.4 !important;
+}

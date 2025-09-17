@@ -2,24 +2,56 @@
 title: Does Root Suberin Content Influence Belowground Carbon Cycling?
 poster_height: "32in"
 poster_width: "44in"
+font_family: "Lexend"
 author:
   - name: Adrianne Seiden
     affil: 1
     email: aseiden2@ucmerced.edu
     main: true
+
+  - name: Stephany Soledad Chacon
+    affil: 1
+    email: schacon6@ucmerced.edu
+    main: false
+
+  - name: Melisa Quintana
+    affil: 1
+    email: mquintana6@ucmerced.edu
+    main: false
+
+  - name: Ashish Rajurkar
+    affil: 2
+    email: arajurkar@salk.edu
+    main: false
+
+  - name: Wolfgang Busch
+    affil: 2
+    email: wbusch@salk.edu
+    main: false
+
+  - name: Asmeret Asefaw Berhe
+    affil: 1
+    email: aaberhe@ucmerced.edu
+    main: false
+
 affiliation:
   - num: 1
-    address: Department of Life and Environmental Sciences, University of California, Merced, CA, USA
+    address: Department of Life and Environmental Sciences, University of California, Merced, CA, 95343
+  - num: 2
+    address: Plant Molecular and Cellular Biology Laboratory, Salk Institute for Biological Studies, La Jolla, CA, 92037
+
+
 primary_colour: "#5D4432"
 secondary_colour: "#2b180c"
 accent_colour: "#74C365"
 main_width: 0.4
+main_fontfamily: "Lexend Giga"
 
 main_findings:
-  - "Make **better posters** with RMarkdown + **posterdown**."
+  - "Placeholder for **salient points** and **key figures**."
   - '![](https://raw.githubusercontent.com/brentthorne/posterdown/master/images/betterhexlogo.png){.main_pic}'
 logoleft_name: '![](https://raw.githubusercontent.com/brentthorne/posterdown/master/images/qr-code-black.png){.main-img-left}'
-logoright_name: '![](/Users/adrianneseiden/Documents/adrianne-code/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
+logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
 output: 
   posterdown::posterdown_betterland:
     self_contained: false
@@ -49,7 +81,7 @@ dev.off()
 
 # Introduction
 
-Root-derived carbon is a key input to soil organic matter (SOM) in both managed and natural ecosystems, yet the role of roots’ chemical composition in determining SOM persistence remains uncertain. Suberin—a hydrophobic, carbon-rich biopolymer found in root cell walls—has been hypothesized to enhance long-term soil carbon storage, but its contribution is debated in light of emerging OM-stability paradigms that emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance. This study investigates how varying suberin content influences mineralization rates and chemical transformations of root-derived organic matter in soil. Using 13C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30–40 weeks.
+Root-derived carbon is a key input to soil organic matter (SOM) in both managed and natural ecosystems, yet the role of roots’ chemical composition in determining SOM persistence remains uncertain. Suberin---a hydrophobic, carbon-rich biopolymer found in root cell walls---has been hypothesized to enhance long-term soil carbon storage, but its contribution is debated in light of emerging OM-stability paradigms that emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance. This study investigates how varying suberin content influences mineralization rates and chemical transformations of root-derived organic matter in soil. Using 13C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30--40 weeks.
 
 ```{r, include=FALSE}
 knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')

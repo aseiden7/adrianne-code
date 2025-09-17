@@ -134,7 +134,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-
+# Enable the dark_background style sheet
+plt.style.use('dark_background')
 # Create figure for plotting
 fig=plt.figure(figsize=(15, 10));
 fig.suptitle(r'Incubation Jars: $\mathrm{^{13}CO_{2}}$ Timeseries Data', fontsize=16);
@@ -299,7 +300,8 @@ Includes all data points.
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-
+# Enable the dark_background style sheet
+plt.style.use('dark_background')
 # Define the path to your Excel file
 # Define the path to your Excel file
 # Relative paths assume you are starting from the working directory
