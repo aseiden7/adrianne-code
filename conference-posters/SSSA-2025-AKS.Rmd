@@ -10,15 +10,16 @@ author:
 affiliation:
   - num: 1
     address: Department of Life and Environmental Sciences, University of California, Merced, CA, USA
-primary_colour: "#2b180c"
-secondary_colour: "#5D4432"
+primary_colour: "#5D4432"
+secondary_colour: "#2b180c"
 accent_colour: "#74C365"
+main_width: 0.4
 
 main_findings:
   - "Make **better posters** with RMarkdown + **posterdown**."
   - '![](https://raw.githubusercontent.com/brentthorne/posterdown/master/images/betterhexlogo.png){.main_pic}'
 logoleft_name: '![](https://raw.githubusercontent.com/brentthorne/posterdown/master/images/qr-code-black.png){.main-img-left}'
-logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
+logoright_name: '![](/Users/adrianneseiden/Documents/adrianne-code/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
 output: 
   posterdown::posterdown_betterland:
     self_contained: false
