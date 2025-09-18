@@ -54,8 +54,8 @@ main_findings:
   - '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar+suberin.png){.main_pic}'
 main_picwidth: "15in"
 logoleft_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo.png){.main-img-left}'
+logoleft_picwidth: "10in"
 logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
-
 # Body Section
 
 output: 
