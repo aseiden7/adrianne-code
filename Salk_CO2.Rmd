@@ -11,6 +11,19 @@ output:
     theme: darkly
     highlight: zenburn
     code_folding: hide
+    css: |
+      <style>
+      @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap');
+      body {
+        font-family: 'Lexend', sans-serif !important;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Lexend', sans-serif !important;
+      }
+      .navbar-brand {
+        font-family: 'Lexend', sans-serif !important;
+      }
+      </style>
 knit: (function(inputFile, encoding) {
     rmarkdown::render(inputFile, encoding = encoding,
                      output_dir = "../adrianne-code/") })
@@ -300,8 +313,6 @@ Includes all data points.
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-# Enable the dark_background style sheet
-plt.style.use('dark_background')
 # Define the path to your Excel file
 # Define the path to your Excel file
 # Relative paths assume you are starting from the working directory
@@ -364,14 +375,14 @@ for i, crop in enumerate(crop_order):
         weeks = weekly_averages[crop]['weeks']
         cumulative = weekly_averages[crop]['cumulative_flux']
         cumulative_sem = weekly_averages[crop]['cumulative_sem']
-        plt.errorbar(weeks, cumulative, yerr=cumulative_sem, marker='o', linestyle='-', linewidth=2.5,
-                    markersize=8, label=f'{crop}', color=colors[i], capsize=4);
+        plt.errorbar(weeks, cumulative, yerr=cumulative_sem, marker='o', linestyle='-', linewidth=2.6,
+                    markersize=8.5, label=f'{crop}', color=colors[i], capsize=4.5);
 
-plt.xlabel('Sampling Week', fontsize=12);
-plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1})}$', fontsize=12);
-plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop', fontsize=14, pad=20);
-plt.grid(True, linestyle='--', alpha=0.7);
-plt.legend(fontsize=11);
+plt.xlabel('Sampling Week', fontsize=18, weight='bold');
+plt.ylabel(r'$\mathbf{Cumulative\ CO_2\ Flux\ (\mu g\ CO_2\text{-}C \cdot g\text{-}soil^{-1} \cdot minute^{-1})}$', fontsize=18);
+plt.tick_params(axis='both', which='major', labelsize=14);
+plt.grid(True, linestyle='--', alpha=0.8);
+plt.legend(prop={'weight': 'bold', 'size': 16});
 
 # Add some styling
 ax.spines['top'].set_visible(False)
@@ -380,8 +391,8 @@ plt.tight_layout()
 
 # Save the figure
 plots_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Plots/")
-plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_no_filter.png'), dpi=300, bbox_inches='tight')
-print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_no_filter.png'")
+plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_no_filter-poster.png'), dpi=300, bbox_inches='tight')
+print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_no_filter-poster.png'")
 
 # Display final cumulative values
 print("\nFinal Cumulative CO2 Flux Values:")
