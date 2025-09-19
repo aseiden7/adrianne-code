@@ -53,8 +53,8 @@ main_findings:
   - "Placeholder for **salient points** and **key figures**."
   - '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar+suberin.png){.main_pic}'
 main_picwidth: "15in"
-logoleft_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo0.png){.main-img-left}'
-logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
+logoleft_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo.png){.main-img-left width="8in"}'
+logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right width="4in"}'
 # Body Section
 
 output: 
@@ -101,7 +101,7 @@ The low-suberin treatment exhibited significantly higher cumulative CO₂ flux t
 By integrating ¹³C tracers with molecular characterizations, this work advances a mechanistic understanding of soil carbon cycling at the root–soil interface by quantifying the partitioning of root-derived carbon between incorporation into SOM and mineralization to CO₂. Linking root chemistry variation to SOM dynamics can inform plant breeding programs and trait-based ecosystem management efforts aimed at enhancing long-term soil carbon stability.
 
 # Acknowledgments
-![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo.png){.logos width=20% }
+<!-- ![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/Salk_harnessing-plants-initiative.jpg){.logo-salk} -->
 
 ```{r, include=FALSE}
 knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
