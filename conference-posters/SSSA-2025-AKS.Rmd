@@ -54,7 +54,6 @@ main_findings:
   - '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar+suberin.png){.main_pic}'
 main_picwidth: "15in"
 logoleft_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo0.png){.main-img-left}'
-logoleft_picwidth: "12in"
 logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right}'
 # Body Section
 
@@ -98,8 +97,11 @@ Using ¹³C-labeled roots spanning a natural suberin gradient, we tracked decomp
 # Results
 The low-suberin treatment exhibited significantly higher cumulative CO₂ flux than all other treatments after the first week, however, the medium-suberin treatment had a lower cumulative flux than the high-suberin treatment (not significant). Spectroscopic analyses indicate that suberin persists in root tissues for at least 10 weeks, but is not readily detectable in the surrounding soil, suggesting limited transfer during early decay. The portion of organic carbon attributed to microbial biomass grew over time as expected.
 
-# Discussion
+# Conclusion
 By integrating ¹³C tracers with molecular characterizations, this work advances a mechanistic understanding of soil carbon cycling at the root–soil interface by quantifying the partitioning of root-derived carbon between incorporation into SOM and mineralization to CO₂. Linking root chemistry variation to SOM dynamics can inform plant breeding programs and trait-based ecosystem management efforts aimed at enhancing long-term soil carbon stability.
+
+# Acknowledgments
+![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo.png){.logos width=20% }
 
 ```{r, include=FALSE}
 knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
