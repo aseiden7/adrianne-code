@@ -535,15 +535,11 @@ soiln <- soil %>%
 ## Plotting by timepoint and type
 These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Dotted lines at specific wavenumbers indicate key absorption features.
 
-- 2900 cm<sup>-1</sup> ← aliphatic (alkanes)
+<!-- - 2900 cm<sup>-1</sup> ← aliphatic (alkanes)
 - 1730 - 1650 cm<sup>-1</sup> ← carbonyl; C=O stretch (carbonyl, carboxylic acids, esters, ketones, etc.)
 - 1500 cm<sup>-1</sup> ← aromatic
   
-I'm not sure if these are the best areas to highlight, but I kept what Stephany did. According to Martins et al. 2014:
-
-> Major peaks, which can be almost exclusively assigned to suberin, are at 2921 cm<sup>-1</sup>, 2851 cm<sup>-1</sup> and 1737 cm<sup>-1</sup>.
-
-Martins, I., Hartmann, D.O., Alves, P.C. et al. Elucidating how the saprophytic fungus Aspergillus nidulans uses the plant polyester suberin as carbon source. BMC Genomics 15, 613 (2014). https://doi.org/10.1186/1471-2164-15-613
+I'm not sure if these are the best areas to highlight, but I kept what Stephany did. -->
 
 ### Week 0
 ```{r plotting wk0, message=FALSE, warning=FALSE, comment=FALSE, fig.width=9, fig.height=6}
@@ -552,7 +548,8 @@ palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
 #roots week 0
 root0 <- rootsn %>%
   filter(timepoint == "wk0") %>%
-  filter(ID != "047") # 47 has a weird peak at the start
+  filter(ID != "047") %>% # 47 has a weird peak at the start
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
 #Plot
 root0_plot <- root0 %>%
   ggplot(mapping = aes(x = wavenumber,
@@ -621,7 +618,8 @@ palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
 #roots week 10
 root10 <- rootsn %>%
   filter(timepoint == "wk10") %>%
-  filter(ID != "094") # 94 has a huge ~3500 peak compared to other wk10 soy
+  filter(ID != "094") %>% # 94 has a huge ~3500 peak compared to other wk10 soy
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
 #Plot
 #Plot
 root10_plot <- root10 %>%
@@ -653,7 +651,8 @@ ggsave(file.path(outputs_folder, "Root_week10_FTIR.png"), plot = root10_plot)
 
 # Soils week 10
 soil10 <- soiln %>%
-  filter(timepoint == "wk10")
+  filter(timepoint == "wk10") %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
 
 palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
            "wheat" = "#D66327", "soy" = "#159C78")
@@ -688,7 +687,8 @@ palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
            "wheat" = "#98C65D", "soy" = "#FE318E")
 #roots week 40
 root40 <- rootsn %>%
-  filter(timepoint == "wk40")
+  filter(timepoint == "wk40") %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
 #Plot
 root40_plot <- root40 %>%
   ggplot(mapping = aes(x = wavenumber,
@@ -723,14 +723,12 @@ These plots are of normalized absorbance values. The thickness of the line repre
 - 1730 - 1650 cm<sup>-1</sup> ← carbonyl; C=O stretch (carbonyl, carboxylic acids, esters, ketones, etc.)
 - 1500 cm<sup>-1</sup> ← aromatic
 
-I'm not sure if these are the best areas to highlight, but I kept what Stephany did. According to Martins et al. 2014:
+I'm not sure if these are the best areas to highlight, but I kept what Stephany did.
 
-> Major peaks, which can be almost exclusively assigned to suberin, are at 2921 cm<sup>-1</sup>, 2851 cm<sup>-1</sup> and 1737 cm<sup>-1</sup>.
-
-Martins, I., Hartmann, D.O., Alves, P.C. et al. Elucidating how the saprophytic fungus Aspergillus nidulans uses the plant polyester suberin as carbon source. BMC Genomics 15, 613 (2014). https://doi.org/10.1186/1471-2164-15-613
-
-### wheat roots
+### Wheat Roots
 ```{r plotting wheat, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
+palc1 <- c("wk0" = "#B4D586", "wk10" = "#98C559","wk20" = "#79A63A",
+           "wk30" = "#58792A", "wk40" = "#374B1B")
 wheat <- rootsn %>%
   group_by(timepoint) %>%
   filter(crop == "wheat")
@@ -744,6 +742,7 @@ wheat_plot <- ggplot(wheat,
   xlim(4000, 1000) +
   geom_line() +
   theme_classic() +
+  scale_color_manual(values = palc1) +
   geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
@@ -754,7 +753,8 @@ unique(wheat$ID)
 ```
 ### rice roots
 ```{r plotting rice, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-#rice
+palc1 <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
+           "wk40" = "#B56203")
 
 rice <- rootsn %>%
   group_by(timepoint) %>%
@@ -774,6 +774,7 @@ rice_plot <- ggplot(rice,
   ylim(0, 1.5) +
   geom_line() +
   theme_classic() +
+  scale_color_manual(values = palc1) +
   geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
@@ -784,7 +785,8 @@ unique(rice$ID)
 ```
 ### soy roots
 ```{r plotting soy, echo=FALSE, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-# soy
+palc1 <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
+           "wk30" = "#B70153", "wk40" = "#7A0137")
 soy <- rootsn %>%
   group_by(timepoint) %>%
   filter(crop == "soy") %>%
@@ -799,6 +801,7 @@ soy_plot <- ggplot(soy,
   xlim(4000, 1000) +
   geom_line() +
   theme_classic() +
+  scale_color_manual(values = palc1) +
   geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
