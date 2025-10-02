@@ -50,8 +50,8 @@ main_width: 0.4
 main_fontfamily: "Lexend Giga"
 main_textsize: "120px"
 main_findings:
-  - "Placeholder for **salient points** and **key figures**."
-  - '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar+suberin.png){.main_pic}'
+  - "Placeholder for **salient points**."
+  - '<figure class="main_pic"><img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar+suberin.png" style="width: 15in;"><figcaption style="margin-top: -0.4em;">Fig. 1 | Cumulative CO₂ flux over time showing differences between suberin treatments. The low-suberin treatment exhibited significantly higher cumulative CO₂ flux than all other treatments after the first week, however, the medium-suberin treatment had a lower cumulative flux than the high-suberin treatment (not significant).</figcaption></figure>'
 main_picwidth: "15in"
 logoleft_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo0.png){.main-img-left width="9in"}'
 logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png){.main-img-right width="4.2in"}'
@@ -92,10 +92,13 @@ Root-derived carbon is a key input to soil organic matter (SOM) in both managed 
 # Methods
 Using ¹³C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30--40 weeks.
 
-![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/pot-sampling-graphic.png){.methods_pic width=45%}
+<figure class="methods_pic" style="width: 55%;">
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/pot-sampling-graphic.png" style="width: 100%;">
+<figcaption style="width: 100%; font-size: 0.6em; color: #555555; margin-top: 0.2em;">Fig. 2 | Sampling procedure for intact pots, showing separation of roots and rhizosphere soil from the bulk soil. Spectroscopic analyses (DRIFTS, 13C-CPMAS NMR) were performed on roots isolated from the intact pots.</figcaption>
+</figure>
 
 # Results
-The low-suberin treatment exhibited significantly higher cumulative CO₂ flux than all other treatments after the first week, however, the medium-suberin treatment had a lower cumulative flux than the high-suberin treatment (not significant). Spectroscopic analyses indicate that suberin persists in root tissues for at least 10 weeks, but is not readily detectable in the surrounding soil, suggesting limited transfer during early decay. The portion of organic carbon attributed to microbial biomass grew over time as expected.
+Spectroscopic analyses indicate that suberin persists in root tissues for at least 10 weeks, but is not readily detectable in the surrounding soil, suggesting limited transfer during early decay. The portion of organic carbon attributed to microbial biomass grew over time as expected.
 
 # Conclusion
 By integrating ¹³C tracers with molecular characterizations, this work advances a mechanistic understanding of soil carbon cycling at the root–soil interface by quantifying the partitioning of root-derived carbon between incorporation into SOM and mineralization to CO₂. Linking root chemistry variation to SOM dynamics can inform plant breeding programs and trait-based ecosystem management efforts aimed at enhancing long-term soil carbon stability.
