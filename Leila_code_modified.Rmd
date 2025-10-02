@@ -199,7 +199,7 @@ meta_table <- nc::capture_first_vec(
   ID = "[0-9]{3}",              # 3-digit ID
   "_",
   isotope = "(?:13C|12C)",      # 13C or 12C
-  crop = "[a-z]+",              # crop name
+  crop = "[a-zA-Z]+",              # crop name
   "_",
   timepoint = "wk[0-9]+",       # wk followed by digits
   "_",
