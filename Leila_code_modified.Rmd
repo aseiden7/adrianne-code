@@ -609,9 +609,11 @@ calculate_group_stats <- function(data, group_vars) {
 # Calculate statistics by different groupings
 # By crop and timepoint
 crop_timepoint_stats <- calculate_group_stats(ftir_data, c("crop", "timepoint"))
+crop_timepoint_stats$crop <- factor(crop_timepoint_stats$crop, levels = c("noPlant", "wheat", "rice", "soy"))
 
 # By crop only
 crop_stats <- calculate_group_stats(ftir_data, "crop")
+crop_stats$crop <- factor(crop_stats$crop, levels = c("noPlant", "wheat", "rice", "soy"))
 
 # By timepoint only
 timepoint_stats <- calculate_group_stats(ftir_data, "timepoint")
@@ -719,14 +721,20 @@ cat("Groups defined by: crop × timepoint × type\n")
 # Visualizing the data
 This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
 ```{r visualize-data, echo=TRUE}
+# define color palettes
+crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#7B41A9')
+
+timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
+
+type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
 # Plotting functions
 create_proportion_plots <- function(stats_data, group_col, title_prefix) {
-  # Define color palettes
-  crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#2E4057')
-  # Use the same timepoint colors as interaction plot
-  timepoint_colors <- c("#440154", "#31688e", "#9FB8AD", "#F9A03F", "#D5C6E0")
-  # Type colors for soil vs root
-  type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
+  # # Define color palettes
+  # crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#a6761d')
+  # # Use the same timepoint colors as interaction plot
+  # timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
+  # # Type colors for soil vs root
+  # type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
 
   # Select appropriate colors based on group_col
   if (group_col == "crop") {
@@ -837,6 +845,7 @@ ggsave(paste0(integrated_ftir_plots, "/FTIR_by_Timepoint.pdf"), plot = timepoint
 #        width = 10, height = 9, units = "in", dpi = 300)
 
 # Create interaction plot (crop x timepoint)
+timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
 interaction_plot <- ggplot(crop_timepoint_stats) +
   geom_col(aes(x = crop, y = Mean_simple_plant_prop, fill = timepoint),
            position = "dodge", alpha = 0.8) +
@@ -846,7 +855,7 @@ interaction_plot <- ggplot(crop_timepoint_stats) +
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
   theme_classic() +
-  scale_fill_manual("Timepoint", values = c("#440154", "#31688e", "#9FB8AD", "#F9A03F", "#D5C6E0")) +
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Simple Plant OM by Crop and Timepoint",
        x = "Crop Type",
        y = "Simple Plant OM Proportion") +
@@ -878,11 +887,12 @@ create_stacked_data <- function(stats_data, group_col) {
 
 # Create stacked plots
 crop_stacked_data <- create_stacked_data(crop_stats, "crop")
+crop_stacked_data$crop <- factor(crop_stacked_data$crop, levels = c("noPlant", "wheat", "rice", "soy"))
 timepoint_stacked_data <- create_stacked_data(timepoint_stats, "timepoint")
 
 p_crop_stacked <- ggplot(crop_stacked_data, aes(x = crop, y = proportion * 100, fill = func_type)) +
   geom_col(position = "stack") +
-  scale_fill_manual(values = c("#9E9AC8", "#DADAEB", "#6A51A3"),
+  scale_fill_manual(values = c("#93deed", "#d2f0f4", "#1ca5cf"),
                     breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
   theme_classic() +
   labs(x = "Crop Type",
@@ -895,7 +905,7 @@ p_crop_stacked <- ggplot(crop_stacked_data, aes(x = crop, y = proportion * 100, 
 
 p_timepoint_stacked <- ggplot(timepoint_stacked_data, aes(x = timepoint, y = proportion * 100, fill = func_type)) +
   geom_col(position = "stack") +
-  scale_fill_manual(values = c("#FA9FB5", "#FDE0DD", "#F768A1"),
+  scale_fill_manual(values = c("#e8aa9c", "#f5d8d1", "#c54e30"),
                     breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
   theme_classic() +
   labs(x = "Timepoint",

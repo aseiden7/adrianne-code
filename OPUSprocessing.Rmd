@@ -519,8 +519,8 @@ library(gridExtra)
 
 roots <- dpt_data %>% filter(type == "root")
 soil <- dpt_data %>% filter(type == "soil")
-palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
-           "wheat" = "#D66327", "soy" = "#159C78")
+palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
+           "wheat" = "#98C65D", "soy" = "#FE318E")
 
 # Normalize absorbance values
 rootsn <- roots %>%
@@ -543,7 +543,7 @@ I'm not sure if these are the best areas to highlight, but I kept what Stephany 
 
 ### Week 0
 ```{r plotting wk0, message=FALSE, warning=FALSE, comment=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
+palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
            "wheat" = "#98C65D", "soy" = "#FE318E")
 #roots week 0
 root0 <- rootsn %>%
@@ -584,8 +584,8 @@ ggsave(file.path(outputs_folder, "Root_week0_FTIR.png"), plot = root0_plot)
 #   filter(timepoint == "wk0") # nolint
 # soil0
 
-# palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
-#            "wheat" = "#D66327", "soy" = "#159C78")
+# palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
+#            "wheat" = "#98C65D", "soy" = "#FE318E")
 
 # soil0_plot <- soil0 %>% # nolint: commented_code_linter.
 #   ggplot(mapping = aes(x = wavenumber,
@@ -613,7 +613,7 @@ ggsave(file.path(outputs_folder, "Root_week0_FTIR.png"), plot = root0_plot)
 
 ### Week 10
 ```{r plotting wk10, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
+palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
            "wheat" = "#98C65D", "soy" = "#FE318E")
 #roots week 10
 root10 <- rootsn %>%
@@ -654,8 +654,8 @@ soil10 <- soiln %>%
   filter(timepoint == "wk10") %>%
   mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
 
-palc1 <- c("noPlant" = "#a6761d", "rice" = "#7570B0",
-           "wheat" = "#D66327", "soy" = "#159C78")
+palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
+           "wheat" = "#98C65D", "soy" = "#FE318E")
 
 soil10_plot <- soil10 %>%
   ggplot(mapping = aes(x = wavenumber,
@@ -683,7 +683,7 @@ ggsave(file.path(outputs_folder, "Soil_week10_FTIR.png"), plot = soil10_plot)
 
 ### Week 40
 ```{r plotting wk40, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("noPlant" = "#9F29FF", "rice" = "#FC9D33",
+palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
            "wheat" = "#98C65D", "soy" = "#FE318E")
 #roots week 40
 root40 <- rootsn %>%
@@ -727,7 +727,7 @@ I'm not sure if these are the best areas to highlight, but I kept what Stephany 
 
 ### Wheat Roots
 ```{r plotting wheat, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("wk0" = "#B4D586", "wk10" = "#98C559","wk20" = "#79A63A",
+palc2 <- c("wk0" = "#B4D586", "wk10" = "#98C559","wk20" = "#79A63A",
            "wk30" = "#58792A", "wk40" = "#374B1B")
 wheat <- rootsn %>%
   group_by(timepoint) %>%
@@ -742,7 +742,7 @@ wheat_plot <- ggplot(wheat,
   xlim(4000, 1000) +
   geom_line() +
   theme_classic() +
-  scale_color_manual(values = palc1) +
+  scale_color_manual(values = palc2) +
   geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
@@ -753,7 +753,7 @@ unique(wheat$ID)
 ```
 ### rice roots
 ```{r plotting rice, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
+palc3 <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
            "wk40" = "#B56203")
 
 rice <- rootsn %>%
@@ -774,7 +774,7 @@ rice_plot <- ggplot(rice,
   ylim(0, 1.5) +
   geom_line() +
   theme_classic() +
-  scale_color_manual(values = palc1) +
+  scale_color_manual(values = palc3) +
   geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
@@ -785,7 +785,7 @@ unique(rice$ID)
 ```
 ### soy roots
 ```{r plotting soy, echo=FALSE, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
+palc4 <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
            "wk30" = "#B70153", "wk40" = "#7A0137")
 soy <- rootsn %>%
   group_by(timepoint) %>%
@@ -801,7 +801,7 @@ soy_plot <- ggplot(soy,
   xlim(4000, 1000) +
   geom_line() +
   theme_classic() +
-  scale_color_manual(values = palc1) +
+  scale_color_manual(values = palc4) +
   geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
