@@ -12,7 +12,7 @@ output:
     code_folding: hide
 knit: (function(inputFile, encoding) {
     rmarkdown::render(inputFile, encoding = encoding,
-                     output_dir = "../adrianne-code/ATR/") })
+                     output_dir = "../") })
 ---
 
 ```{r setup, include=FALSE}
@@ -119,6 +119,14 @@ metadataTable <- function(data) { # nolint: object_name_linter.
 }
 metadataTable(meas_1)
 ```
+### Metadata table (folder)
+```{r folder-metadata}
+for (i in seq_along(data_test)) {
+  cat("#### Spectrum", i, ":", names(data_test)[i], "\n\n")
+  data_i <- data_test[[i]]
+  print(metadataTable(data_i))
+}
+```
 
 The ***plotMetadata*** function combines the plot and table for a single spectrum.
 ```{r single-spectrum-metadata, message=FALSE, warning=FALSE, fig.width=8, fig.height=5}
@@ -221,15 +229,41 @@ for (combination in unique_combinations) {
 
     spectra <- data_test[idx]
     colors <- brewer.pal(min(length(spectra), 8), "Set1")
-    plot(NULL, xlim = rev(range(spectra[[1]]$ab$wavenumbers)),
-         ylim = range(sapply(spectra, function(x) x$ab$data), na.rm = TRUE),
+    
+    # Check if wavenumbers data is valid and finite
+    wavenum_data <- spectra[[1]]$ab$wavenumbers
+    if (is.null(wavenum_data) || !all(is.finite(wavenum_data)) || length(wavenum_data) == 0) {
+      cat("Skipping", combination, "- invalid wavenumber data\n")
+      next
+    }
+    
+    # Get y-range from all spectra data, ensuring finite values
+    all_y_data <- unlist(lapply(spectra, function(x) {
+      if (!is.null(x$ab$data) && is.numeric(x$ab$data)) {
+        x$ab$data[is.finite(x$ab$data)]
+      } else {
+        NULL
+      }
+    }))
+    
+    if (length(all_y_data) == 0) {
+      cat("Skipping", combination, "- no valid absorbance data\n")
+      next
+    }
+    
+    plot(NULL, xlim = rev(range(wavenum_data, na.rm = TRUE)),
+         ylim = range(all_y_data, na.rm = TRUE),
          xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
          main = paste("Stacked spectra for", sample_num, "-", sample_type, "-", timepoint),
          bty = "l")
     for (i in seq_along(spectra)) {
       ab_data <- spectra[[i]]$ab
-      if (!is.null(ab_data) && !is.null(ab_data$wavenumbers) &&
-            !is.null(ab_data$data)) {
+      if (!is.null(ab_data) && 
+          !is.null(ab_data$wavenumbers) &&
+          !is.null(ab_data$data) &&
+          all(is.finite(ab_data$wavenumbers)) &&
+          all(is.finite(ab_data$data)) &&
+          length(ab_data$wavenumbers) == length(ab_data$data)) {
         lines(ab_data$wavenumbers, ab_data$data, col = colors[i], lwd = 2)
       }
     }
@@ -285,16 +319,41 @@ for (combo in combos) {
   if (length(idx) > 1) {
     spectra <- data_test[idx]
     colors <- brewer.pal(min(length(spectra), 8), "Set1")
-    plot(NULL, xlim = rev(range(spectra[[1]]$ab$wavenumbers)),
-         ylim = range(sapply(spectra, function(x) x$ab$data), na.rm = TRUE),
+    
+    # Check if wavenumbers data is valid and finite
+    wavenum_data <- spectra[[1]]$ab$wavenumbers
+    if (is.null(wavenum_data) || !all(is.finite(wavenum_data)) || length(wavenum_data) == 0) {
+      cat("Skipping", combo, "- invalid wavenumber data\n")
+      next
+    }
+    
+    # Get y-range from all spectra data, ensuring finite values
+    all_y_data <- unlist(lapply(spectra, function(x) {
+      if (!is.null(x$ab$data) && is.numeric(x$ab$data)) {
+        x$ab$data[is.finite(x$ab$data)]
+      } else {
+        NULL
+      }
+    }))
+    
+    if (length(all_y_data) == 0) {
+      cat("Skipping", combo, "- no valid absorbance data\n")
+      next
+    }
+    
+    plot(NULL, xlim = rev(range(wavenum_data, na.rm = TRUE)),
+         ylim = range(all_y_data, na.rm = TRUE),
          xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
          main = paste("Stacked spectra for", combo),
          bty = "l")
     for (i in seq_along(spectra)) {
       ab_data <- spectra[[i]]$ab
       if (!is.null(ab_data) &&
-            !is.null(ab_data$wavenumbers)
-          && !is.null(ab_data$data)) {
+            !is.null(ab_data$wavenumbers) &&
+            !is.null(ab_data$data) &&
+            all(is.finite(ab_data$wavenumbers)) &&
+            all(is.finite(ab_data$data)) &&
+            length(ab_data$wavenumbers) == length(ab_data$data)) {
         lines(ab_data$wavenumbers, ab_data$data, col = colors[i], lwd = 2)
       }
     }
@@ -327,7 +386,7 @@ library(ggsignif)
 box_base <- Sys.getenv("BOX_BASE")
 if (box_base == "") stop("BOX_BASE environment variable is not set!")
 # set dpt_folder path
-dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
+dpt_folder <- file.path(box_base, "Salk Institute Project/Salk Data/FTIR_Intact_decomposition_pots/ATR/ATR_DPT_files")
 ```
 ## Importing FTIR data using readr
 
@@ -412,7 +471,7 @@ cat("Column filenames:", colnames(dpt_data), "\n")
 
 # Extract pot/jar identifier
 dpt_data$source <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
-  pot_part <- x[2]
+  pot_part <- x[1]
   # Extract just "pot" or "jar" part
   if (grepl("pot", pot_part)) {
     "pot"
@@ -426,7 +485,7 @@ unique(dpt_data$source)
 
 # Extract ID number
 dpt_data$ID <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
-  pot_part <- x[2]
+  pot_part <- x[1]
   # Extract numbers from pot/jar identifier
   number <- gsub("(pot|jar)", "", pot_part)
   number
@@ -436,7 +495,7 @@ unique(dpt_data$ID)
 # Extract isotope information (13C or 12C)
 dpt_data$isotope <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
   # Look for the part with isotope info (usually position 3)
-  isotope_part <- x[3]
+  isotope_part <- x[2]
   if (grepl("13C", isotope_part)) {
     13
   } else if (grepl("12C", isotope_part)) {
@@ -447,11 +506,9 @@ dpt_data$isotope <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
 })
 unique(dpt_data$isotope)
 
-# Extract crop type (remove isotope numbers)
+# Extract crop type 3rd position
 dpt_data$crop <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
-  isotope_part <- x[3]
-  # Remove 13C or 12C prefix
-  crop <- gsub("^(13C|12C)", "", isotope_part)
+  crop <- x[3]
   crop
 })
 unique(dpt_data$crop)
@@ -552,7 +609,7 @@ root0_plot <- root0 %>%
                       alpha = 0.25) +
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -560,7 +617,7 @@ root0_plot <- root0 %>%
   ggtitle("Roots at week 0")
 root0_plot
 unique(root0$ID)
-ggsave(file.path(outputs_folder, "Root_week0_ATR.png"), plot = root0_plot)
+ggsave(file.path(outputs_folder, "Root_week0_ATR.png"), root0_plot)
 
 
 # Soils week 0
@@ -583,7 +640,7 @@ soil0_plot <- soil0 %>% # nolint: commented_code_linter.
                       alpha = 0.25) +
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -591,7 +648,7 @@ soil0_plot <- soil0 %>% # nolint: commented_code_linter.
   ggtitle("Soils at week 0") # nolint: commented_code_linter.
 soil0_plot
 unique(soil0$ID) # nolint: commented_code_linter.
-ggsave(file.path(outputs_folder, "Soil_week0_ATR.png"), plot = soil0_plot) # nolint
+ggsave(file.path(outputs_folder, "Soil_week0_ATR.png"), soil0_plot)
 ```
 
 ### Week 10
@@ -617,7 +674,7 @@ root10_plot <- root10 %>%
                       alpha = 0.25) +
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -625,7 +682,7 @@ root10_plot <- root10 %>%
   ggtitle("Roots at week 10")
 root10_plot
 unique(root10$ID)
-ggsave(file.path(outputs_folder, "Root_week10_ATR.png"), plot = root10_plot)
+ggsave(file.path(outputs_folder, "Root_week10_ATR.png"), root10_plot)
 
 # Soils week 10
 soil10 <- soiln %>%
@@ -647,7 +704,7 @@ soil10_plot <- soil10 %>%
                       alpha = 0.25) +
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -655,42 +712,8 @@ soil10_plot <- soil10 %>%
   ggtitle("Soils at week 10")
 soil10_plot
 unique(soil10$ID)
-ggsave(file.path(outputs_folder, "Soil_week10_ATR.png"), plot = soil10_plot)
+ggsave(file.path(outputs_folder, "Soil_week10_ATR.png"), soil10_plot)
 ```
-
-<!-- ### Week 40
-```{r plotting wk40, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
-palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
-           "wheat" = "#98C65D", "soy" = "#FE318E")
-#roots week 40
-root40 <- rootsn %>%
-  filter(timepoint == "wk40") %>%
-  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
-#Plot
-root40_plot <- root40 %>%
-  ggplot(mapping = aes(x = wavenumber,
-                       y = crop,
-                       height = nabs,
-                       group = crop,
-                       fill = crop,
-                       color = crop)) +
-  geom_density_ridges(stat = "identity",
-                      scale = 3,
-                      alpha = 0.25) +
-  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
-  xlim(4000, 400) +
-  theme_classic() +
-  scale_fill_manual(values = palc1) +
-  scale_color_manual(values = palc1) +
-  ggtitle("Roots at week 40")
-root40_plot
-unique(root40$ID)
-ggsave(file.path(outputs_folder, "Root_week40_ATR.png"), plot = root40_plot)
-
-``` -->
-
 ## Plotting by crop
 
 These plots are of normalized absorbance values. The thickness of the line represents the range of the data. Dotted lines at specific wavenumbers indicate key absorption features of suberin.
@@ -718,7 +741,7 @@ wheat_plot <- ggplot(wheat,
   scale_color_manual(values = palc2) +
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
   ggtitle("Wheat Roots ATR")
 wheat_plot
 unique(wheat$ID)
@@ -745,7 +768,7 @@ rice_plot <- ggplot(rice,
   scale_color_manual(values = palc3) +
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
   ggtitle("Rice Roots ATR")
 rice_plot
 unique(rice$ID)
@@ -770,7 +793,7 @@ soy_plot <- ggplot(soy,
   scale_color_manual(values = palc4) +
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.75) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
   ggtitle("Soy Roots ATR")
 soy_plot
 unique(soy$ID)
