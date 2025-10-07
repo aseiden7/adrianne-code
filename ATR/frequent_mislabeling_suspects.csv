@@ -1,0 +1,11 @@
+filename,id,crop,type,timepoint,high_correlation_count,likely_mislabeled
+13C_root_soybean_pot62_0wk.dpt,62,soy,root,wk0,16,Yes
+13C_root_rice_pot79_0wk.dpt,79,rice,root,wk0,16,Yes
+13C_root_rice_pot55_10wk.dpt,55,rice,root,wk10,9,Yes
+13C_root_wheat_pot80_10wk.dpt,80,soy,root,wk10,8,Yes
+13C_soil_soybean_pot62_0wk.dpt,62,soy,soil,wk0,6,Yes
+13C_root_wheat_pot53_10wk.dpt,53,wheat,root,wk10,6,Yes
+13C_soil_soybean_pot94_10wk.dpt,94,soy,soil,wk10,5,Yes
+13C_soil_rice_pot79_0wk.dpt,79,rice,soil,wk0,5,Yes
+13C_soil_rice_pot119_10wk.dpt,119,rice,soil,wk10,4,Possible
+13C_soil_soybean_pot50_0wk.dpt,50,soy,soil,wk0,4,Possible

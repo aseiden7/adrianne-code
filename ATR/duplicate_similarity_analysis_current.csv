@@ -1,0 +1,12 @@
+pair,correlation,rmse,mae,relative_rmse,n_valid_points,sample1_filename,sample2_filename,group_id,group_timepoint,group_type,similarity_category,investigation_priority
+1 vs 3,0.23513222901223577,0.02945937985637125,0.023029932118613792,5.750711314958366,2799,13C_root_soybean_pot94_10wk.dpt,13C_root_soybean_pot94_10wk.dpt,94,wk10,root,Poor,High - Root sample poor reproducibility
+1 vs 3,0.24122959021851323,0.04507011654714706,0.03233046087888532,5.689796049587313,2799,13C_root_soybean_pot62_0wk.dpt,13C_root_soybean_pot62_0wk.dpt,62,wk0,root,Poor,High - Root sample poor reproducibility
+2 vs 3,0.4821740895136325,0.024246881223226078,0.019632315112540193,2.033977350855511,2799,13C_soil_soybean_pot94_10wk.dpt,13C_root_soybean_pot94_10wk.dpt,94,wk10,root,Poor,High - Root sample poor reproducibility
+1 vs 2,0.5258467370417168,0.04917613687093695,0.03448724901750625,5.399128574548483,2799,13C_root_soybean_pot62_0wk.dpt,13C_soil_soybean_pot62_0wk.dpt,62,wk0,root,Poor,High - Root sample poor reproducibility
+1 vs 2,0.5955122789950528,0.04162346793526699,0.03022230796713112,7.1300061597917415,2799,13C_root_wheat_pot80_10wk.dpt,13C_soil_wheat_pot80_10wk.dpt,80,wk10,root,Poor,High - Root sample poor reproducibility
+1 vs 2,0.7098542037296907,0.024727990638292927,0.013835930689531976,41.80388409354605,2799,13C_root_soybean_pot94_10wk.dpt,13C_soil_soybean_pot94_10wk.dpt,94,wk10,root,Poor,High - Root sample poor reproducibility
+1 vs 2,0.7507232891314793,0.029922968947488627,0.022742554483744196,1.4292347064163757,2799,13C_soil_rice_pot79_0wk.dpt,13C_root_rice_pot79_0wk.dpt,79,wk0,root,Poor,High - Root sample poor reproducibility
+2 vs 3,0.8218854764794222,0.021806934228756368,0.013736380850303678,0.8676392345269844,2799,13C_soil_soybean_pot62_0wk.dpt,13C_root_soybean_pot62_0wk.dpt,62,wk0,root,Moderate,Medium - Root sample variability
+1 vs 2,0.9720696342797384,0.0169981199336582,0.010900660950339407,0.7967172898854926,2799,13C_soil_soybean_pot50_0wk.dpt,13C_soil_soybean_pot50_0wk.dpt,50,wk0,soil,Very Good,Low - Good reproducibility
+1 vs 2,0.983599470562242,0.024641474167035694,0.015608335119685603,1.056994988209755,2799,13C_soil_wheat_pot28_0wk.dpt,13C_soil_soybean_pot28_0wk.dpt,28,wk0,soil,Very Good,Low - Good reproducibility
+1 vs 2,1.0,0.0,0.0,0.0,2799,12C_soil_noplant_pot72_256scans.dpt,13C_soil_noplant_pot72_0wk.dpt,72,wk0,soil,Excellent,Low - Perfect match (possible duplicate files)
