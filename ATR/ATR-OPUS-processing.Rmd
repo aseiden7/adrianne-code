@@ -65,27 +65,105 @@ names(data_test)
 meas_1 <- data_test[[1]]
 ```
 
+### Helper Functions
+
+Function to extract single-channel spectral data from OPUS files and convert it to absorbance.  
+ab = -log10(sample/ref) 
+I'm a bit unsure about this because I already ran a background correction in the OPUS software... I may try running this with raw data later. The DPT files in "Reading DPT files" section below are unaltered from the OPUS software export.
+
+```{r helper-functions, echo=TRUE, message=FALSE, warning=FALSE}
+# Helper function to get spectral data from OPUS file data
+getSpectralData <- function(data) {
+  # First try to find processed absorbance data
+  ab_data <- data$ab
+  
+  if (!is.null(ab_data) &&
+        !is.null(ab_data$wavenumbers) && !is.null(ab_data$data) &&
+        is.numeric(ab_data$wavenumbers) && is.numeric(ab_data$data) &&
+        length(ab_data$wavenumbers) == length(ab_data$data) &&
+        all(is.finite(ab_data$wavenumbers)) && all(is.finite(ab_data$data))) {
+    return(list(wavenumbers = ab_data$wavenumbers, data = ab_data$data, type = "processed"))
+  }
+  
+  # Try to calculate absorbance from single-channel data
+  sample_data <- data$sc_sample
+  ref_data <- data$sc_ref
+  
+  if (!is.null(sample_data) && !is.null(ref_data) &&
+      !is.null(sample_data$wavenumbers) && !is.null(sample_data$data) &&
+      !is.null(ref_data$wavenumbers) && !is.null(ref_data$data) &&
+      is.numeric(sample_data$wavenumbers) && is.numeric(sample_data$data) &&
+      is.numeric(ref_data$wavenumbers) && is.numeric(ref_data$data)) {
+    
+    # Find common wavenumber range
+    sample_wn <- as.vector(sample_data$wavenumbers)
+    sample_int <- as.vector(sample_data$data)
+    ref_wn <- as.vector(ref_data$wavenumbers)
+    ref_int <- as.vector(ref_data$data)
+    
+    # Find overlapping wavenumber range
+    min_wn <- max(min(sample_wn), min(ref_wn))
+    max_wn <- min(max(sample_wn), max(ref_wn))
+    
+    # Filter data to common range
+    sample_mask <- sample_wn >= min_wn & sample_wn <= max_wn
+    ref_mask <- ref_wn >= min_wn & ref_wn <= max_wn
+    
+    sample_wn_filtered <- sample_wn[sample_mask]
+    sample_int_filtered <- sample_int[sample_mask]
+    ref_wn_filtered <- ref_wn[ref_mask]
+    ref_int_filtered <- ref_int[ref_mask]
+    
+    # Interpolate reference to sample wavenumbers if needed
+    if (length(sample_wn_filtered) != length(ref_wn_filtered) || 
+        !all(abs(sample_wn_filtered - ref_wn_filtered) < 0.1)) {
+      ref_int_interp <- approx(ref_wn_filtered, ref_int_filtered, 
+                              sample_wn_filtered, rule = 2)$y
+    } else {
+      ref_int_interp <- ref_int_filtered
+    }
+    
+    # Calculate absorbance: A = -log10(Sample/Reference)
+    ratio <- sample_int_filtered / (ref_int_interp + 1e-10)
+    absorbance <- -log10(pmax(ratio, 1e-10))
+    
+    # Remove infinite or NaN values
+    valid_idx <- is.finite(absorbance) & is.finite(sample_wn_filtered)
+    
+    if (sum(valid_idx) > 10) {
+      return(list(
+        wavenumbers = sample_wn_filtered[valid_idx], 
+        data = absorbance[valid_idx], 
+        type = "calculated"
+      ))
+    }
+  }
+  
+  return(NULL)  # No valid spectral data found
+}
+```
+
 Next I defined a function, plotSpectrum, to plot the spectral data from a single sample (meas_1)
 
 ```{r fun-plot-spectrum-and-metadata, echo=TRUE, message=FALSE, warning=FALSE, fig.width=8, fig.height=5}
 # data is a list containing OPUS file data, including absorbance and metadata.
 
 plotSpectrum <- function(data) { # nolint: object_name_linter.
-  ab_data <- data$ab
-  if (!is.null(ab_data) &&
-        !is.null(ab_data$wavenumbers) && !is.null(ab_data$data) &&
-        is.numeric(ab_data$wavenumbers) && is.numeric(ab_data$data) &&
-        length(ab_data$wavenumbers) == length(ab_data$data) &&
-        all(is.finite(ab_data$wavenumbers)) && all(is.finite(ab_data$data))) {
+  spectral_data <- getSpectralData(data)
+  
+  if (!is.null(spectral_data)) {
+    ylabel <- if (spectral_data$type == "calculated") "Absorbance (calculated)" else "Absorbance"
+    title_prefix <- if (spectral_data$type == "calculated") "Calculated absorbance: " else ""
+    
     plot(
-      ab_data$wavenumbers, ab_data$data, type = "l",
-      xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
-      main = data$basic_metadata$dsn_filename,
-      xlim = rev(range(ab_data$wavenumbers))
+      spectral_data$wavenumbers, spectral_data$data, type = "l",
+      xlab = "Wavenumber (cm⁻¹)", ylab = ylabel,
+      main = paste0(title_prefix, data$basic_metadata$dsn_filename),
+      xlim = rev(range(spectral_data$wavenumbers))
     )
   } else {
-    cat("Absorbance data not found or not valid in this file.\n")
-    str(ab_data)
+    cat("No valid spectral data found in this file.\n")
+    cat("Available data blocks:", paste(names(data), collapse = ", "), "\n")
   }
 }
 plotSpectrum(meas_1)
@@ -145,23 +223,22 @@ plotMetadata <- function(data) { # nolint: object_name_linter.
 plotMetadata(meas_1)
 ```
 ### Combined plot and table (folder)
-The following for loop runs plotMetadata on each spectrum in the data_test list, which contains all the spectra in the folder. It will plot each spectrum and print its metadata below.
+The following for loop runs plotMetadata on each spectrum in the data_test list, which contains all the spectra in the folder. It will plot each spectrum and print its metadata below. Clearly the data varies in quality, with different resolution and sample scans parameters.  
+
 ```{r folder-spectrum-metadata, message=FALSE, warning=FALSE, fig.width=8, fig.height=5, results='asis'}
 for (i in seq_along(data_test)) {
   cat("#### Spectrum", i, ":", names(data_test)[i], "\n\n")
   data_i <- data_test[[i]]
-  ab_data <- data_i$ab
-  valid <- !is.null(ab_data) &&
-    !is.null(ab_data$wavenumbers) && !is.null(ab_data$data) &&
-    is.numeric(ab_data$wavenumbers) && is.numeric(ab_data$data) &&
-    length(ab_data$wavenumbers) == length(ab_data$data) &&
-    all(is.finite(ab_data$wavenumbers)) && all(is.finite(ab_data$data))
-  if (valid) {
+  
+  # Check if we can get valid spectral data
+  spectral_data <- getSpectralData(data_i)
+  
+  if (!is.null(spectral_data)) {
     plotSpectrum(data_i)
     print(metadataTable(data_i))
   } else {
     cat("Data not valid or missing for this spectrum.\n")
-    str(ab_data)
+    cat("Available data blocks:", paste(names(data_i), collapse = ", "), "\n")
   }
 }
 ```
@@ -179,9 +256,77 @@ knitr::opts_chunk$set(
 library(opusreader2)
 library(RColorBrewer)
 
-
-
 data_test <- read_opus(dsn = corr_spectra)
+
+# Helper function to get spectral data from OPUS file data
+getSpectralData <- function(data) {
+  # First try to find processed absorbance data
+  ab_data <- data$ab
+  
+  if (!is.null(ab_data) &&
+        !is.null(ab_data$wavenumbers) && !is.null(ab_data$data) &&
+        is.numeric(ab_data$wavenumbers) && is.numeric(ab_data$data) &&
+        length(ab_data$wavenumbers) == length(ab_data$data) &&
+        all(is.finite(ab_data$wavenumbers)) && all(is.finite(ab_data$data))) {
+    return(list(wavenumbers = ab_data$wavenumbers, data = ab_data$data, type = "processed"))
+  }
+  
+  # Try to calculate absorbance from single-channel data
+  sample_data <- data$sc_sample
+  ref_data <- data$sc_ref
+  
+  if (!is.null(sample_data) && !is.null(ref_data) &&
+      !is.null(sample_data$wavenumbers) && !is.null(sample_data$data) &&
+      !is.null(ref_data$wavenumbers) && !is.null(ref_data$data) &&
+      is.numeric(sample_data$wavenumbers) && is.numeric(sample_data$data) &&
+      is.numeric(ref_data$wavenumbers) && is.numeric(ref_data$data)) {
+    
+    # Find common wavenumber range
+    sample_wn <- as.vector(sample_data$wavenumbers)
+    sample_int <- as.vector(sample_data$data)
+    ref_wn <- as.vector(ref_data$wavenumbers)
+    ref_int <- as.vector(ref_data$data)
+    
+    # Find overlapping wavenumber range
+    min_wn <- max(min(sample_wn), min(ref_wn))
+    max_wn <- min(max(sample_wn), max(ref_wn))
+    
+    # Filter data to common range
+    sample_mask <- sample_wn >= min_wn & sample_wn <= max_wn
+    ref_mask <- ref_wn >= min_wn & ref_wn <= max_wn
+    
+    sample_wn_filtered <- sample_wn[sample_mask]
+    sample_int_filtered <- sample_int[sample_mask]
+    ref_wn_filtered <- ref_wn[ref_mask]
+    ref_int_filtered <- ref_int[ref_mask]
+    
+    # Interpolate reference to sample wavenumbers if needed
+    if (length(sample_wn_filtered) != length(ref_wn_filtered) || 
+        !all(abs(sample_wn_filtered - ref_wn_filtered) < 0.1)) {
+      ref_int_interp <- approx(ref_wn_filtered, ref_int_filtered, 
+                              sample_wn_filtered, rule = 2)$y
+    } else {
+      ref_int_interp <- ref_int_filtered
+    }
+    
+    # Calculate absorbance: A = -log10(Sample/Reference)
+    ratio <- sample_int_filtered / (ref_int_interp + 1e-10)
+    absorbance <- -log10(pmax(ratio, 1e-10))
+    
+    # Remove infinite or NaN values
+    valid_idx <- is.finite(absorbance) & is.finite(sample_wn_filtered)
+    
+    if (sum(valid_idx) > 10) {
+      return(list(
+        wavenumbers = sample_wn_filtered[valid_idx], 
+        data = absorbance[valid_idx], 
+        type = "calculated"
+      ))
+    }
+  }
+  
+  return(NULL)  # No valid spectral data found
+}
 
 # Helper to extract sample number from filename (e.g., "pot094")
 extract_sample_number <- function(filename) {
@@ -238,47 +383,39 @@ for (combination in unique_combinations) {
     spectra <- data_test[idx]
     colors <- brewer.pal(min(length(spectra), 8), "Set1")
     
-    # Check if wavenumbers data is valid and finite
-    wavenum_data <- spectra[[1]]$ab$wavenumbers
-    if (is.null(wavenum_data) || !all(is.finite(wavenum_data)) || length(wavenum_data) == 0) {
-      cat("Skipping", combination, "- invalid wavenumber data\n")
+    # Get spectral data for all spectra in this combination
+    spectral_list <- lapply(spectra, getSpectralData)
+    valid_spectra <- !sapply(spectral_list, is.null)
+    
+    if (!any(valid_spectra)) {
+      cat("Skipping", combination, "- no valid spectral data\n")
       next
     }
     
-    # Get y-range from all spectra data, ensuring finite values
-    all_y_data <- unlist(lapply(spectra, function(x) {
-      if (!is.null(x$ab$data) && is.numeric(x$ab$data)) {
-        x$ab$data[is.finite(x$ab$data)]
-      } else {
-        NULL
-      }
-    }))
+    # Filter to valid spectra only
+    spectral_list <- spectral_list[valid_spectra]
+    spectra <- spectra[valid_spectra]
+    colors <- colors[seq_along(spectral_list)]
     
-    if (length(all_y_data) == 0) {
-      cat("Skipping", combination, "- no valid absorbance data\n")
-      next
-    }
+    # Get ranges for plotting
+    all_wavenumbers <- unlist(lapply(spectral_list, function(x) x$wavenumbers))
+    all_absorbance <- unlist(lapply(spectral_list, function(x) x$data))
     
-    plot(NULL, xlim = rev(range(wavenum_data, na.rm = TRUE)),
-         ylim = range(all_y_data, na.rm = TRUE),
+    plot(NULL, xlim = rev(range(all_wavenumbers, na.rm = TRUE)),
+         ylim = range(all_absorbance, na.rm = TRUE),
          xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
          main = paste("Stacked spectra for", sample_num, "-", sample_type, "-", timepoint),
          bty = "l")
-    for (i in seq_along(spectra)) {
-      ab_data <- spectra[[i]]$ab
-      if (!is.null(ab_data) && 
-          !is.null(ab_data$wavenumbers) &&
-          !is.null(ab_data$data) &&
-          all(is.finite(ab_data$wavenumbers)) &&
-          all(is.finite(ab_data$data)) &&
-          length(ab_data$wavenumbers) == length(ab_data$data)) {
-        lines(ab_data$wavenumbers, ab_data$data, col = colors[i], lwd = 2)
-      }
+    
+    for (i in seq_along(spectral_list)) {
+      spec_data <- spectral_list[[i]]
+      lines(spec_data$wavenumbers, spec_data$data, col = colors[i], lwd = 2)
     }
+    
     legend("topright",
            inset = c(-0.05, -0.02),
            legend = names(spectra),
-           col = colors[seq_along(spectra)],
+           col = colors[seq_len(length(spectral_list))],
            lwd = 2,
            xpd = TRUE,
            bty = "n")
@@ -328,47 +465,39 @@ for (combo in combos) {
     spectra <- data_test[idx]
     colors <- brewer.pal(min(length(spectra), 8), "Set1")
     
-    # Check if wavenumbers data is valid and finite
-    wavenum_data <- spectra[[1]]$ab$wavenumbers
-    if (is.null(wavenum_data) || !all(is.finite(wavenum_data)) || length(wavenum_data) == 0) {
-      cat("Skipping", combo, "- invalid wavenumber data\n")
+    # Get spectral data for all spectra in this combination
+    spectral_list <- lapply(spectra, getSpectralData)
+    valid_spectra <- !sapply(spectral_list, is.null)
+    
+    if (!any(valid_spectra)) {
+      cat("Skipping", combo, "- no valid spectral data\n")
       next
     }
     
-    # Get y-range from all spectra data, ensuring finite values
-    all_y_data <- unlist(lapply(spectra, function(x) {
-      if (!is.null(x$ab$data) && is.numeric(x$ab$data)) {
-        x$ab$data[is.finite(x$ab$data)]
-      } else {
-        NULL
-      }
-    }))
+    # Filter to valid spectra only
+    spectral_list <- spectral_list[valid_spectra]
+    spectra <- spectra[valid_spectra]
+    colors <- colors[seq_along(spectral_list)]
     
-    if (length(all_y_data) == 0) {
-      cat("Skipping", combo, "- no valid absorbance data\n")
-      next
-    }
+    # Get ranges for plotting
+    all_wavenumbers <- unlist(lapply(spectral_list, function(x) x$wavenumbers))
+    all_absorbance <- unlist(lapply(spectral_list, function(x) x$data))
     
-    plot(NULL, xlim = rev(range(wavenum_data, na.rm = TRUE)),
-         ylim = range(all_y_data, na.rm = TRUE),
+    plot(NULL, xlim = rev(range(all_wavenumbers, na.rm = TRUE)),
+         ylim = range(all_absorbance, na.rm = TRUE),
          xlab = "Wavenumber (cm⁻¹)", ylab = "Absorbance",
          main = paste("Stacked spectra for", combo),
          bty = "l")
-    for (i in seq_along(spectra)) {
-      ab_data <- spectra[[i]]$ab
-      if (!is.null(ab_data) &&
-            !is.null(ab_data$wavenumbers) &&
-            !is.null(ab_data$data) &&
-            all(is.finite(ab_data$wavenumbers)) &&
-            all(is.finite(ab_data$data)) &&
-            length(ab_data$wavenumbers) == length(ab_data$data)) {
-        lines(ab_data$wavenumbers, ab_data$data, col = colors[i], lwd = 2)
-      }
+    
+    for (i in seq_along(spectral_list)) {
+      spec_data <- spectral_list[[i]]
+      lines(spec_data$wavenumbers, spec_data$data, col = colors[i], lwd = 2)
     }
+    
     legend("topright",
            inset = c(-0.05, -0.02),
            legend = names(spectra),
-           col = colors[seq_along(spectra)],
+           col = colors[seq_len(length(spectral_list))],
            lwd = 2,
            xpd = TRUE,
            bty = "n")
@@ -472,7 +601,7 @@ write_csv(dfw, csvName)
 
 ### Extract sample info from filename
 Using the long format dataframe `dpt_data`
-**format example: DRIFTS_pot094_13Csoy_wk10_soil_250630.0.dpt**
+**format example: pot028_13C_wheat_wk0_soil_241209.0.dpt**
 ```{r extract-sample-info, message=FALSE, warning=FALSE}
 # First, let's check what our data looks like
 cat("Column filenames:", colnames(dpt_data), "\n")
@@ -502,7 +631,7 @@ unique(dpt_data$ID)
 
 # Extract isotope information (13C or 12C)
 dpt_data$isotope <- sapply(strsplit(dpt_data$filename, "_"), function(x) {
-  # Look for the part with isotope info (usually position 3)
+  # Look for the part with isotope info (usually position 2)
   isotope_part <- x[2]
   if (grepl("13C", isotope_part)) {
     13
