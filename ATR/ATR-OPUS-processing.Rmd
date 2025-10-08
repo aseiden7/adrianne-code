@@ -30,9 +30,9 @@ knitr::opts_chunk$set(
 box_base <- Sys.getenv("BOX_BASE")
 if (box_base == "") stop("BOX_BASE environment variable is not set!")
 # set corr_spectra path
-corr_spectra <- file.path(box_base, "Salk Institute Project/Salk Data/FTIR_Intact_decomposition_pots/ATR/ATR_OPUS_files")
+corr_spectra <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/ATR_re-processed_251007/ATR-spectrum_re-corrected")
 # set dpt_folder path
-dpt_folder <- file.path(box_base, "Salk Institute Project/Salk Data/FTIR_Intact_decomposition_pots/ATR/ATR_DPT_files")
+dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/ATR_re-processed_251007/ATR-spectrum-corr.-DPTs")
 # set outputs folder path
 outputs_folder <- file.path(box_base, "Salk Institute Project/Salk Data/FTIR_Intact_decomposition_pots/ATR/ATR_OPUS_code_outputs")
 ```
@@ -394,7 +394,7 @@ library(ggsignif)
 box_base <- Sys.getenv("BOX_BASE")
 if (box_base == "") stop("BOX_BASE environment variable is not set!")
 # set dpt_folder path
-dpt_folder <- file.path(box_base, "Salk Institute Project/Salk Data/FTIR_Intact_decomposition_pots/ATR/ATR_DPT_files")
+dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/ATR_re-processed_251007/ATR-spectrum-corr.-DPTs")
 ```
 ## Importing FTIR data using readr
 

@@ -362,7 +362,9 @@ measurements_per_sample <- total_rows / n_samples
 
 # Check if it divides evenly
 if (total_rows %% n_samples == 0) {
-  data2$sample <- sort(rep(1:n_samples, measurements_per_sample))
+  # Use actual filenames instead of numbers for sample names
+  sample_names <- basename(data1)  # Get just the filename without path
+  data2$sample <- sort(rep(sample_names, measurements_per_sample))
 } else {
   warning("Total rows don't divide evenly by number of samples")
   # Handle uneven division as needed
@@ -390,10 +392,10 @@ comb$wavelength <- as.numeric(as.character(comb$wavelength))
 # Then proceed with rounding
 comb$wave <- round(comb$wavelength, 0)
 
-# ##export to check
-# today <- format(Sys.Date(), "%Y-%m-%d")
-# comb_name <- paste0(integrated_ftir_csv,"/spectra_combined_test_", today, ".csv")
-# write.csv(comb, file = comb_name, row.names = FALSE)
+##export to check
+today <- format(Sys.Date(), "%Y-%m-%d")
+comb_name <- paste0(integrated_ftir_csv,"/spectra_combined_test_", today, ".csv")
+write.csv(comb, file = comb_name, row.names = FALSE)
 ```
 
 ### Isolate the spectra of interest
@@ -415,20 +417,65 @@ sample <- unique(comb$sample)
 # Create the data frame with the correct number of rows and columns (including notes)
 ints <- as.data.frame(matrix(NA, nrow = length(sample), ncol = 12))
 
+# Extract metadata directly from the sample filenames in comb
+comb_meta_table <- nc::capture_first_vec(
+  sample,
+  "^DRIFTS_",                    # Skip "DRIFTS_" prefix
+  source = "pot|jar",                # pot or jar
+  ID = "[0-9]{3}",              # 3-digit ID
+  "_",
+  isotope = "(?:13C|12C)",      # 13C or 12C
+  crop = "[a-zA-Z]+",              # crop name
+  "_",
+  timepoint = "wk[0-9]+",       # wk followed by digits
+  "_",
+  type_and_notes = "[a-zA-Z0-9_]+", # Allow letters, digits, and underscores
+  "_",
+  run_date = "[0-9]{6}",        # 6-digit date
+  "\\.",                        # literal dot
+  "[0-9]+",                     # version number (not captured)
+  "\\.dpt$",                    # file extension
+  nomatch.error = FALSE
+)
+
+# Process the type_and_notes field
+comb_meta_table$type <- sapply(strsplit(comb_meta_table$type_and_notes, "_"), `[`, 1)
+comb_meta_table$notes <- sapply(
+  strsplit(comb_meta_table$type_and_notes, "_"),
+  function(x) {
+    if (length(x) > 1) paste(x[-1], collapse = "_") else NA
+  }
+)
+
+# Convert date to proper format
+comb_meta_table$run_date <- as.Date(comb_meta_table$run_date, format = "%y%m%d")
+
+# Remove the type_and_notes column and reorder columns
+comb_meta_table <- comb_meta_table[, c("source", "ID", "isotope", "crop", "timepoint",
+                                       "type", "notes", "run_date")]
+
 # Check dimensions match before assigning metadata
 print(paste("ints rows:", nrow(ints)))
-print(paste("meta_table rows:", nrow(meta_table)))
+print(paste("comb_meta_table rows:", nrow(comb_meta_table)))
 print(paste("Number of unique samples:", length(sample)))
 
+# Check for any failed matches
+failed_matches <- sample[is.na(comb_meta_table$run_date)]
+cat("\nFailed matches in comb data:", length(failed_matches), "\n")
+if (length(failed_matches) > 0) {
+  print("Failed filenames:")
+  print(failed_matches)
+}
+
 # Assign metadata columns (including notes)
-ints[1] <- meta_table[, 1]  # source
-ints[2] <- meta_table[, 2]  # ID
-ints[3] <- meta_table[, 3]  # isotope
-ints[4] <- meta_table[, 4]  # crop
-ints[5] <- meta_table[, 5]  # timepoint
-ints[6] <- meta_table[, 6]  # type
-ints[7] <- meta_table[, 7]  # notes
-ints[8] <- meta_table[, 8]  # run_date
+ints[1] <- comb_meta_table[, 1]  # source
+ints[2] <- comb_meta_table[, 2]  # ID
+ints[3] <- comb_meta_table[, 3]  # isotope
+ints[4] <- comb_meta_table[, 4]  # crop
+ints[5] <- comb_meta_table[, 5]  # timepoint
+ints[6] <- comb_meta_table[, 6]  # type
+ints[7] <- comb_meta_table[, 7]  # notes
+ints[8] <- comb_meta_table[, 8]  # run_date
 
 # Set column names (including notes)
 names(ints)[1:8] <- c(
