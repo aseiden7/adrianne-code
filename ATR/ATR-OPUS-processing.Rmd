@@ -68,7 +68,9 @@ meas_1 <- data_test[[1]]
 ### Helper Functions
 
 Function to extract single-channel spectral data from OPUS files and convert it to absorbance.  
-ab = -log10(sample/ref) 
+
+ab = -log10(sample/ref)   
+
 I'm a bit unsure about this because I already ran a background correction in the OPUS software... I may try running this with raw data later. The DPT files in "Reading DPT files" section below are unaltered from the OPUS software export.
 
 ```{r helper-functions, echo=TRUE, message=FALSE, warning=FALSE}
