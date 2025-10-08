@@ -37,6 +37,14 @@ dpt_folder <- file.path(box_base, "Salk Institute Project/Salk Data/FTIR_Intact_
 outputs_folder <- file.path(box_base, "Salk Institute Project/Salk Data/FTIR_Intact_decomposition_pots/ATR/ATR_OPUS_code_outputs")
 ```
 
+```{css, echo=FALSE}
+/* Custom CSS to make blockquote text same size as normal text */
+blockquote {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+```
+
 # Reading OPUS files
 [source](https://spectral-cockpit.github.io/opusreader2/articles/opusreader2_introduction.html)
 
@@ -582,10 +590,15 @@ soiln <- soil %>%
 ```
 
 ## Plotting by timepoint and type
-These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Dotted lines at specific wavenumbers indicate key absorption features of suberin.
-- According to Martins et al. 2014:
-    > Major peaks, which can be almost exclusively assigned to suberin, are at 2921 cm-1, 2851 cm-1 and 1737 cm-1.
-    - Martins, I., Hartmann, D.O., Alves, P.C. et al. Elucidating how the saprophytic fungus Aspergillus nidulans uses the plant polyester suberin as carbon source. BMC Genomics 15, 613 (2014). https://doi.org/10.1186/1471-2164-15-613
+These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Dotted lines at specific wavenumbers indicate key absorption features of suberin. Lines in black are exclusively assigned to suberin, while gray lines are non-exclusively assigned.  
+
+According to Martins et al. 2014:  
+
+> Major peaks, which can be almost exclusively assigned to suberin, are at 2921 cm^-1^, 2851 cm^-1^ and 1737 cm^-1^. The remaining peaks are simultaneously assigned to the fungal cell wall and either to suberin (1158 cm^-1^ and 1635 cm^-1^)...
+> 
+> --- Martins, I., Hartmann, D.O., Alves, P.C. et al. Elucidating how the saprophytic fungus Aspergillus nidulans uses the plant polyester suberin as carbon source. BMC Genomics 15, 613 (2014). https://doi.org/10.1186/1471-2164-15-613
+
+1737 = C=O stretch (esters) 
 
 ### Week 0
 ```{r plotting wk0, message=FALSE, warning=FALSE, comment=FALSE, fig.width=9, fig.height=6}
@@ -607,9 +620,11 @@ root0_plot <- root0 %>%
   geom_density_ridges(stat = "identity",
                       scale = 3,
                       alpha = 0.25) +
-  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1158, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
+  geom_vline(xintercept = 1635, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -638,9 +653,11 @@ soil0_plot <- soil0 %>% # nolint: commented_code_linter.
   geom_density_ridges(stat = "identity",
                       scale = 3, # nolint: commented_code_linter.
                       alpha = 0.25) +
-  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1158, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
+  geom_vline(xintercept = 1635, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -672,9 +689,11 @@ root10_plot <- root10 %>%
   geom_density_ridges(stat = "identity",
                       scale = 3,
                       alpha = 0.25) +
-  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1158, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
+  geom_vline(xintercept = 1635, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -705,6 +724,8 @@ soil10_plot <- soil10 %>%
   geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
   geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1158, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
+  geom_vline(xintercept = 1635, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
   xlim(4000, 400) +
   theme_classic() +
   scale_fill_manual(values = palc1) +
@@ -715,11 +736,15 @@ unique(soil10$ID)
 ggsave(file.path(outputs_folder, "Soil_week10_ATR.png"), soil10_plot)
 ```
 ## Plotting by crop
+These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Dotted lines at specific wavenumbers indicate key absorption features of suberin. Lines in black are exclusively assigned to suberin, while gray lines are non-exclusively assigned.  
 
-These plots are of normalized absorbance values. The thickness of the line represents the range of the data. Dotted lines at specific wavenumbers indicate key absorption features of suberin.
-- According to Martins et al. 2014:
-    > Major peaks, which can be almost exclusively assigned to suberin, are at 2921 cm-1, 2851 cm-1 and 1737 cm-1.
-    - Martins, I., Hartmann, D.O., Alves, P.C. et al. Elucidating how the saprophytic fungus Aspergillus nidulans uses the plant polyester suberin as carbon source. BMC Genomics 15, 613 (2014). https://doi.org/10.1186/1471-2164-15-613
+According to Martins et al. 2014:  
+
+> Major peaks, which can be almost exclusively assigned to suberin, are at 2921 cm^-1^, 2851 cm^-1^ and 1737 cm^-1^. The remaining peaks are simultaneously assigned to the fungal cell wall and either to suberin (1158 cm^-1^ and 1635 cm^-1^)...
+> 
+> --- Martins, I., Hartmann, D.O., Alves, P.C. et al. Elucidating how the saprophytic fungus Aspergillus nidulans uses the plant polyester suberin as carbon source. BMC Genomics 15, 613 (2014). https://doi.org/10.1186/1471-2164-15-613
+
+1737 = C=O stretch (esters) 
 
 ### Wheat Roots
 ```{r plotting wheat, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
@@ -739,9 +764,11 @@ wheat_plot <- ggplot(wheat,
   geom_line() +
   theme_classic() +
   scale_color_manual(values = palc2) +
-  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1158, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
+  geom_vline(xintercept = 1635, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
   ggtitle("Wheat Roots ATR")
 wheat_plot
 unique(wheat$ID)
@@ -766,9 +793,11 @@ rice_plot <- ggplot(rice,
   geom_line() +
   theme_classic() +
   scale_color_manual(values = palc3) +
-  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1158, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
+  geom_vline(xintercept = 1635, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
   ggtitle("Rice Roots ATR")
 rice_plot
 unique(rice$ID)
@@ -791,9 +820,11 @@ soy_plot <- ggplot(soy,
   geom_line() +
   theme_classic() +
   scale_color_manual(values = palc4) +
-  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2921, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 2851, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5, color = "black") +
+  geom_vline(xintercept = 1158, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
+  geom_vline(xintercept = 1635, linetype = "dotted", linewidth = 0.5, color = "darkgray") +
   ggtitle("Soy Roots ATR")
 soy_plot
 unique(soy$ID)
