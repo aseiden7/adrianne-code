@@ -551,7 +551,6 @@ write.csv(ints, file = ints_name, row.names = FALSE)
 Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts
 by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions
 before visualizing everything.
-Still troubleshooting this code.
 ```{r derived-metrics, echo=TRUE, message=FALSE, warning=FALSE}
 # Load required libraries
 library(ggplot2)
