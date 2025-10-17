@@ -717,15 +717,20 @@ ggsave(file.path(outputs_folder, "Root_week40_FTIR.png"), plot = root40_plot)
 
 ## Plotting by crop
 
-These plots are of normalized absorbance values. The thickness of the line represents the range of the data. Dotted lines at specific wavenumbers indicate key absorption features.
+These plots are of normalized absorbance values. The thickness of the line represents the range of the data. Dotted lines at specific wavenumbers indicate peaks attributed to suberin in:  
+White, K. E., Reeves, J. B., & Coale, F. J. (2011). Mid-infrared diffuse reflectance spectroscopy for the rapid analysis of plant root composition. Geoderma, 167–168, 197–203. https://doi.org/10.1016/j.geoderma.2011.08.009    
+or   
+White, K. E., Reeves, J. B., & Coale, F. J. (2016). Cell wall compositional changes during incubation of plant roots measured by mid-infrared diffuse reflectance spectroscopy and fiber analysis. Geoderma, 264, 205–213. https://doi.org/10.1016/j.geoderma.2015.10.018
 
-- 2900 cm<sup>-1</sup> ← aliphatic (alkanes)
-- 1730 - 1650 cm<sup>-1</sup> ← carbonyl; C=O stretch (carbonyl, carboxylic acids, esters, ketones, etc.)
-- 1500 cm<sup>-1</sup> ← aromatic
 
-I'm not sure if these are the best areas to highlight, but I kept what Stephany did.
+- peaks in the 3000 cm<sup>-1</sup> to 2800 cm<sup>-1</sup> range ← aliphatic moiety of suberin (not exclusive, but used as evidence of changing suberin content), Specifically:
+  - 2856 cm<sup>-1</sup>  
+  - 2930 cm<sup>-1</sup> 
+  - 2976 cm<sup>-1</sup> 
+- 1737 or 1740 cm<sup>-1</sup> ← suberin esters (but also hemicellulose?)
+- 1506 cm<sup>-1</sup> ← aromatic moiety of suberin (also lignin)
 
-### Wheat Roots
+### Wheat roots
 ```{r plotting wheat, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
 palc2 <- c("wk0" = "#B4D586", "wk10" = "#98C559","wk20" = "#79A63A",
            "wk30" = "#58792A", "wk40" = "#374B1B")
@@ -743,15 +748,18 @@ wheat_plot <- ggplot(wheat,
   geom_line() +
   theme_classic() +
   scale_color_manual(values = palc2) +
-  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+  annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
+           alpha = 0.1, fill = "gray70", color = "gray60", linewidth = 0.12) +
+  geom_vline(xintercept = 2976, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2930, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2856, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.5) +
   ggtitle("Wheat Roots FTIR")
 wheat_plot
 unique(wheat$ID)
 ```
-### rice roots
+### Rice roots
 ```{r plotting rice, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
 palc3 <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
            "wk40" = "#B56203")
@@ -775,15 +783,18 @@ rice_plot <- ggplot(rice,
   geom_line() +
   theme_classic() +
   scale_color_manual(values = palc3) +
-  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
+           alpha = 0.1, fill = "gray70", color = "gray60", linewidth = 0.12) +
+  geom_vline(xintercept = 2976, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2930, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2856, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.5) +
   ggtitle("Rice Roots FTIR")
 rice_plot
 unique(rice$ID)
 ```
-### soy roots
+### Soy roots
 ```{r plotting soy, echo=FALSE, message=FALSE, warning=FALSE, fig.width=9, fig.height=6}
 palc4 <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
            "wk30" = "#B70153", "wk40" = "#7A0137")
@@ -802,10 +813,13 @@ soy_plot <- ggplot(soy,
   geom_line() +
   theme_classic() +
   scale_color_manual(values = palc4) +
-  geom_vline(xintercept = 1650, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1730, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.5) +
-  geom_vline(xintercept = 2900, linetype = "dotted", linewidth = 0.5) +
+annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
+           alpha = 0.1, fill = "gray70", color = "gray60", linewidth = 0.12) +
+  geom_vline(xintercept = 2976, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2930, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 2856, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1737, linetype = "dotted", linewidth = 0.5) +
+  geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.5) +
   ggtitle("Soy Roots FTIR")
 soy_plot
 unique(soy$ID)
