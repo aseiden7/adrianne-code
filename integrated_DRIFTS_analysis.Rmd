@@ -321,181 +321,99 @@ These plots are of normalized absorbance values. The thickness of the opaque lin
 - Microbial: 1660 - 1580 cm<sup>-1</sup>
 - Complex plant (aromatic): 1550 - 1500 cm<sup>-1</sup>
 
-```{r time-type-plots}
-root0_data <- dpt_data_roots %>%
-  filter(timepoint == "wk0") %>%
-  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
+```{r time-type-plots, results='asis'}
+# Generic function to create ridge plots for any timepoint
+create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
+  # Filter data for specific timepoint
+  filtered_data <- data %>%
+    filter(timepoint == timepoint_week) %>%
+    mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
+  
+  # Create title if not provided
+  if (is.null(title)) {
+    week_num <- str_extract(timepoint_week, "\\d+")
+    title <- paste("Roots at week", week_num)
+  }
+  
+  # Determine y-position for annotations based on data
+  max_y <- length(unique(filtered_data$crop)) + 1.75
+  
+  # Create the plot
+  ridge_plot <- filtered_data %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = crop,
+                         height = normalized_absorbance,
+                         group = crop,
+                         fill = crop,
+                         color = crop)) +
+    geom_density_ridges(stat = "identity",
+                        scale = 3,
+                        alpha = 0.25) +
+    geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+    geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+    geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
+    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
+    geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
+    geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
+    geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
+    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
+    xlim(4000, 400) +
+    scale_y_discrete(expand = expansion(mult = c(0.0, 0.56))) +  # Less space below, more above
+    theme_classic() +
+    scale_fill_manual(values = crop_colors) +
+    scale_color_manual(values = crop_colors) +
+    ggtitle(title) +
+    # Add simple plant region annotation
+    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#e3c8b1") +
+    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#e3c8b1") +
+    annotate("text", x = 2560, y = max_y + 1, label = "Simple Plant", 
+             size = 3, hjust = 0.5) +
+    # Add microbial region annotation
+    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#a8cbad") +
+    annotate("text", x = 1870, y = max_y + 1.11, label = "Microbial", 
+             size = 3, hjust = 0.5) +
+    # Add complex plant region annotation
+    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#beb5d5") +
+    annotate("text", x = 1190, y = max_y + 1.11, label = "Complex Plant", 
+             size = 3, hjust = 0.5)
+  
+  return(list(plot = ridge_plot, data = filtered_data))
+}
 
-root0_plot <- root0_data %>%
-  ggplot(mapping = aes(x = wavenumber,
-                       y = crop,
-                       height = normalized_absorbance,
-                       group = crop,
-                       fill = crop,
-                       color = crop)) +
-  geom_density_ridges(stat = "identity",
-                      scale = 3,
-                      alpha = 0.25) +
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
-  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
-  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
-  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
-  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
-  xlim(4000, 400) +
-  theme_classic() +
-  scale_fill_manual(values = crop_colors) +
-  scale_color_manual(values = crop_colors) +
-  ggtitle("Roots at week 0") +
-  # Add simple plant region annotation
-  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#e3c8b1") +
-  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#e3c8b1") +
-  annotate("text", x = 2550, y = 5.75, label = "Simple Plant", 
-           size = 3, hjust = 0.5) +
-# Add microbial region annotation
-  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#a8cbad") +
-  annotate("text", x = 1850, y = 5.93, label = "Microbial", 
-           size = 3, hjust = 0.5) +
-# Add complex plant region annotation
-  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#beb5d5") +
-  annotate("text", x = 1200, y = 5.88, label = "Complex Plant", 
-           size = 3, hjust = 0.5)
-print(root0_plot)
+# Generic function to create sample count tables
+create_sample_count_table <- function(filtered_data, timepoint_week) {
+  week_num <- str_extract(timepoint_week, "\\d+")
+  col_name <- paste("Week", week_num, "samples")
+  
+  counts <- filtered_data %>%
+    select(filename, crop) %>%
+    distinct() %>%
+    count(crop) %>%
+    arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
+    mutate(!!col_name := paste(n, "&nbsp;&nbsp;&nbsp;", crop)) %>%
+    select(all_of(col_name))
+  
+  return(counts)
+}
 
-# Print sample counts for week 0
-wk0_counts <- root0_data %>%
-  select(filename, crop) %>%
-  distinct() %>%
-  count(crop) %>%
-  arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
-  mutate(`Week 0 samples` = paste(n, crop, sep = "&ensp;&nbsp;")) %>%
-  select(`Week 0 samples`)
+# Create plots and tables for each timepoint
+timepoints <- c("wk0", "wk10", "wk40")
 
-knitr::kable(wk0_counts, format = "markdown")
-
-# Recreate the week 10 plot from OPUSprocessing.Rmd
-root10_data <- dpt_data_roots %>%
-  filter(timepoint == "wk10") %>%
-  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
-
-root10_plot <- root10_data %>%
-  ggplot(mapping = aes(x = wavenumber,
-                       y = crop,
-                       height = normalized_absorbance,
-                       group = crop,
-                       fill = crop,
-                       color = crop)) +
-  geom_density_ridges(stat = "identity",
-                      scale = 3,
-                      alpha = 0.25) +
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
-  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
-  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
-  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
-  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
-  xlim(4000, 400) +
-  theme_classic() +
-  scale_fill_manual(values = crop_colors) +
-  scale_color_manual(values = crop_colors) +
-  ggtitle("Roots at week 10") +
-  # Add simple plant region annotation
-  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#e3c8b1") +
-  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#e3c8b1") +
-  annotate("text", x = 2550, y = 5.75, label = "Simple Plant", 
-           size = 3, hjust = 0.5) +
-# Add microbial region annotation
-  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#a8cbad") +
-  annotate("text", x = 1850, y = 5.93, label = "Microbial", 
-           size = 3, hjust = 0.5) +
-# Add complex plant region annotation
-  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#beb5d5") +
-  annotate("text", x = 1200, y = 5.88, label = "Complex Plant", 
-           size = 3, hjust = 0.5)
-
-print(root10_plot)
-
-# Print sample counts for week 10
-wk10_counts <- root10_data %>%
-  select(filename, crop) %>%
-  distinct() %>%
-  count(crop) %>%
-  arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
-  mutate(`Week 10 samples` = paste(n, crop, sep = "&ensp;&nbsp;")) %>%
-  select(`Week 10 samples`)
-
-knitr::kable(wk10_counts, format = "markdown")
-
-# Recreate the week 40 plot from OPUSprocessing.Rmd
-root40_data <- dpt_data_roots %>%
-  filter(timepoint == "wk40") %>%
-  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
-
-root40_plot <- root40_data %>%
-  ggplot(mapping = aes(x = wavenumber,
-                       y = crop,
-                       height = normalized_absorbance,
-                       group = crop,
-                       fill = crop,
-                       color = crop)) +
-  geom_density_ridges(stat = "identity",
-                      scale = 3,
-                      alpha = 0.25) +
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
-  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
-  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
-  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
-  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
-  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
-  xlim(4000, 400) +
-  theme_classic() +
-  scale_fill_manual(values = crop_colors) +
-  scale_color_manual(values = crop_colors) +
-  ggtitle("Roots at week 40") +
-  # Add simple plant region annotation
-  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#e3c8b1") +
-  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#e3c8b1") +
-  annotate("text", x = 2550, y = 6.75, label = "Simple Plant", 
-           size = 3, hjust = 0.5) +
-# Add microbial region annotation
-  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#a8cbad") +
-  annotate("text", x = 1850, y = 6.93, label = "Microbial", 
-           size = 3, hjust = 0.5) +
-# Add complex plant region annotation
-  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
-           alpha = 0.2, fill = "#beb5d5") +
-  annotate("text", x = 1200, y = 6.88, label = "Complex Plant", 
-           size = 3, hjust = 0.5)
-
-print(root40_plot)
-
-# Print sample counts for week 40
-wk40_counts <- root40_data %>%
-  select(filename, crop) %>%
-  distinct() %>%
-  count(crop) %>%
-  arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
-  mutate(`Week 40 samples` = paste(n, crop, sep = "&ensp;&nbsp;")) %>%
-  select(`Week 40 samples`)
-
-knitr::kable(wk40_counts, format = "markdown")
+for (tp in timepoints) {
+  # Create plot and get filtered data
+  result <- create_timepoint_ridge_plot(dpt_data_roots, tp)
+  
+  # Print the plot
+  print(result$plot)
+  
+  # Create and print sample count table with results='asis'
+  counts_table <- create_sample_count_table(result$data, tp)
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE), "\n\n")
+}
 
 # # Recreate the crop comparison plot showing suberin-indicative peaks (from OPUSprocessing.Rmd)
 # # This follows the style of the "Plotting by crop" section
