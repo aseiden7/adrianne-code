@@ -28,10 +28,30 @@ if (box_base == "") stop("BOX_BASE environment variable is not set!")
 # Set paths
 dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
 integrated_ftir_data <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/leila_code_output_csv")
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/integrated_analysis_outputs")
 
 # Create output directory if it doesn't exist
-if (!dir.exists("integrated_analysis_outputs")) {
-  dir.create("integrated_analysis_outputs")
+if (!dir.exists(outputs_folder)) {
+  dir.create(outputs_folder, recursive = TRUE)
+}
+
+# Helper function to find the most recent processed integration data file
+find_most_recent_processed_file <- function(data_dir) {
+  pattern <- "processed_int_data_.*\\.csv$"
+  files <- list.files(data_dir, pattern = pattern, full.names = TRUE)
+  
+  if (length(files) == 0) {
+    return(NULL)
+  }
+  
+  # Extract dates from filenames and find the most recent
+  dates <- stringr::str_extract(basename(files), "\\d{4}-\\d{2}-\\d{2}")
+  most_recent_idx <- which.max(as.Date(dates))
+  
+  cat("Found", length(files), "processed integration files\n")
+  cat("Using most recent file:", basename(files[most_recent_idx]), "\n")
+  
+  return(files[most_recent_idx])
 }
 
 # Load libraries
@@ -45,6 +65,16 @@ library(cowplot)
 library(grid)
 library(ggsignif)
 library(tidyr)
+
+# Install and load required packages for integration if needed
+required_packages <- c("pracma", "nc")
+for (pkg in required_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    cat("Installing package:", pkg, "\n")
+    install.packages(pkg)
+    library(pkg, character.only = TRUE)
+  }
+}
 
 # Define exact color palettes from original files
 palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
@@ -154,8 +184,10 @@ dpt_data <- dpt_data %>%
   filter(!filename %in% c("DRIFTS_pot103_13Crice_wk0_root_recNMR_250725.0.dpt",
                           "DRIFTS_pot103_13Crice_wk0_root_vial1_250725.0.dpt", 
                           "DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt"))
+# save as csv for record-keeping
+write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE)
 
-# Filter for root samples only (focus on suberin analysis)
+# Filter for root samples only
 dpt_data_roots <- dpt_data %>% 
   filter(sample_type == "root") %>%
   filter(!is.na(crop))
@@ -179,6 +211,151 @@ dpt_data_roots <- dpt_data_roots %>%
     normalized_absorbance = baseline_corrected / max(baseline_corrected, na.rm = TRUE)
   ) %>%
   ungroup()
+```
+
+## Spectral Integration Processing
+
+```{r spectral-integration-function}
+# Function to perform spectral integration on DPT data (based on Leila_code_modified.Rmd)
+perform_spectral_integration <- function(dpt_data) {
+  cat("Starting spectral integration processing...\n")
+  
+  # Load required library for integration
+  if (!require(pracma, quietly = TRUE)) {
+    install.packages("pracma")
+    library(pracma)
+  }
+  
+  # Prepare the data in the format needed for integration
+  # Rename columns to match expected format
+  comb <- dpt_data %>%
+    select(filename, wavenumber, absorbance) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
+  
+  # Define spectral windows of interest (same as Leila's code)
+  red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1
+  red2 <- comb[comb$wavelength > 2898 & comb$wavelength < 2976, ]  # Aliphatic 2  
+  red3 <- comb[comb$wavelength > 1580 & comb$wavelength < 1660, ]  # Microbial
+  red4 <- comb[comb$wavelength > 1500 & comb$wavelength < 1550, ]  # Complex plant
+  
+  # Get unique samples
+  sample <- unique(comb$sample)
+  
+  # Create integration results data frame
+  ints <- data.frame(
+    sample = sample,
+    int_2839_2870 = numeric(length(sample)),
+    int_2898_2976 = numeric(length(sample)),
+    int_1580_1660 = numeric(length(sample)),
+    int_1500_1550 = numeric(length(sample)),
+    stringsAsFactors = FALSE
+  )
+  
+  # Calculate integrated areas for each spectral window and sample
+  cat("Processing", length(sample), "samples for integration...\n")
+  for (i in seq_len(nrow(ints))) {
+    current_sample <- sample[i]
+    
+    # Extract data for current sample from each spectral window
+    sample_red1 <- red1[red1$sample == current_sample, ]
+    sample_red2 <- red2[red2$sample == current_sample, ]
+    sample_red3 <- red3[red3$sample == current_sample, ]
+    sample_red4 <- red4[red4$sample == current_sample, ]
+    
+    # Calculate area under curve (integration) using trapezoidal rule
+    if (nrow(sample_red1) > 1) {
+      ints$int_2839_2870[i] <- pracma::trapz(sample_red1$wavelength, sample_red1$abs)
+    }
+    
+    if (nrow(sample_red2) > 1) {
+      ints$int_2898_2976[i] <- pracma::trapz(sample_red2$wavelength, sample_red2$abs)
+    }
+    
+    if (nrow(sample_red3) > 1) {
+      ints$int_1580_1660[i] <- pracma::trapz(sample_red3$wavelength, sample_red3$abs)
+    }
+    
+    if (nrow(sample_red4) > 1) {
+      ints$int_1500_1550[i] <- pracma::trapz(sample_red4$wavelength, sample_red4$abs)
+    }
+  }
+  
+  # Extract metadata from filenames (same pattern as original code)
+  if (require(nc, quietly = TRUE)) {
+    meta_table <- nc::capture_first_vec(
+      ints$sample,
+      "^DRIFTS_",                    # Skip "DRIFTS_" prefix
+      source = "pot|jar",            # pot or jar
+      ID = "[0-9]{3}",              # 3-digit ID
+      "_",
+      isotope = "(?:13C|12C)",      # 13C or 12C
+      crop = "[a-zA-Z]+",           # crop name
+      "_",
+      timepoint = "wk[0-9]+",       # wk followed by digits
+      "_",
+      type_and_notes = "[a-zA-Z0-9_]+", # Allow letters, digits, and underscores
+      "_",
+      run_date = "[0-9]{6}",        # 6-digit date
+      "\\.",                        # literal dot
+      "[0-9]+",                     # version number (not captured)
+      "\\.dpt$",                    # file extension
+      nomatch.error = FALSE
+    )
+    
+    # Process the type_and_notes field
+    meta_table$type <- sapply(strsplit(meta_table$type_and_notes, "_"), `[`, 1)
+    meta_table$notes <- sapply(
+      strsplit(meta_table$type_and_notes, "_"),
+      function(x) {
+        if (length(x) > 1) paste(x[-1], collapse = "_") else NA
+      }
+    )
+    
+    # Convert date to proper format
+    meta_table$run_date <- as.Date(meta_table$run_date, format = "%y%m%d")
+    
+    # Remove the type_and_notes column
+    meta_table <- meta_table[, c("source", "ID", "isotope", "crop", "timepoint", "type", "notes", "run_date")]
+    
+    # Combine metadata with integration results
+    ftir_data <- cbind(meta_table, ints[, -1])  # exclude sample column as it's redundant
+  } else {
+    # Fallback: extract basic metadata manually if nc package not available
+    cat("nc package not available, using basic metadata extraction...\n")
+    basic_meta <- dpt_data %>%
+      select(filename, crop, timepoint, sample_type, ID) %>%
+      distinct() %>%
+      rename(sample = filename, type = sample_type)
+    
+    ftir_data <- merge(basic_meta, ints, by = "sample", all = TRUE)
+  }
+  
+  # Rename integration columns to match expected names
+  names(ftir_data)[names(ftir_data) == "int_1580_1660"] <- "int_microbial"
+  names(ftir_data)[names(ftir_data) == "int_1500_1550"] <- "int_complex_plant"
+  
+  # Calculate derived metrics (same as original)
+  ftir_data$aliphatic <- ftir_data$int_2839_2870 + ftir_data$int_2898_2976
+  ftir_data$total_peak_area <- ftir_data$aliphatic + ftir_data$int_microbial + ftir_data$int_complex_plant
+  ftir_data$simple_plant_prop <- ftir_data$aliphatic / ftir_data$total_peak_area
+  ftir_data$complex_plant_prop <- ftir_data$int_complex_plant / ftir_data$total_peak_area
+  ftir_data$microbial_prop <- ftir_data$int_microbial / ftir_data$total_peak_area
+  ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_prop
+  ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_prop
+  
+  # Remove individual aliphatic integration columns (keep only derived metrics)
+  ftir_data <- ftir_data %>%
+    select(-int_2839_2870, -int_2898_2976)
+  
+  # Save the processed data to the output directory
+  today <- format(Sys.Date(), "%Y-%m-%d")
+  output_file <- file.path(outputs_folder, paste0("processed_int_data_", today, ".csv"))
+  write.csv(ftir_data, file = output_file, row.names = FALSE)
+  cat("Saved processed integration data to:", output_file, "\n")
+  
+  cat("Integration processing completed successfully.\n")
+  return(ftir_data)
+}
 ```
 # Ridge Plots
 ## Plotting by timepoint and type
@@ -498,18 +675,35 @@ soy_plot <- ggplot(soy,
 soy_plot
 unique(soy$ID)
 ```
-
+# Integrate regions of interest
+ 
 ```{r import-integration-data}
-# Import the integration results from Leila's analysis
-ftir_file <- file.path(integrated_ftir_data, "processed_int_data_2025-10-16.csv")
+# Try to find the most recent processed integration data file
+ftir_file <- find_most_recent_processed_file(integrated_ftir_data)
 
-if (file.exists(ftir_file)) {
+if (!is.null(ftir_file) && file.exists(ftir_file)) {
   ftir_data <- read_csv(ftir_file, show_col_types = FALSE)
-  cat("Successfully loaded FTIR integration data\n")
+  cat("Successfully loaded FTIR integration data from:", basename(ftir_file), "\n")
   cat("Dimensions:", dim(ftir_data), "\n")
   cat("Columns:", names(ftir_data), "\n")
 } else {
-  stop("FTIR integration data file not found: ", ftir_file)
+  cat("No processed integration data found. Processing raw DPT data to generate integration results...\n")
+  
+  # Check if we have the required dpt_data_roots from previous chunk
+  if (!exists("dpt_data_roots") || nrow(dpt_data_roots) == 0) {
+    stop("No DPT data available for integration. Please ensure the DPT data import was successful.")
+  }
+  
+  # Process raw DPT data using the integrated function
+  ftir_data <- perform_spectral_integration(dpt_data_roots)
+  
+  # Verify the processing was successful
+  if (is.null(ftir_data) || nrow(ftir_data) == 0) {
+    stop("Failed to process DPT data for integration.")
+  }
+  
+  cat("Successfully processed", nrow(ftir_data), "samples from DPT data\n")
+  cat("Generated columns:", names(ftir_data), "\n")
 }
 
 # Calculate summary statistics by group (exactly as in Leila_code_modified.Rmd)
@@ -550,14 +744,13 @@ crop_timepoint_stats <- ftir_data %>%
   )
 ```
 
-# EXACT Recreation of Leila_code_modified.Rmd Plots
-
-This section recreates the exact bar plots and visualizations from Leila_code_modified.Rmd.
-
+# Visualizing integrated ranges
+This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
 ```{r recreate-leila-plots}
 # Recreate the EXACT plotting function from Leila_code_modified.Rmd
 create_proportion_plots <- function(stats_data, group_col, title_prefix) {
-  # Use the exact same colors and styling as original
+  # Choose colors based on grouping variable
+  colors_to_use <- if(group_col == "crop") crop_colors else timepoint_colors
   
   p1 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_simple_plant_prop", fill = group_col)) +
     geom_col(alpha = 0.8) +
@@ -565,7 +758,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
                             ymax = "Mean_simple_plant_prop + SE_simple_plant_prop"),
                   width = 0.2) +
     theme_classic() +
-    scale_fill_manual(values = crop_colors) +
+    scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Simple Plant OM"),
          x = str_to_title(group_col),
          y = "Simple Plant OM Proportion") +
@@ -581,7 +774,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
                             ymax = "Mean_complex_plant_prop + SE_complex_plant_prop"),
                   width = 0.2) +
     theme_classic() +
-    scale_fill_manual(values = crop_colors) +
+    scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Complex Plant OM"),
          x = str_to_title(group_col),
          y = "Complex Plant OM Proportion") +
@@ -597,7 +790,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
                             ymax = "Mean_microbial_prop + SE_microbial_prop"),
                   width = 0.2) +
     theme_classic() +
-    scale_fill_manual(values = crop_colors) +
+    scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Microbial OM"),
          x = str_to_title(group_col),
          y = "Microbial OM Proportion") +
