@@ -210,110 +210,7 @@ dpt_data_roots <- dpt_data_roots %>%
   ungroup()
 ```
 
-## Spectral Integration Processing
 
-```{r spectral-integration-function}
-# Function to perform spectral integration on DPT data (based on Leila_code_modified.Rmd)
-perform_spectral_integration <- function(dpt_data) {
-  cat("Starting spectral integration processing...\n")
-  
-  # Load required library for integration
-  if (!require(pracma, quietly = TRUE)) {
-    install.packages("pracma")
-    library(pracma)
-  }
-  
-  # Prepare the data in the format needed for integration
-  # Rename columns to match expected format
-  comb <- dpt_data %>%
-    select(filename, wavenumber, absorbance) %>%
-    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
-  
-  # Define spectral windows of interest (same as Leila's code)
-  red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1
-  red2 <- comb[comb$wavelength > 2898 & comb$wavelength < 2976, ]  # Aliphatic 2  
-  red3 <- comb[comb$wavelength > 1580 & comb$wavelength < 1660, ]  # Microbial
-  red4 <- comb[comb$wavelength > 1500 & comb$wavelength < 1550, ]  # Complex plant
-  
-  # Get unique samples
-  sample <- unique(comb$sample)
-  
-  # Create integration results data frame
-  ints <- data.frame(
-    sample = sample,
-    int_2839_2870 = numeric(length(sample)),
-    int_2898_2976 = numeric(length(sample)),
-    int_1580_1660 = numeric(length(sample)),
-    int_1500_1550 = numeric(length(sample)),
-    stringsAsFactors = FALSE
-  )
-  
-  # Calculate integrated areas for each spectral window and sample
-  cat("Processing", length(sample), "samples for integration...\n")
-  for (i in seq_len(nrow(ints))) {
-    current_sample <- sample[i]
-    
-    # Extract data for current sample from each spectral window
-    sample_red1 <- red1[red1$sample == current_sample, ]
-    sample_red2 <- red2[red2$sample == current_sample, ]
-    sample_red3 <- red3[red3$sample == current_sample, ]
-    sample_red4 <- red4[red4$sample == current_sample, ]
-    
-    # Calculate area under curve (integration) using trapezoidal rule
-    if (nrow(sample_red1) > 1) {
-      ints$int_2839_2870[i] <- pracma::trapz(sample_red1$wavelength, sample_red1$abs)
-    }
-    
-    if (nrow(sample_red2) > 1) {
-      ints$int_2898_2976[i] <- pracma::trapz(sample_red2$wavelength, sample_red2$abs)
-    }
-    
-    if (nrow(sample_red3) > 1) {
-      ints$int_1580_1660[i] <- pracma::trapz(sample_red3$wavelength, sample_red3$abs)
-    }
-    
-    if (nrow(sample_red4) > 1) {
-      ints$int_1500_1550[i] <- pracma::trapz(sample_red4$wavelength, sample_red4$abs)
-    }
-  }
-  
-  # Use existing metadata from the input data (no need to re-extract)
-  cat("Using existing metadata from DPT data...\n")
-  basic_meta <- dpt_data %>%
-    select(filename, crop, timepoint, sample_type, ID) %>%
-    distinct() %>%
-    rename(sample = filename, type = sample_type)
-  
-  # Combine metadata with integration results
-  ftir_data <- merge(basic_meta, ints, by = "sample", all = TRUE)
-  
-  # Rename integration columns to match expected names
-  names(ftir_data)[names(ftir_data) == "int_1580_1660"] <- "int_microbial"
-  names(ftir_data)[names(ftir_data) == "int_1500_1550"] <- "int_complex_plant"
-  
-  # Calculate derived metrics (same as original)
-  ftir_data$aliphatic <- ftir_data$int_2839_2870 + ftir_data$int_2898_2976
-  ftir_data$total_peak_area <- ftir_data$aliphatic + ftir_data$int_microbial + ftir_data$int_complex_plant
-  ftir_data$simple_plant_prop <- ftir_data$aliphatic / ftir_data$total_peak_area
-  ftir_data$complex_plant_prop <- ftir_data$int_complex_plant / ftir_data$total_peak_area
-  ftir_data$microbial_prop <- ftir_data$int_microbial / ftir_data$total_peak_area
-  ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_prop
-  ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_prop
-  
-  # Remove individual aliphatic integration columns (keep only derived metrics)
-  ftir_data <- ftir_data %>%
-    select(-int_2839_2870, -int_2898_2976)
-  
-  # Save the processed data to the output directory
-  today <- format(Sys.Date(), "%Y-%m-%d")
-  output_file <- file.path(outputs_folder, paste0("processed_int_data_", today, ".csv"))
-  write.csv(ftir_data, file = output_file, row.names = FALSE)
-  cat("Saved processed integration data to:", output_file, "\n")
-  
-  cat("Integration processing completed successfully.\n")
-  return(ftir_data)
-}
-```
 # Ridge Plots
 ## Plotting by timepoint and type
 These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.  
@@ -568,7 +465,114 @@ for (crop in crops) {
 ```
 
 # Integrate regions of interest
- 
+Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts
+by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions
+before visualizing everything.
+
+## Spectral Integration Processing
+```{r spectral-integration-function}
+# Function to perform spectral integration on DPT data (based on Leila_code_modified.Rmd)
+perform_spectral_integration <- function(dpt_data) {
+  cat("Starting spectral integration processing...\n")
+  
+  # Load required library for integration
+  if (!require(pracma, quietly = TRUE)) {
+    install.packages("pracma")
+    library(pracma)
+  }
+  
+  # Prepare the data in the format needed for integration
+  # Rename columns to match expected format
+  comb <- dpt_data %>%
+    select(filename, wavenumber, absorbance) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
+  
+  # Define spectral windows of interest (same as Leila's code)
+  red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1
+  red2 <- comb[comb$wavelength > 2898 & comb$wavelength < 2976, ]  # Aliphatic 2  
+  red3 <- comb[comb$wavelength > 1580 & comb$wavelength < 1660, ]  # Microbial
+  red4 <- comb[comb$wavelength > 1500 & comb$wavelength < 1550, ]  # Complex plant
+  
+  # Get unique samples
+  sample <- unique(comb$sample)
+  
+  # Create integration results data frame
+  ints <- data.frame(
+    sample = sample,
+    int_2839_2870 = numeric(length(sample)),
+    int_2898_2976 = numeric(length(sample)),
+    int_1580_1660 = numeric(length(sample)),
+    int_1500_1550 = numeric(length(sample)),
+    stringsAsFactors = FALSE
+  )
+  
+  # Calculate integrated areas for each spectral window and sample
+  cat("Processing", length(sample), "samples for integration...\n")
+  for (i in seq_len(nrow(ints))) {
+    current_sample <- sample[i]
+    
+    # Extract data for current sample from each spectral window
+    sample_red1 <- red1[red1$sample == current_sample, ]
+    sample_red2 <- red2[red2$sample == current_sample, ]
+    sample_red3 <- red3[red3$sample == current_sample, ]
+    sample_red4 <- red4[red4$sample == current_sample, ]
+    
+    # Calculate area under curve (integration) using trapezoidal rule
+    if (nrow(sample_red1) > 1) {
+      ints$int_2839_2870[i] <- pracma::trapz(sample_red1$wavelength, sample_red1$abs)
+    }
+    
+    if (nrow(sample_red2) > 1) {
+      ints$int_2898_2976[i] <- pracma::trapz(sample_red2$wavelength, sample_red2$abs)
+    }
+    
+    if (nrow(sample_red3) > 1) {
+      ints$int_1580_1660[i] <- pracma::trapz(sample_red3$wavelength, sample_red3$abs)
+    }
+    
+    if (nrow(sample_red4) > 1) {
+      ints$int_1500_1550[i] <- pracma::trapz(sample_red4$wavelength, sample_red4$abs)
+    }
+  }
+  
+  # Use existing metadata from the input data (no need to re-extract)
+  cat("Using existing metadata from DPT data...\n")
+  basic_meta <- dpt_data %>%
+    select(filename, crop, timepoint, sample_type, ID) %>%
+    distinct() %>%
+    rename(sample = filename, type = sample_type)
+  
+  # Combine metadata with integration results
+  ftir_data <- merge(basic_meta, ints, by = "sample", all = TRUE)
+  
+  # Rename integration columns to match expected names
+  names(ftir_data)[names(ftir_data) == "int_1580_1660"] <- "int_microbial"
+  names(ftir_data)[names(ftir_data) == "int_1500_1550"] <- "int_complex_plant"
+  
+  # Calculate derived metrics (same as original)
+  ftir_data$aliphatic <- ftir_data$int_2839_2870 + ftir_data$int_2898_2976
+  ftir_data$total_peak_area <- ftir_data$aliphatic + ftir_data$int_microbial + ftir_data$int_complex_plant
+  ftir_data$simple_plant_prop <- ftir_data$aliphatic / ftir_data$total_peak_area
+  ftir_data$complex_plant_prop <- ftir_data$int_complex_plant / ftir_data$total_peak_area
+  ftir_data$microbial_prop <- ftir_data$int_microbial / ftir_data$total_peak_area
+  ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_prop
+  ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_prop
+  
+  # Remove individual aliphatic integration columns (keep only derived metrics)
+  ftir_data <- ftir_data %>%
+    select(-int_2839_2870, -int_2898_2976)
+  
+  # Save the processed data to the output directory
+  today <- format(Sys.Date(), "%Y-%m-%d")
+  output_file <- file.path(outputs_folder, paste0("processed_int_data_", today, ".csv"))
+  write.csv(ftir_data, file = output_file, row.names = FALSE)
+  cat("Saved processed integration data to:", output_file, "\n")
+  
+  cat("Integration processing completed successfully.\n")
+  return(ftir_data)
+}
+```
+
 ```{r import-integration-data}
 # Try to find the most recent processed integration data file
 ftir_file <- find_most_recent_processed_file(integrated_ftir_data)
@@ -598,7 +602,7 @@ if (!is.null(ftir_file) && file.exists(ftir_file)) {
   cat("Generated columns:", names(ftir_data), "\n")
 }
 
-# Calculate summary statistics by group (exactly as in Leila_code_modified.Rmd)
+# Calculate summary statistics by group
 crop_stats <- ftir_data %>%
   mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy"))) %>%
   group_by(crop) %>%
