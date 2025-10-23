@@ -277,55 +277,15 @@ perform_spectral_integration <- function(dpt_data) {
     }
   }
   
-  # Extract metadata from filenames (same pattern as original code)
-  if (require(nc, quietly = TRUE)) {
-    meta_table <- nc::capture_first_vec(
-      ints$sample,
-      "^DRIFTS_",                    # Skip "DRIFTS_" prefix
-      source = "pot|jar",            # pot or jar
-      ID = "[0-9]{3}",              # 3-digit ID
-      "_",
-      isotope = "(?:13C|12C)",      # 13C or 12C
-      crop = "[a-zA-Z]+",           # crop name
-      "_",
-      timepoint = "wk[0-9]+",       # wk followed by digits
-      "_",
-      type_and_notes = "[a-zA-Z0-9_]+", # Allow letters, digits, and underscores
-      "_",
-      run_date = "[0-9]{6}",        # 6-digit date
-      "\\.",                        # literal dot
-      "[0-9]+",                     # version number (not captured)
-      "\\.dpt$",                    # file extension
-      nomatch.error = FALSE
-    )
-    
-    # Process the type_and_notes field
-    meta_table$type <- sapply(strsplit(meta_table$type_and_notes, "_"), `[`, 1)
-    meta_table$notes <- sapply(
-      strsplit(meta_table$type_and_notes, "_"),
-      function(x) {
-        if (length(x) > 1) paste(x[-1], collapse = "_") else NA
-      }
-    )
-    
-    # Convert date to proper format
-    meta_table$run_date <- as.Date(meta_table$run_date, format = "%y%m%d")
-    
-    # Remove the type_and_notes column
-    meta_table <- meta_table[, c("source", "ID", "isotope", "crop", "timepoint", "type", "notes", "run_date")]
-    
-    # Combine metadata with integration results
-    ftir_data <- cbind(meta_table, ints[, -1])  # exclude sample column as it's redundant
-  } else {
-    # Fallback: extract basic metadata manually if nc package not available
-    cat("nc package not available, using basic metadata extraction...\n")
-    basic_meta <- dpt_data %>%
-      select(filename, crop, timepoint, sample_type, ID) %>%
-      distinct() %>%
-      rename(sample = filename, type = sample_type)
-    
-    ftir_data <- merge(basic_meta, ints, by = "sample", all = TRUE)
-  }
+  # Use existing metadata from the input data (no need to re-extract)
+  cat("Using existing metadata from DPT data...\n")
+  basic_meta <- dpt_data %>%
+    select(filename, crop, timepoint, sample_type, ID) %>%
+    distinct() %>%
+    rename(sample = filename, type = sample_type)
+  
+  # Combine metadata with integration results
+  ftir_data <- merge(basic_meta, ints, by = "sample", all = TRUE)
   
   # Rename integration columns to match expected names
   names(ftir_data)[names(ftir_data) == "int_1580_1660"] <- "int_microbial"
