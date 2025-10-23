@@ -471,7 +471,7 @@ for (crop in crops) {
 # Integrate regions of interest
 Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts
 by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions
-before visualizing everything.
+before visualizing everything. This procedure uses non-normalized absorbance values, divided by the total peak area in the regions of interest.
 
 ## Spectral Integration Processing
 ```{r spectral-integration-function}
@@ -488,8 +488,8 @@ perform_spectral_integration <- function(dpt_data) {
   # Prepare the data in the format needed for integration
   # Rename columns to match expected format
   comb <- dpt_data %>%
-    select(filename, wavenumber, normalized_absorbance) %>%
-    rename(sample = filename, wavelength = wavenumber, abs = normalized_absorbance)
+    select(filename, wavenumber, absorbance) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
   
   # Define spectral windows of interest (same as Leila's code)
   red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1
