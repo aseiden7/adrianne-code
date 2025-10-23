@@ -1,5 +1,5 @@
 ---
-title: "Integrated FTIR Analysis - Exact Plot Recreation"
+title: "Integrated DRIFTS Analysis"
 author: "Adrianne Seiden"
 date: "`r Sys.Date()`"
 output:
@@ -86,10 +86,8 @@ type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
 
 This document integrates analysis of DRIFTS DPT files from OPUSprocessing.Rmd and Leila_code_modified.Rmd.
 
-1. **OPUSprocessing.Rmd "Reading DPT files" section** - Ridge plots showing spectral data by crop at different timepoints (week 0 and week 10)
+1. **OPUSprocessing.Rmd "Reading DPT files" section** - Ridge plots showing spectral data by crop at different timepoints
 2. **Leila_code_modified.Rmd** - Bar plots showing functional group proportions 
-
-The plots include annotations showing integration regions used for suberin analysis and peaks indicative of suberin content.
 
 # Data Import and Processing
 
@@ -197,7 +195,7 @@ print(table(dpt_data_roots$timepoint))
 ```
 
 ## Data Normalization
-
+This code is modified from code by Stephany Soledad Chacon, "Box> Salk Institute Project> Salk Data> FTIR_Intact_decomposition_pots> FTIR_analysis.Rmd". It creates a new column with normalized absorbance values for each sample, using baseline correction (subtracting the minimum) followed by normalization to the maximum absorbance value.
 ```{r normalize-data}
 # Normalize absorbance data by sample (same approach as OPUSprocessing.Rmd)
 dpt_data_roots <- dpt_data_roots %>%
