@@ -94,7 +94,7 @@ The plots include annotations showing integration regions used for suberin analy
 # Data Import and Processing
 
 ## Import DPT Data
-
+This code is modified from code by Stephany Soledad Chacon, "Box> Salk Institute Project> Salk Data> FTIR_Intact_decomposition_pots> FTIR_analysis.Rmd". Using data in the DPT format, we can extrapolate sample attributes from the file names, then normalize and visualize spectra across replicates, crops, and timepoints. The width of the line bounding the spectra represents the range of the data.
 ```{r import-dpt-data}
 # Check if folder exists and list files
 if (!dir.exists(dpt_folder)) {
@@ -180,7 +180,8 @@ dpt_data <- dpt_data %>%
   # Filter out anomalous spectra
   filter(!filename %in% c("DRIFTS_pot103_13Crice_wk0_root_recNMR_250725.0.dpt",
                           "DRIFTS_pot103_13Crice_wk0_root_vial1_250725.0.dpt", 
-                          "DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt"))
+                          "DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt",
+                          "DRIFTS_pot047_13Crice_wk0_root_250725.0.dpt"))
 # save as csv for record-keeping
 write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE)
 
@@ -245,7 +246,7 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
   }
   
   # Determine y-position for annotations based on data
-  max_y <- length(unique(filtered_data$crop)) + 1.75
+  max_y <- max(filtered_data$normalized_absorbance)*(length(unique(filtered_data$crop))+3)
   
   # Create the plot
   ridge_plot <- filtered_data %>%
@@ -272,22 +273,25 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
     scale_fill_manual(values = crop_colors) +
     scale_color_manual(values = crop_colors) +
     ggtitle(title) +
+       # spacer
+    annotate("text", x = 1900, y = max_y + 0.2, label = " ", 
+             size = 3, hjust = 0.5) +
     # Add simple plant region annotation
     annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2560, y = max_y + 1, label = "Simple Plant", 
+    annotate("text", x = 2560, y = max_y, label = "Simple Plant", 
              size = 3, hjust = 0.5) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1870, y = max_y + 1.11, label = "Microbial", 
+    annotate("text", x = 1870, y = max_y + 0.11, label = "Microbial", 
              size = 3, hjust = 0.5) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1190, y = max_y + 1.11, label = "Complex Plant", 
+    annotate("text", x = 1190, y = max_y + 0.11, label = "Complex Plant", 
              size = 3, hjust = 0.5)
   
   return(list(plot = ridge_plot, data = filtered_data))
@@ -310,7 +314,7 @@ create_sample_count_table <- function(filtered_data, timepoint_week) {
 }
 
 # Create plots and tables for each timepoint
-timepoints <- c("wk0", "wk10", "wk40")
+timepoints <- sort(unique(dpt_data_roots$timepoint))
 
 for (tp in timepoints) {
   # Create plot and get filtered data
@@ -385,12 +389,12 @@ create_crop_plot <- function(data, crop_name, color_palette) {
     filter(crop == crop_name)
   
   # Ensure absorbance is numeric
-  crop_data$absorbance <- as.numeric(crop_data$absorbance)
+  crop_data$normalized_absorbance <- as.numeric(crop_data$normalized_absorbance)
   
   # Create the plot
   crop_plot <- ggplot(crop_data,
                       aes(x = wavenumber,
-                          y = absorbance,
+                          y = normalized_absorbance,
                           color = timepoint)) +
     xlim(4000, 1000) +
     geom_line() +
@@ -410,17 +414,17 @@ create_crop_plot <- function(data, crop_name, color_palette) {
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2550, y = max(crop_data$absorbance), label = "Simple Plant", 
+    annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
              size = 3, hjust = 0.5) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1850, y = max(crop_data$absorbance), label = "Microbial", 
+    annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
              size = 3, hjust = 0.5) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1200, y = max(crop_data$absorbance), label = "Complex Plant", 
+    annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
              size = 3, hjust = 0.5)
   
   return(list(plot = crop_plot, data = crop_data))
@@ -484,8 +488,8 @@ perform_spectral_integration <- function(dpt_data) {
   # Prepare the data in the format needed for integration
   # Rename columns to match expected format
   comb <- dpt_data %>%
-    select(filename, wavenumber, absorbance) %>%
-    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
+    select(filename, wavenumber, normalized_absorbance) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = normalized_absorbance)
   
   # Define spectral windows of interest (same as Leila's code)
   red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1
@@ -787,6 +791,217 @@ combined_stacked <- plot_grid(
   labels = "auto"
 )
 print(combined_stacked)
+```
+
+# Ridge Plots with Suberin Peak Annotations
+These ridge plots show the same spectral data as the original Ridge Plots section, but with annotations highlighting suberin-related peaks identified in the literature. The annotations indicate peaks associated with suberin content in plant roots, based on White et al. (2011, 2016).
+
+
+<table style="width: auto; border-collapse: collapse; border: 1px solid #f5f5f5;">
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Aliphatic suberin moiety:</td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">2976, 2930, 2856 cm<sup>-1</sup> (within 3000-2800 cm<sup>-1</sup> range)</td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Suberin esters:</td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">1737-1740 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Aromatic suberin moiety:</td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">1506 cm<sup>-1</sup> (also lignin)</td>
+</tr>
+</table>
+
+White, K. E., Reeves, J. B., & Coale, F. J. (2011). Mid-infrared diffuse reflectance spectroscopy for the rapid analysis of plant root composition. Geoderma, 167–168, 197–203. https://doi.org/10.1016/j.geoderma.2011.08.009    
+or   
+White, K. E., Reeves, J. B., & Coale, F. J. (2016). Cell wall compositional changes during incubation of plant roots measured by mid-infrared diffuse reflectance spectroscopy and fiber analysis. Geoderma, 264, 205–213. https://doi.org/10.1016/j.geoderma.2015.10.018
+
+```{r suberin-timepoint-ridge, results='asis'}
+# Generic function to create ridge plots with suberin annotations
+create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
+  # Filter data for specific timepoint
+  filtered_data <- data %>%
+    filter(timepoint == timepoint_week) %>%
+    mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
+  
+  # Create title if not provided
+  if (is.null(title)) {
+    week_num <- str_extract(timepoint_week, "\\d+")
+    title <- paste("Root suberin at week", week_num)
+  }
+  
+  # Determine y-position for annotations based on data
+  max_y <- max(filtered_data$normalized_absorbance)*(length(unique(filtered_data$crop))+3)
+  
+  # Create the plot
+  ridge_plot <- filtered_data %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = crop,
+                         height = normalized_absorbance,
+                         group = crop,
+                         fill = crop,
+                         color = crop)) +
+    geom_density_ridges(stat = "identity",
+                        scale = 3,
+                        alpha = 0.25) +
+    
+    # Suberin peak annotations
+    # Aliphatic suberin region (3000-2800 cm-1)
+    annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.1, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3, color = "#3D6AA9") +
+    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.3, color = "#3D6AA9") +
+    geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.3, color = "#3D6AA9") +
+    
+    # Suberin esters (1737-1740 cm-1)
+    annotate("rect", xmin = 1733, xmax = 1741, ymin = -Inf, ymax = Inf, 
+             alpha = 0.15, fill = "#4d653a") +
+    geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.3, color = "#4d653a") +
+
+    # Aromatic suberin (1506 cm-1)
+    geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+    
+    xlim(4000, 400) +
+     scale_y_discrete(expand = expansion(mult = c(0.01, 0.56))) +  # Less space below, more above
+    theme_classic() +
+    scale_fill_manual(values = crop_colors) +
+    scale_color_manual(values = crop_colors) +
+    ggtitle(title) +
+   # spacer
+    annotate("text", x = 1900, y = max_y + 0.2, label = " ", 
+             size = 3, hjust = 0.5) +
+    # Add aliphatic annotation
+    annotate("text", x = 2450, y = max_y-0.2, label = "aliphatic suberin", 
+             size = 3, hjust = 0.5) +
+    # Add esters annotation
+    annotate("text", x = 2060, y = max_y, label = "suberin esters", 
+             size = 3, hjust = 0.5) +
+    # Add aromatic annotation
+    annotate("text", x = 1150, y = max_y + 0.1, label = "aromatic suberin", 
+             size = 3, hjust = 0.5)
+
+  return(list(plot = ridge_plot, data = filtered_data))
+}
+
+# Get unique timepoints and sort them (use dpt_data_roots, not ftir_data)
+timepoints <- sort(unique(dpt_data_roots$timepoint))
+
+# Create plots and tables for each timepoint
+timepoints <- sort(unique(dpt_data_roots$timepoint))
+
+for (tp in timepoints) {
+  # Create plot and get filtered data
+  result <- create_suberin_ridge_plot(dpt_data_roots, tp)
+  
+  # Print the plot
+  print(result$plot)
+  
+  # Create and print sample count table with results='asis'
+  counts_table <- create_sample_count_table(result$data, tp)
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+```{r suberin-crop-ridge, results = 'asis'}
+# Define crop-specific color palettes
+crop_timepoint_colors <- list(
+  noPlant = c("wk0" = "#B68ADE", "wk10" = "#9C6BC7", "wk20" = "#7B41A9",
+              "wk30" = "#6f3e94", "wk40" = "#3F1C59"),
+  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk20" = "#79A63A",
+            "wk30" = "#58792A", "wk40" = "#374B1B"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk29" = "#F18204",
+           "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk20" = "#F4016E",
+          "wk30" = "#B70153", "wk40" = "#7A0137")
+)
+# Generic function to create crop-specific DRIFTS plots with suberin annotations 
+create_crop_plot <- function(data, crop_name, color_palette) {
+  # Filter data for specific crop
+  crop_data <- data %>%
+    group_by(timepoint) %>%
+    filter(crop == crop_name)
+  
+  # Ensure absorbance is numeric
+  crop_data$normalized_absorbance <- as.numeric(crop_data$normalized_absorbance)
+  
+  # Create the plot
+  crop_plot <- ggplot(crop_data,
+                      aes(x = wavenumber,
+                          y = normalized_absorbance,
+                          color = timepoint)) +
+    xlim(4000, 1000) +
+    geom_line() +
+    theme_classic() +
+    scale_color_manual(values = color_palette) +
+    ggtitle(paste(str_to_title(crop_name), "root suberin")) +
+    # Suberin peak annotations
+    # Aliphatic suberin region (3000-2800 cm-1)
+    annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.1, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3, color = "#3D6AA9") +
+    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.3, color = "#3D6AA9") +
+    geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.3, color = "#3D6AA9") +
+    
+    # Suberin esters (1737-1740 cm-1)
+    annotate("rect", xmin = 1733, xmax = 1741, ymin = -Inf, ymax = Inf, 
+             alpha = 0.15, fill = "#4d653a") +
+    geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.3, color = "#4d653a") +
+
+    # Aromatic suberin (1506 cm-1)
+    geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+    # Add aliphatic annotation
+    annotate("text", x = 2500, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
+             size = 3, hjust = 0.5) +
+    # Add esters annotation
+    annotate("text", x = 2010, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
+             size = 3, hjust = 0.5) +
+    # Add aromatic annotation
+    annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "aromatic suberin", 
+             size = 3, hjust = 0.5)
+
+  
+  return(list(plot = crop_plot, data = crop_data))
+}
+
+# # Generic function to create crop ID tables
+# create_crop_id_table <- function(crop_data, crop_name) {
+#   combinations <- crop_data %>%
+#     select(ID, timepoint) %>%
+#     distinct() %>%
+#     arrange(ID, timepoint) %>%
+#     group_by(timepoint) %>%
+#     summarise(pot_ids = {
+#       ids <- paste(ID, sep = "")
+#       # Group every 3 items and join with line breaks
+#       grouped <- split(ids, ceiling(seq_along(ids)/5))
+#       lines <- sapply(grouped, function(x) paste(x, collapse = ",&ensp;"))
+#       paste(lines, collapse = "<br>")
+#     }, .groups = 'drop') %>%
+#     pivot_wider(names_from = timepoint, values_from = pot_ids)
+  
+#   return(combinations)
+# }
+
+# Generate plots and tables for each crop
+crops <- c("noPlant", "wheat", "rice", "soy")
+
+for (crop in crops) {
+  # Create plot and get data
+  result <- create_crop_plot(dpt_data_roots, crop, crop_timepoint_colors[[crop]])
+  
+  # Print the plot
+  print(result$plot)
+  cat("<br>")  # Add space between plot and table
+  
+  # Create and print ID combinations table
+  id_table <- create_crop_id_table(result$data, crop)
+  cat(paste0("<h4>", str_to_title(crop), " pot root samples</h4>"))
+  cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
 ```
 
 # Summary

@@ -317,7 +317,7 @@ for (combo in combos) {
 }
 ```
 
-# Reading DPT files
+<!-- # Reading DPT files
 This code is modified from code by Stephany Soledad Chacon, "Box> Salk Institute Project> Salk Data> FTIR_Intact_decomposition_pots> FTIR_analysis.Rmd". Using data in the DPT format, we can extrapolate sample attributes from the file names, then normalize and visualize spectra across replicates, crops, and timepoints. The width of the line bounding the spectra represents the range of the data.
 ```{r dpt-setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
@@ -823,4 +823,4 @@ annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf,
   ggtitle("Soy Roots FTIR")
 soy_plot
 unique(soy$ID)
-```
+``` -->
