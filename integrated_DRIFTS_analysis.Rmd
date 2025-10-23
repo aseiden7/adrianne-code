@@ -665,6 +665,7 @@ if (!is.null(ftir_file) && file.exists(ftir_file)) {
 
 # Calculate summary statistics by group (exactly as in Leila_code_modified.Rmd)
 crop_stats <- ftir_data %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy"))) %>%
   group_by(crop) %>%
   summarise(
     Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
@@ -689,6 +690,7 @@ timepoint_stats <- ftir_data %>%
   )
 
 crop_timepoint_stats <- ftir_data %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy"))) %>%
   group_by(crop, timepoint) %>%
   summarise(
     Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
