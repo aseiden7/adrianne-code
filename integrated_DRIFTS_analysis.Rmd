@@ -412,7 +412,8 @@ for (tp in timepoints) {
   
   # Create and print sample count table with results='asis'
   counts_table <- create_sample_count_table(result$data, tp)
-  cat(knitr::kable(counts_table, format = "html", escape = FALSE), "\n\n")
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE))
+  cat("<br><br>")  # Add HTML line breaks for spacing
 }
 
 # # Recreate the crop comparison plot showing suberin-indicative peaks (from OPUSprocessing.Rmd)
