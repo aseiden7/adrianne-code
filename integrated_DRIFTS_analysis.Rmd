@@ -469,9 +469,7 @@ for (crop in crops) {
 ```
 
 # Integrate regions of interest
-Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts
-by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions
-before visualizing everything. This procedure uses non-normalized absorbance values, divided by the total peak area in the regions of interest.
+Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions before visualizing everything. This procedure sums non-normalized absorbance values over a specified range, and divides by the total peak area in the ranges of interest to get the proportions.
 
 ## Spectral Integration Processing
 ```{r spectral-integration-function}
