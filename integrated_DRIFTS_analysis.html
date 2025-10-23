@@ -1959,12 +1959,32 @@ suberin analysis and peaks indicative of suberin content.</p>
 opaque line represents the range of the data. Annotations indicate
 integration regions used for calculations of simple plant, complex
 plant, and microbial organic matter proportions.</p>
-<ul>
-<li>Simple plant (aliphatic): 2976 - 2898 cm<sup>-1</sup> + 2870 - 2839
-cm<sup>-1</sup></li>
-<li>Microbial: 1660 - 1580 cm<sup>-1</sup></li>
-<li>Complex plant (aromatic): 1550 - 1500 cm<sup>-1</sup></li>
-</ul>
+<table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">
+Simple plant (aliphatic):
+</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">
+2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup>
+</td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">
+Microbial:
+</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">
+1660 - 1580 cm<sup>-1</sup>
+</td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">
+Complex plant (aromatic):
+</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">
+1550 - 1500 cm<sup>-1</sup>
+</td>
+</tr>
+</table>
 <div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># Generic function to create ridge plots for any timepoint</span></span>
 <span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>create_timepoint_ridge_plot <span class="ot">&lt;-</span> <span class="cf">function</span>(data, timepoint_week, <span class="at">title =</span> <span class="cn">NULL</span>) {</span>
 <span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  <span class="co"># Filter data for specific timepoint</span></span>
@@ -2173,11 +2193,33 @@ Week 40 samples
 <p>These plots are of normalized absorbance values. The thickness of the
 opaque line represents the range of the data. Annotations indicate
 integration regions used for calculations of simple plant, complex
-plant, and microbial organic matter proportions.<br />
-- Simple plant (aliphatic): 2976 - 2898 cm<sup>-1</sup> + 2870 - 2839
-cm<sup>-1</sup><br />
-- Microbial: 1660 - 1580 cm<sup>-1</sup><br />
-- Complex plant (aromatic): 1550 - 1500 cm<sup>-1</sup></p>
+plant, and microbial organic matter proportions.</p>
+<table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">
+Simple plant (aliphatic):
+</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">
+2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup>
+</td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">
+Microbial:
+</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">
+1660 - 1580 cm<sup>-1</sup>
+</td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">
+Complex plant (aromatic):
+</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">
+1550 - 1500 cm<sup>-1</sup>
+</td>
+</tr>
+</table>
 <div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># Define crop-specific color palettes</span></span>
 <span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>crop_timepoint_colors <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>  <span class="at">wheat =</span> <span class="fu">c</span>(<span class="st">&quot;wk0&quot;</span> <span class="ot">=</span> <span class="st">&quot;#B4D586&quot;</span>, <span class="st">&quot;wk10&quot;</span> <span class="ot">=</span> <span class="st">&quot;#98C559&quot;</span>, <span class="st">&quot;wk20&quot;</span> <span class="ot">=</span> <span class="st">&quot;#79A63A&quot;</span>,</span>
