@@ -317,7 +317,6 @@ perform_spectral_integration <- function(dpt_data) {
 # Ridge Plots
 ## Plotting by timepoint and type
 These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.  
-
 - Simple plant (aliphatic): 2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup>
 - Microbial: 1660 - 1580 cm<sup>-1</sup>
 - Complex plant (aromatic): 1550 - 1500 cm<sup>-1</sup>
@@ -395,7 +394,7 @@ create_sample_count_table <- function(filtered_data, timepoint_week) {
     distinct() %>%
     count(crop) %>%
     arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
-    mutate(!!col_name := paste(n, "&nbsp;&nbsp;", crop)) %>%
+    mutate(!!col_name := paste(n, "&nbsp;&nbsp;&nbsp;", crop)) %>%
     select(all_of(col_name))
   
   return(counts)
@@ -440,109 +439,178 @@ for (tp in timepoints) {
 
 # print(suberin_peaks_plot)
 ```
+
 ## Plotting by crop
 These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.  
 - Simple plant (aliphatic): 2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup>  
 - Microbial: 1660 - 1580 cm<sup>-1</sup>  
 - Complex plant (aromatic): 1550 - 1500 cm<sup>-1</sup>  
-```{r crop-plots, results='asis'}
-# Define crop-specific color palettes
-crop_timepoint_colors <- list(
-  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk20" = "#79A63A",
-            "wk30" = "#58792A", "wk40" = "#374B1B"),
-  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk29" = "#F18204",
-           "wk40" = "#B56203"),
-  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk20" = "#F4016E",
-          "wk30" = "#B70153", "wk40" = "#7A0137")
-)
+```{r crop-plots}
+# Wheat
+wheat_shades <- c("wk0" = "#B4D586", "wk10" = "#98C559","wk20" = "#79A63A",
+           "wk30" = "#58792A", "wk40" = "#374B1B")
+wheat <- dpt_data_roots %>%
+  group_by(timepoint) %>%
+  filter(crop == "wheat")
 
-# Generic function to create crop-specific DRIFTS plots
-create_crop_plot <- function(data, crop_name, color_palette) {
-  # Filter data for specific crop
-  crop_data <- data %>%
-    group_by(timepoint) %>%
-    filter(crop == crop_name)
-  
-  # Ensure absorbance is numeric
-  crop_data$absorbance <- as.numeric(crop_data$absorbance)
-  
-  # Create the plot
-  crop_plot <- ggplot(crop_data,
-                      aes(x = wavenumber,
-                          y = absorbance,
-                          color = timepoint)) +
-    xlim(4000, 1000) +
-    geom_line() +
-    theme_classic() +
-    scale_color_manual(values = color_palette) +
-    ggtitle(paste(str_to_title(crop_name), "Roots DRIFTS")) +
-    geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
-    geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
-    geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
-    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
-    geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
-    geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
-    geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
-    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
-    # Add simple plant region annotation
-    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#e3c8b1") +
-    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2550, y = max(crop_data$absorbance), label = "Simple Plant", 
-             size = 3, hjust = 0.5) +
-    # Add microbial region annotation
-    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1850, y = max(crop_data$absorbance), label = "Microbial", 
-             size = 3, hjust = 0.5) +
-    # Add complex plant region annotation
-    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1200, y = max(crop_data$absorbance), label = "Complex Plant", 
-             size = 3, hjust = 0.5)
-  
-  return(list(plot = crop_plot, data = crop_data))
-}
+wheat$absorbance <- as.numeric(wheat$absorbance)
 
-# Generic function to create crop ID tables
-create_crop_id_table <- function(crop_data, crop_name) {
-  combinations <- crop_data %>%
-    select(ID, timepoint) %>%
-    distinct() %>%
-    arrange(ID, timepoint) %>%
-    group_by(timepoint) %>%
-    summarise(pot_ids = {
-      ids <- paste(ID, sep = "")
-      # Group every 3 items and join with line breaks
-      grouped <- split(ids, ceiling(seq_along(ids)/5))
-      lines <- sapply(grouped, function(x) paste(x, collapse = ",&ensp;"))
-      paste(lines, collapse = "<br>")
-    }, .groups = 'drop') %>%
-    pivot_wider(names_from = timepoint, values_from = pot_ids)
-  
-  return(combinations)
-}
+wheat_plot <- ggplot(wheat,
+                     aes(x = wavenumber,
+                         y = absorbance,
+                         color = timepoint)) +
+  xlim(4000, 1000) +
+  geom_line() +
+  theme_classic() +
+  scale_color_manual(values = wheat_shades) +
+  ggtitle("Wheat Roots DRIFTS") +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
+# Add simple plant region annotation
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#e3c8b1") +
+  annotate("text", x = 2550, y = max(wheat$absorbance), label = "Simple Plant", 
+           size = 3, hjust = 0.5) +
+# Add microbial region annotation
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#a8cbad") +
+  annotate("text", x = 1850, y = max(wheat$absorbance), label = "Microbial", 
+           size = 3, hjust = 0.5) +
+# Add complex plant region annotation
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#beb5d5") +
+  annotate("text", x = 1200, y = max(wheat$absorbance), label = "Complex Plant", 
+           size = 3, hjust = 0.5)
+wheat_plot
+# Print unique ID and timepoint combinations for wheat
+wheat_combinations <- wheat %>%
+  select(ID, timepoint) %>%
+  distinct() %>%
+  arrange(ID, timepoint) %>%
+  group_by(timepoint) %>%
+  summarise(pot_ids = paste("pot", ID, collapse = ",&ensp;", sep = ""), .groups = 'drop') %>%
+  pivot_wider(names_from = timepoint, values_from = pot_ids)
 
-# Generate plots and tables for each crop
-crops <- c("wheat", "rice", "soy")
+knitr::kable(wheat_combinations, format = "markdown")
 
-for (crop in crops) {
-  # Create plot and get data
-  result <- create_crop_plot(dpt_data_roots, crop, crop_timepoint_colors[[crop]])
+# Rice
+rice_shades <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
+           "wk40" = "#B56203")
+rice <- dpt_data_roots %>%
+  group_by(timepoint) %>%
+  filter(crop == "rice")
+
+rice$absorbance <- as.numeric(rice$absorbance)
+
+rice_plot <- ggplot(rice,
+                    aes(x = wavenumber,
+                        y = absorbance,
+                        color = timepoint)) +
+  xlim(4000, 1000) +
+  geom_line() +
+  theme_classic() +
+  scale_color_manual(values = rice_shades) +
+  ggtitle("Rice Roots DRIFTS") +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
+# Add simple plant region annotation
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#e3c8b1") +
+  annotate("text", x = 2550, y = max(rice$absorbance), label = "Simple Plant", 
+           size = 3, hjust = 0.5) +
+# Add microbial region annotation
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#a8cbad") +
+  annotate("text", x = 1850, y = max(rice$absorbance), label = "Microbial", 
+           size = 3, hjust = 0.5) +
+# Add complex plant region annotation
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#beb5d5") +
+  annotate("text", x = 1200, y = max(rice$absorbance), label = "Complex Plant", 
+           size = 3, hjust = 0.5)
+rice_plot
+# Print unique ID and timepoint combinations for rice
+rice_combinations <- rice %>%
+  select(ID, timepoint) %>%
+  distinct() %>%
+  arrange(ID, timepoint) %>%
+  group_by(timepoint) %>%
+  summarise(pot_ids = paste("pot", ID, collapse = ",&ensp;", sep = ""), .groups = 'drop') %>%
+  pivot_wider(names_from = timepoint, values_from = pot_ids)
+
+knitr::kable(rice_combinations, format = "markdown")
+
+# Soy
+soy_shades <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
+           "wk30" = "#B70153", "wk40" = "#7A0137")
+soy <- dpt_data_roots %>%
+  group_by(timepoint) %>%
+  filter(crop == "soy")
+
+soy$absorbance <- as.numeric(soy$absorbance)
+soy_plot <- ggplot(soy,
+                    aes(x = wavenumber,
+                        y = absorbance,
+                        color = timepoint)) +
+  xlim(4000, 1000) +
+  geom_line() +
+  theme_classic() +
+  scale_color_manual(values = soy_shades) +
+  ggtitle("Soy Roots DRIFTS") +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.3) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.3) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
+# Add simple plant region annotation
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#e3c8b1") +
+  annotate("text", x = 2550, y = max(soy$absorbance), label = "Simple Plant", 
+           size = 3, hjust = 0.5) +
+# Add microbial region annotation
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#a8cbad") +
+  annotate("text", x = 1850, y = max(soy$absorbance), label = "Microbial", 
+           size = 3, hjust = 0.5) +
+# Add complex plant region annotation
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.2, fill = "#beb5d5") +
+  annotate("text", x = 1200, y = max(soy$absorbance), label = "Complex Plant", 
+           size = 3, hjust = 0.5)
   
-  # Print the plot
-  print(result$plot)
-  cat("<br>")  # Add space between plot and table
-  
-  # Create and print ID combinations table
-  id_table <- create_crop_id_table(result$data, crop)
-  cat(paste0("<h4>", str_to_title(crop), " pot root samples</h4>"))
-  cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
-  cat("<br><br>")  # Add HTML line breaks for spacing
-}
+soy_plot
+# Print unique ID and timepoint combinations for soy
+soy_combinations <- soy %>%
+  select(ID, timepoint) %>%
+  distinct() %>%
+  arrange(ID, timepoint) %>%
+  group_by(timepoint) %>%
+  summarise(pot_ids = paste("pot", ID, collapse = ",&ensp;", sep = ""), .groups = 'drop') %>%
+  pivot_wider(names_from = timepoint, values_from = pot_ids)
+
+knitr::kable(soy_combinations, format = "markdown")
 ```
-
 # Integrate regions of interest
  
 ```{r import-integration-data}
