@@ -368,6 +368,17 @@ root0_plot <- root0_data %>%
            size = 3, hjust = 0.5)
 print(root0_plot)
 
+# Print sample counts for week 0
+wk0_counts <- root0_data %>%
+  select(filename, crop) %>%
+  distinct() %>%
+  count(crop) %>%
+  arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
+  mutate(`Week 0 samples` = paste(n, crop, sep = "&ensp;&nbsp;")) %>%
+  select(`Week 0 samples`)
+
+knitr::kable(wk0_counts, format = "markdown")
+
 # Recreate the week 10 plot from OPUSprocessing.Rmd
 root10_data <- dpt_data_roots %>%
   filter(timepoint == "wk10") %>%
@@ -416,6 +427,17 @@ root10_plot <- root10_data %>%
 
 print(root10_plot)
 
+# Print sample counts for week 10
+wk10_counts <- root10_data %>%
+  select(filename, crop) %>%
+  distinct() %>%
+  count(crop) %>%
+  arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
+  mutate(`Week 10 samples` = paste(n, crop, sep = "&ensp;&nbsp;")) %>%
+  select(`Week 10 samples`)
+
+knitr::kable(wk10_counts, format = "markdown")
+
 # Recreate the week 40 plot from OPUSprocessing.Rmd
 root40_data <- dpt_data_roots %>%
   filter(timepoint == "wk40") %>%
@@ -463,6 +485,17 @@ root40_plot <- root40_data %>%
            size = 3, hjust = 0.5)
 
 print(root40_plot)
+
+# Print sample counts for week 40
+wk40_counts <- root40_data %>%
+  select(filename, crop) %>%
+  distinct() %>%
+  count(crop) %>%
+  arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
+  mutate(`Week 40 samples` = paste(n, crop, sep = "&ensp;&nbsp;")) %>%
+  select(`Week 40 samples`)
+
+knitr::kable(wk40_counts, format = "markdown")
 
 # # Recreate the crop comparison plot showing suberin-indicative peaks (from OPUSprocessing.Rmd)
 # # This follows the style of the "Plotting by crop" section
@@ -538,7 +571,16 @@ wheat_plot <- ggplot(wheat,
   annotate("text", x = 1200, y = max(wheat$absorbance), label = "Complex Plant", 
            size = 3, hjust = 0.5)
 wheat_plot
-unique(wheat$ID)
+# Print unique ID and timepoint combinations for wheat
+wheat_combinations <- wheat %>%
+  select(ID, timepoint) %>%
+  distinct() %>%
+  arrange(ID, timepoint) %>%
+  group_by(timepoint) %>%
+  summarise(pot_ids = paste("pot", ID, collapse = ",&ensp;", sep = ""), .groups = 'drop') %>%
+  pivot_wider(names_from = timepoint, values_from = pot_ids)
+
+knitr::kable(wheat_combinations, format = "markdown")
 
 # Rice
 rice_shades <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
@@ -584,7 +626,16 @@ rice_plot <- ggplot(rice,
   annotate("text", x = 1200, y = max(rice$absorbance), label = "Complex Plant", 
            size = 3, hjust = 0.5)
 rice_plot
-unique(rice$ID)
+# Print unique ID and timepoint combinations for rice
+rice_combinations <- rice %>%
+  select(ID, timepoint) %>%
+  distinct() %>%
+  arrange(ID, timepoint) %>%
+  group_by(timepoint) %>%
+  summarise(pot_ids = paste("pot", ID, collapse = ",&ensp;", sep = ""), .groups = 'drop') %>%
+  pivot_wider(names_from = timepoint, values_from = pot_ids)
+
+knitr::kable(rice_combinations, format = "markdown")
 
 # Soy
 soy_shades <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
@@ -630,7 +681,16 @@ soy_plot <- ggplot(soy,
            size = 3, hjust = 0.5)
   
 soy_plot
-unique(soy$ID)
+# Print unique ID and timepoint combinations for soy
+soy_combinations <- soy %>%
+  select(ID, timepoint) %>%
+  distinct() %>%
+  arrange(ID, timepoint) %>%
+  group_by(timepoint) %>%
+  summarise(pot_ids = paste("pot", ID, collapse = ",&ensp;", sep = ""), .groups = 'drop') %>%
+  pivot_wider(names_from = timepoint, values_from = pot_ids)
+
+knitr::kable(soy_combinations, format = "markdown")
 ```
 # Integrate regions of interest
  
@@ -851,22 +911,6 @@ print(combined_stacked)
 ```
 
 # Summary
-
-This analysis successfully recreates the EXACT plots from:
-
-1. **OPUSprocessing.Rmd "Reading DPT files" section**:
-   - Ridge plots by crop at week 0 and week 10 with exact color scheme and styling
-   - Suberin-indicative peaks analysis with highlighted regions
-   - Integration regions annotated on spectral plots
-
-2. **Leila_code_modified.Rmd**:
-   - Bar plots showing functional group proportions by crop
-   - Bar plots showing functional group proportions by timepoint
-   - Interaction plot (crop × timepoint) with exact timepoint colors
-   - Stacked bar plots showing relative suberin content with exact color schemes
-
-All plots include the integration regions and suberin-indicative peaks as requested, providing a comprehensive view of FTIR spectroscopy analysis for suberin quantification.
-
 ```{r summary-stats}
 # Print summary information
 cat("Summary of FTIR Analysis:\n")
