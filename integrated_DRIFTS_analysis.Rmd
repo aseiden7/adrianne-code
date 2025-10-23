@@ -77,9 +77,6 @@ for (pkg in required_packages) {
 }
 
 # Define exact color palettes from original files
-palc1 <- c("noPlant" = "#7B41A9", "rice" = "#FC9D33",
-           "wheat" = "#98C65D", "soy" = "#FE318E")
-
 crop_colors <- c('wheat' = '#98C65D', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#7B41A9')
 timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
 type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
@@ -389,8 +386,8 @@ root0_plot <- root0_data %>%
   geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
   xlim(4000, 400) +
   theme_classic() +
-  scale_fill_manual(values = palc1) +
-  scale_color_manual(values = palc1) +
+  scale_fill_manual(values = crop_colors) +
+  scale_color_manual(values = crop_colors) +
   ggtitle("Roots at week 0") +
   # Add simple plant region annotation
   annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
@@ -436,8 +433,8 @@ root10_plot <- root10_data %>%
   geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
   xlim(4000, 400) +
   theme_classic() +
-  scale_fill_manual(values = palc1) +
-  scale_color_manual(values = palc1) +
+  scale_fill_manual(values = crop_colors) +
+  scale_color_manual(values = crop_colors) +
   ggtitle("Roots at week 10") +
   # Add simple plant region annotation
   annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
@@ -484,8 +481,8 @@ root40_plot <- root40_data %>%
   geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.3) +
   xlim(4000, 400) +
   theme_classic() +
-  scale_fill_manual(values = palc1) +
-  scale_color_manual(values = palc1) +
+  scale_fill_manual(values = crop_colors) +
+  scale_color_manual(values = crop_colors) +
   ggtitle("Roots at week 40") +
   # Add simple plant region annotation
   annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
@@ -511,7 +508,7 @@ print(root40_plot)
 # # This follows the style of the "Plotting by crop" section
 # suberin_peaks_plot <- ggplot(dpt_data_roots, aes(x = wavenumber, y = normalized_absorbance)) +
 #   geom_line(aes(color = crop), alpha = 0.7, size = 0.8) +
-#   scale_color_manual(values = palc1) +
+#   scale_color_manual(values = crop_colors) +
 #   xlim(3200, 800) +
 #   labs(x = "Wavenumber (cm⁻¹)", y = "Normalized Absorbance", color = "Crop",
 #        title = "Suberin-Indicative Peaks by Crop") +
@@ -538,7 +535,7 @@ These plots are of normalized absorbance values. The thickness of the opaque lin
 - Complex plant (aromatic): 1550 - 1500 cm<sup>-1</sup>  
 ```{r crop-plots}
 # Wheat
-palc2 <- c("wk0" = "#B4D586", "wk10" = "#98C559","wk20" = "#79A63A",
+wheat_shades <- c("wk0" = "#B4D586", "wk10" = "#98C559","wk20" = "#79A63A",
            "wk30" = "#58792A", "wk40" = "#374B1B")
 wheat <- dpt_data_roots %>%
   group_by(timepoint) %>%
@@ -553,7 +550,7 @@ wheat_plot <- ggplot(wheat,
   xlim(4000, 1000) +
   geom_line() +
   theme_classic() +
-  scale_color_manual(values = palc2) +
+  scale_color_manual(values = wheat_shades) +
   ggtitle("Wheat Roots DRIFTS") +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
   geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
@@ -584,7 +581,7 @@ wheat_plot
 unique(wheat$ID)
 
 # Rice
-palc3 <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
+rice_shades <- c("wk0" = "#FDB35E", "wk10" = "#FC9D33","wk29" = "#F18204",
            "wk40" = "#B56203")
 rice <- dpt_data_roots %>%
   group_by(timepoint) %>%
@@ -599,7 +596,7 @@ rice_plot <- ggplot(rice,
   xlim(4000, 1000) +
   geom_line() +
   theme_classic() +
-  scale_color_manual(values = palc3) +
+  scale_color_manual(values = rice_shades) +
   ggtitle("Rice Roots DRIFTS") +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
   geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
@@ -630,7 +627,7 @@ rice_plot
 unique(rice$ID)
 
 # Soy
-palc4 <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
+soy_shades <- c("wk0" = "#FE71B1", "wk10" = "#FE318E","wk20" = "#F4016E",
            "wk30" = "#B70153", "wk40" = "#7A0137")
 soy <- dpt_data_roots %>%
   group_by(timepoint) %>%
@@ -644,7 +641,7 @@ soy_plot <- ggplot(soy,
   xlim(4000, 1000) +
   geom_line() +
   theme_classic() +
-  scale_color_manual(values = palc4) +
+  scale_color_manual(values = soy_shades) +
   ggtitle("Soy Roots DRIFTS") +
   geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
   geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
