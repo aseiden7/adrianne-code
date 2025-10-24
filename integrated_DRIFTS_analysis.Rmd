@@ -272,9 +272,12 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
     xlim(3777, 422) +
     scale_y_discrete(expand = expansion(mult = c(0.0, 0.56))) +  # Less space below, more above
     theme_classic() +
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
     scale_color_manual(values = crop_colors) +
     ggtitle(title) +
+    labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
        # spacer
     annotate("text", x = 1900, y = max_y + 0.2, label = " ", 
              size = 3, hjust = 0.5) +
@@ -284,17 +287,17 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("text", x = 2560, y = max_y, label = "Simple Plant", 
-             size = 3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
     annotate("text", x = 1870, y = max_y + 0.11, label = "Microbial", 
-             size = 3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
     annotate("text", x = 1190, y = max_y + 0.11, label = "Complex Plant", 
-             size = 3, hjust = 0.5)
+             size = 3.3, hjust = 0.5)
   
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -375,10 +378,12 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
       labels = names(crop_offsets) # Reduce top space from 0.56 to 0.15
     ) +
     theme_classic() +
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
     scale_color_manual(values = crop_colors) +
     ggtitle(title) +
-    labs(x = "Wavenumber (cm⁻¹)", 
+    labs(x = expression("Wavenumber (cm"^-1*")"), 
          y = "", 
          color = "Crop") +
     # Keep your existing vertical lines and annotations
@@ -400,17 +405,17 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#e3c8b1") +
     annotate("text", x = 2560, y = text_y, 
-             label = "Simple Plant", size = 3, hjust = 0.5) +
+             label = "Simple Plant", size = 3.3, hjust = 0.5) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#a8cbad") +
     annotate("text", x = 1870, y = text_y, 
-             label = "Microbial", size = 3, hjust = 0.5) +
+             label = "Microbial", size = 3.3, hjust = 0.5) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#beb5d5") +
     annotate("text", x = 1200, y = text_y, 
-             label = "Complex Plant", size = 3, hjust = 0.5)
+             label = "Complex Plant", size = 3.3, hjust = 0.5)
 
   return(list(plot = line_plot, data = filtered_data))
 }
@@ -498,6 +503,8 @@ create_crop_plot <- function(data, crop_name, color_palette) {
     theme_classic() +
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "Roots DRIFTS")) +
+    labs(x = expression("wavenumber (cm"^-1*")"), 
+         y = "normalized absorbance") +
     geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
     geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
     geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
@@ -512,17 +519,17 @@ create_crop_plot <- function(data, crop_name, color_palette) {
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
-             size = 3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
     annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
-             size = 3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
     annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
-             size = 3, hjust = 0.5)
+             size = 3.3, hjust = 0.5)
   
   return(list(plot = crop_plot, data = crop_data))
 }
@@ -602,7 +609,7 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
     theme_classic() +
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "roots DRIFTS")) +
-    labs(x = "Wavenumber (cm⁻¹)", 
+    labs(x = expression("wavenumber (cm"^-1*")"), 
          y = "normalized absorbance") +
 # annotations
     geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
@@ -619,17 +626,17 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#e3c8b1") +
     annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
-             size = 3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#a8cbad") +
     annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
-             size = 3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#beb5d5") +
     annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
-             size = 3, hjust = 0.5)
+             size = 3.3, hjust = 0.5)
 
   return(list(plot = line_plot, data = crop_data))
 }
@@ -1031,42 +1038,48 @@ create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
                         scale = 3,
                         alpha = 0.25) +
     
-    # Suberin peak annotations
-    # Aliphatic suberin region (3000-2800 cm-1)
-    annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
-             alpha = 0.1, fill = "#5076ab") +
+       # Suberin peak annotations
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
+             alpha = 0.07, fill = "#5076ab") +
     # Specific aliphatic peaks
     geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
+             alpha = 0.22, fill = "#5076ab") +
     geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-
+    
     # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1733, xmax = 1741, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
              alpha = 0.15, fill = "#4d653a") +
     geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
-    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+
+
     # Aromatic suberin (1506 cm-1)
     geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
 
     xlim(3200, 1200) +
      scale_y_discrete(expand = expansion(mult = c(0.01, 0.56))) +  # Less space below, more above
     theme_classic() +
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
     scale_color_manual(values = crop_colors) +
     ggtitle(title) +
+    labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
    # spacer
     annotate("text", x = 1900, y = max_y + 0.2, label = " ", 
              size = 3, hjust = 0.5) +
     # Add aliphatic annotation
-    annotate("text", x = 2600, y = max_y-0.2, label = "aliphatic suberin", 
-             size = 3, hjust = 0.5) +
+    annotate("text", x = 2626, y = max_y-0.2, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5) +
     # Add esters annotation
-    annotate("text", x = 1910, y = max_y, label = "suberin esters", 
-             size = 3, hjust = 0.5) +
+    annotate("text", x = 1900, y = max_y, label = "suberin esters", 
+             size = 3.3, hjust = 0.5) +
     # Add aromatic annotation
-    annotate("text", x = 1300, y = max_y + 0.1, label = "aromatic suberin", 
-             size = 3, hjust = 0.5)
+    annotate("text", x = 1310, y = max_y + 0.1, label = "aromatic suberin", 
+             size = 3.3, hjust = 0.5)
 
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -1114,7 +1127,7 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
   # Scale the data to match ridge plot proportions
   max_abs <- max(filtered_data$normalized_absorbance, na.rm = TRUE)
   # Determine y-position for annotations based on data
-  text_y <- len * 3.02 + 1.75
+  text_y <- len * 2 + 1.75
   # Create offsets only for crops that are present
   crop_offsets <- setNames(seq(0, (len-1) * 3, 3), present_crops)
 
@@ -1130,45 +1143,50 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
     xlim(3200, 1200) +
     geom_line(alpha = 0.7) +
     scale_y_continuous(
-      breaks = crop_offsets,
+      breaks = crop_offsets + 1.111,  # move labels up
       labels = names(crop_offsets)
     ) +
     theme_classic() +
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
     scale_color_manual(values = crop_colors) +
     ggtitle(title) +
-    labs(x = "Wavenumber (cm⁻¹)", 
+    labs(x = expression("wavenumber (cm"^-1*")"), 
          y = "", 
          color = "Crop") +
-# Suberin peak annotations
-    # Aliphatic suberin region (3000-2800 cm-1)
-    annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
-             alpha = 0.1, fill = "#5076ab") +
+    # Suberin peak annotations
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
+             alpha = 0.07, fill = "#5076ab") +
     # Specific aliphatic peaks
     geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
+             alpha = 0.22, fill = "#5076ab") +
     geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-
+    
     # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1733, xmax = 1741, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
              alpha = 0.15, fill = "#4d653a") +
     geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
-    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+
     # Aromatic suberin (1506 cm-1)
     geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+
    # spacer
-    annotate("text", x = 1900, y = 10.1, label = " ", 
-             size = 3, hjust = 0.5) +
+    annotate("text", x = 1900, y = 11, label = " ", 
+             size = 3.3, hjust = 0.5) +
     # Add aliphatic annotation
-    annotate("text", x = 2600, y = text_y, label = "aliphatic suberin", 
-             size = 3, hjust = 0.5) +
+    annotate("text", x = 2626, y = text_y*1.19, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5) +
     # Add esters annotation
-    annotate("text", x = 1910, y = text_y, label = "suberin esters", 
-             size = 3, hjust = 0.5) +
+    annotate("text", x = 1920, y = text_y*1.32, label = "suberin esters", 
+             size = 3.3, hjust = 0.5) +
     # Add aromatic annotation
-    annotate("text", x = 1300, y = text_y, label = "aromatic suberin", 
-             size = 3, hjust = 0.5)
+    annotate("text", x = 1310, y = text_y*1.37, label = "aromatic suberin", 
+             size = 3.3, hjust = 0.5)
 
   return(list(plot = line_plot, data = filtered_data))
 }
@@ -1240,32 +1258,37 @@ create_crop_plot <- function(data, crop_name, color_palette) {
     theme_classic() +
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "root suberin")) +
+    labs(x = expression("wavenumber (cm"^-1*")"), 
+         y = "normalized absorbance") +
     # Suberin peak annotations
-    # Aliphatic suberin region (3000-2800 cm-1)
-    annotate("rect", xmin = 2800, xmax = 3000, ymin = -Inf, ymax = Inf, 
-             alpha = 0.1, fill = "#5076ab") +
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
+             alpha = 0.07, fill = "#5076ab") +
     # Specific aliphatic peaks
     geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
+             alpha = 0.22, fill = "#5076ab") +
     geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-
+    
     # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1733, xmax = 1741, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
              alpha = 0.15, fill = "#4d653a") +
     geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
 
     # Aromatic suberin (1506 cm-1)
     geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+
     # Add aliphatic annotation
-    annotate("text", x = 2600, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
-             size = 3, hjust = 0.5) +
+    annotate("text", x = 2626, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5) +
     # Add esters annotation
-    annotate("text", x = 1910, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
-             size = 3, hjust = 0.5) +
+    annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
+             size = 3.3, hjust = 0.5) +
     # Add aromatic annotation
     annotate("text", x = 1300, y = max(crop_data$normalized_absorbance)+0.02, label = "aromatic suberin", 
-             size = 3, hjust = 0.5)
+             size = 3.3, hjust = 0.5)
 
   
   return(list(plot = crop_plot, data = crop_data))
@@ -1327,7 +1350,7 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
     theme_classic() +
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "root suberin")) +
-    labs(x = "Wavenumber (cm⁻¹)", 
+    labs(x = expression("wavenumber (cm"^-1*")"), 
          y = "normalized absorbance") +
     # Suberin peak annotations
     # Aliphatic suberin region (3000-2850 cm-1)
@@ -1342,22 +1365,21 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
     geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     
     # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1733, xmax = 1742, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
              alpha = 0.15, fill = "#4d653a") +
     geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
-    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
 
     # Aromatic suberin (1506 cm-1)
     geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
     # Add aliphatic annotation
-    annotate("text", x = 2660, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
-             size = 3, hjust = 0.5, color = "#163a6c") +
+    annotate("text", x = 2626, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5, color = "#163a6c") +
     # Add esters annotation
-    annotate("text", x = 1910, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
-             size = 3, hjust = 0.5, color = "#2b3c1d") +
+    annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
+             size = 3.3, hjust = 0.5, color = "#2b3c1d") +
     # Add aromatic annotation
-    annotate("text", x = 1300, y = max(crop_data$normalized_absorbance)+0.02, label = "aromatic suberin", 
-             size = 3, hjust = 0.5, color = "#3f2622")
+    annotate("text", x = 1296, y = max(crop_data$normalized_absorbance)+0.02, label = "aromatic suberin", 
+             size = 3.3, hjust = 0.5, color = "#3f2622")
   return(list(plot = line_plot, data = crop_data))
 }
 
