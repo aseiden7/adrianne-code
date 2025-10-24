@@ -152,8 +152,12 @@ long_table <- long_table[!grepl("KBr", long_table$filename), ]
 # Filter out anomalous spectra
 # keeping 047 because the peak at ~3800 is the only anomalous part, and is not included in the peak integrations an
 anomalous_spectra <- c("DRIFTS_pot103_13Crice_wk0_root_recNMR_250725.0.dpt",
-                       "DRIFTS_pot103_13Crice_wk0_root_vial1_250725.0.dpt",
-                       "DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt")
+                          "DRIFTS_pot103_13Crice_wk0_root_vial1_250725.0.dpt", 
+                          "DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt",
+                          "DRIFTS_pot047_13Crice_wk0_root_250725.0.dpt",
+                          "DRIFTS_pot056_12Csoy_wk10_root_250919.0.dpt",
+                          "DRIFTS_pot086_12Csoy_wk0_root_250919.0.dpt",
+                          "DRIFTS_pot094_13Csoy_wk10_root_250725.0.dpt")
 long_table <- long_table[!long_table$filename %in% anomalous_spectra, ]
 
 cat("Filtered out", length(anomalous_spectra), "anomalous spectra\n")
@@ -636,6 +640,10 @@ calculate_group_stats <- function(data, group_vars) {
       Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
       SD_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE),
       SE_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE) / sqrt(n()),
+      min_simple_plant_prop = min(simple_plant_prop, na.rm = TRUE),
+      max_simple_plant_prop = max(simple_plant_prop, na.rm = TRUE),
+      min_id_simple_plant_prop = data$ID[which.min(simple_plant_prop)],
+      max_id_simple_plant_prop = data$ID[which.max(simple_plant_prop)],
       Mean_complex_plant_prop = mean(complex_plant_prop, na.rm = TRUE),
       SD_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE),
       SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
