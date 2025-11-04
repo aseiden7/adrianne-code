@@ -660,6 +660,287 @@ for (crop in crops) {
 }
 ```
 
+# Combined stacked overlay plot
+These chunks create a single visualization showing all crops and timepoints by stacking the overlay plots vertically with a shared y-axis. Each crop has its own color palette and legend.
+
+<!-- ## Stacked line plot with all crops
+To include noPlant samples in the combined stacked overlay plot, I needed to plot by filename rather than by crop-timepoint combination, since noPlant samples exist only at certain timepoints (wk30 and wk40). As a result each spectra is plotted individually rather than averaged by crop-timepoint. -->
+
+```{r combined-stacked-overlay, fig.height=10, fig.width=13, include=FALSE}
+# Define crop-specific color palettes (include noPlant)
+crop_timepoint_colors_all <- list(
+  noPlant = c("wk30" = "#6f3e94", "wk40" = "#3F1C59"),
+  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk20" = "#79A63A",
+            "wk30" = "#58792A", "wk40" = "#374B1B"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk29" = "#F18204",
+           "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk20" = "#F4016E",
+          "wk30" = "#B70153", "wk40" = "#7A0137")
+)
+
+# Prepare data with all crops (ordered from bottom to top: noPlant, wheat, rice, soy)
+crops_ordered <- c("soy", "rice", "wheat", "noPlant")  # Reversed for plotting so soy appears at top
+all_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered) %>%
+  mutate(crop = factor(crop, levels = crops_ordered)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount <- 0.6  # Space between each crop's spectra
+crop_offsets <- setNames(seq(0, length(crops_ordered) - 1) * offset_amount, crops_ordered)
+
+# Add offset to absorbance values based on crop
+all_crops_data <- all_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets[as.character(crop)])
+
+# Determine max y position for annotations
+max_y <- max(all_crops_data$offset_absorbance, na.rm = TRUE) + 0.2
+
+# Create the base plot with functional region annotations
+base_plot <- ggplot() +
+  xlim(3777, 422) +
+  theme_classic() +
+  labs(x = expression("wavenumber (cm"^-1*")"), 
+       y = "",
+       title = "DRIFTS Spectra: All Crops and Timepoints") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.text.y = element_text(size = 11),
+    axis.ticks.y = element_blank(),
+    legend.position = "right",
+    legend.box = "vertical",
+    legend.spacing.y = unit(0.5, "cm"),
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 9)
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets + offset_amount/2,
+    labels = c("soy", "rice", "wheat", "noPlant"),
+    expand = expansion(mult = c(0.02, 0.1))
+  ) +
+  # Add vertical lines for functional regions
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+  # Add shaded regions with annotations
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("text", x = 2550, y = max_y, label = "Simple Plant", 
+           size = 3.3, hjust = 0.5) +
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#a8cbad") +
+  annotate("text", x = 1850, y = max_y, label = "Microbial", 
+           size = 3.3, hjust = 0.5) +
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#beb5d5") +
+  annotate("text", x = 1200, y = max_y, label = "Complex Plant", 
+           size = 3.3, hjust = 0.5)
+
+# Install ggnewscale if needed for multiple color scales
+if (!require(ggnewscale, quietly = TRUE)) {
+  install.packages("ggnewscale")
+  library(ggnewscale)
+}
+
+# Add each crop as a separate layer with its own color scale
+combined_overlay_plot <- base_plot
+
+for (crop in rev(crops_ordered)) {  # Add in reverse order so legends appear in correct order
+  crop_data <- all_crops_data %>% filter(crop == !!crop)
+  
+  combined_overlay_plot <- combined_overlay_plot +
+    geom_line(data = crop_data,
+              aes(x = wavenumber,
+                  y = offset_absorbance,
+                  color = timepoint,
+                  group = interaction(filename, timepoint)),
+              show.legend = TRUE) +
+    scale_color_manual(
+      name = str_to_title(crop),
+      values = crop_timepoint_colors_all[[crop]],
+      guide = guide_legend(override.aes = list(linewidth = 2))
+    ) +
+    new_scale_color()  # Reset color scale for next crop
+}
+
+print(combined_overlay_plot)
+```
+
+## Combined stacked overlay plot (without noPlant)
+This version excludes noPlant and uses the original grouping method where line thickness represents the range of data for each timepoint.
+
+```{r combined-stacked-overlay-no-noplant, fig.height=9, fig.width=13}
+# Define crop-specific color palettes (exclude noPlant)
+crop_timepoint_colors_three <- list(
+  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk40" = "#374B1B"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
+)
+
+# Prepare data with three crops only (ordered from bottom to top: wheat, rice, soy)
+crops_ordered_three <- c("soy", "rice", "wheat")  # Reversed for plotting so soy appears at top
+three_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered_three) %>%
+  mutate(crop = factor(crop, levels = crops_ordered_three)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount_three <- 0.7  # Space between each crop's spectra
+crop_offsets_three <- setNames(seq(0, length(crops_ordered_three) - 1) * offset_amount_three, crops_ordered_three)
+
+# Add offset to absorbance values based on crop
+three_crops_data <- three_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets_three[as.character(crop)])
+
+# Determine max y position for annotations
+max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
+
+# Create the base plot with functional region annotations
+base_plot_three <- ggplot() +
+  xlim(3777, 422) +
+  theme_classic() +
+  labs(x = expression("wavenumber (cm"^-1*")"), 
+       y = "normalized absorbance") +
+  theme(
+    axis.text.y = element_blank(),
+    # axis.ticks.y = element_blank(),
+    axis.title.y = element_text(size = 14.5),
+    axis.text.x = element_text(size = 14.5, face = "bold"),
+    axis.title.x = element_text(size = 15.5),
+    legend.position = "right",
+    legend.justification = c(0, 0.07),  # (x, y) position; 0,0 is bottom-right
+    legend.box = "vertical",
+    legend.spacing.y = unit(2.8, "cm"),
+    legend.title = element_text(size = 15, face = "bold"),
+    legend.text = element_text(size = 14.5),
+    plot.margin = margin(7, 14, 7, 7, "pt")  # (top, right, bottom, left)
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets_three + 0.003, # y-tick positions
+    labels = NULL,
+    expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
+  ) +
+  scale_x_reverse(
+    limits = c(3770, 415),
+    breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
+    expand = c(0.002, 0.003)  # Remove padding on x-axis
+  ) +
+  # Add vertical lines for functional regions
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.46) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.46) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+  # Add shaded regions with annotations
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("text", x = 2650, y = max_y_three - 0.05, label = "Simple Plant", 
+           size = 4.8, hjust = 0.5) +
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#a8cbad") +
+  annotate("text", x = 1800, y = max_y_three, label = "Microbial", 
+           size = 4.8, hjust = 0.5) +
+  annotate("rect", xmin = 1600, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#beb5d5") +
+  annotate("text", x = 1300, y = max_y_three, label = "Complex Plant", 
+           size = 4.8, hjust = 0.5)
+
+# Add all crop layers without automatic legends, explicitly coloring each line
+combined_overlay_plot_no_noplant <- base_plot_three
+
+for (crop in crops_ordered_three) {
+  crop_data <- three_crops_data %>% filter(crop == !!crop)
+  
+  for (tp in names(crop_timepoint_colors_three[[crop]])) {
+    tp_data <- crop_data %>% filter(timepoint == tp)
+    
+    combined_overlay_plot_no_noplant <- combined_overlay_plot_no_noplant +
+      geom_line(data = tp_data,
+                aes(x = wavenumber, y = offset_absorbance),
+                color = crop_timepoint_colors_three[[crop]][tp],
+                linewidth = 0.5,
+                show.legend = FALSE)
+  }
+}
+
+# Create dummy data for manual legends - one for each crop
+dummy_wheat <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  wheat_tp = names(crop_timepoint_colors_three$wheat)
+)
+
+dummy_rice <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  rice_tp = names(crop_timepoint_colors_three$rice)
+)
+
+dummy_soy <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  soy_tp = names(crop_timepoint_colors_three$soy)
+)
+
+# Add invisible layers with separate aesthetics for each crop
+combined_overlay_plot_no_noplant <- combined_overlay_plot_no_noplant +
+  # Wheat legend
+  geom_line(data = dummy_wheat,
+            aes(x = x, y = y, color = wheat_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Wheat",
+    values = crop_timepoint_colors_three$wheat,
+    breaks = names(crop_timepoint_colors_three$wheat),
+    labels = names(crop_timepoint_colors_three$wheat),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 1
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Rice legend
+  geom_line(data = dummy_rice,
+            aes(x = x, y = y, color = rice_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Rice",
+    values = crop_timepoint_colors_three$rice,
+    breaks = names(crop_timepoint_colors_three$rice),
+    labels = names(crop_timepoint_colors_three$rice),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 2
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Soy legend
+  geom_line(data = dummy_soy,
+            aes(x = x, y = y, color = soy_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Soy",
+    values = crop_timepoint_colors_three$soy,
+    breaks = names(crop_timepoint_colors_three$soy),
+    labels = names(crop_timepoint_colors_three$soy),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 3
+    )
+  )
+
+print(combined_overlay_plot_no_noplant)
+```
+
 # Comparing regions of interest
 Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions before visualizing everything. This procedure sums non-normalized absorbance values over a specified range, and divides by the total peak area in the ranges of interest to get the proportions.
 
@@ -1311,6 +1592,181 @@ for (crop in crops) {
   cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
   cat("<br><br>")  # Add HTML line breaks for spacing
 }
+```
+
+## Combined stacked overlay plot (with suberin annotations)  
+
+This chunk creates a single visualization showing all crops and timepoints by stacking the overlay plots vertically with a shared y-axis. Each crop has its own color palette and legend.
+
+```{r combined-stacked-overlay-suberin, fig.height=9, fig.width=13}
+# Define crop-specific color palettes (exclude noPlant)
+crop_timepoint_colors_three <- list(
+  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk40" = "#374B1B"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
+)
+
+# Prepare data with three crops only (ordered from bottom to top: wheat, rice, soy)
+crops_ordered_three <- c("soy", "rice", "wheat")  # Reversed for plotting so soy appears at top
+three_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered_three) %>%
+  mutate(crop = factor(crop, levels = crops_ordered_three)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount_three <- 0.7  # Space between each crop's spectra
+crop_offsets_three <- setNames(seq(0, length(crops_ordered_three) - 1) * offset_amount_three, crops_ordered_three)
+
+# Add offset to absorbance values based on crop
+three_crops_data <- three_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets_three[as.character(crop)])
+
+# Determine max y position for annotations
+max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
+
+# Create the base plot with functional region annotations
+base_plot_three <- ggplot() +
+  xlim(3777, 422) +
+  theme_classic() +
+  labs(x = expression("wavenumber (cm"^-1*")"), 
+       y = "normalized absorbance") +
+  theme(
+    axis.text.y = element_blank(),
+    # axis.ticks.y = element_blank(),
+    axis.title.y = element_text(size = 14.5),
+    axis.text.x = element_text(size = 14.5, face = "bold"),
+    axis.title.x = element_text(size = 15.5),
+    legend.position = "right",
+    legend.justification = c(0, 0.07),  # (x, y) position; 0,0 is bottom-right
+    legend.box = "vertical",
+    legend.spacing.y = unit(2.8, "cm"),
+    legend.title = element_text(size = 15, face = "bold"),
+    legend.text = element_text(size = 14.5),
+    plot.margin = margin(7, 14, 7, 7, "pt")  # (top, right, bottom, left)
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets_three + 0.003, # y-tick positions
+    labels = NULL,
+    expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
+  ) +
+  scale_x_reverse(
+    limits = c(3770, 415),
+    breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
+    expand = c(0.002, 0.003)  # Remove padding on x-axis
+  ) +
+  
+    # Suberin peak annotations
+  # Aliphatic suberin region (3000-2850 cm-1)
+  annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
+            alpha = 0.07, fill = "#5076ab") +
+  # Specific aliphatic peaks
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+  geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+  # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+  annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
+            alpha = 0.22, fill = "#5076ab") +
+  geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+  
+  # Suberin esters (1737-1740 cm-1)
+  annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
+            alpha = 0.15, fill = "#4d653a") +
+  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+
+  # Aromatic suberin (1506 cm-1)
+  geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.46, color = "#5f3e38") +
+
+  # Add aliphatic annotation
+  annotate("text", x = 2620, y = max_y_three - 0.03, label = "aliphatic suberin", 
+            size = 4.8, hjust = 0.5) +
+  # Add esters annotation
+  annotate("text", x = 1920, y = max_y_three - 0.01, label = "suberin esters", 
+            size = 4.8, hjust = 0.5) +
+  # Add aromatic annotation
+  annotate("text", x = 1290, y = max_y_three, label = "aromatic suberin", 
+            size = 4.8, hjust = 0.5)
+ 
+# Add all crop layers without automatic legends, explicitly coloring each line
+combined_overlay_plot_suberin <- base_plot_three
+
+for (crop in crops_ordered_three) {
+  crop_data <- three_crops_data %>% filter(crop == !!crop)
+  
+  for (tp in names(crop_timepoint_colors_three[[crop]])) {
+    tp_data <- crop_data %>% filter(timepoint == tp)
+    
+    combined_overlay_plot_suberin <- combined_overlay_plot_suberin +
+      geom_line(data = tp_data,
+                aes(x = wavenumber, y = offset_absorbance),
+                color = crop_timepoint_colors_three[[crop]][tp],
+                linewidth = 0.5,
+                show.legend = FALSE)
+  }
+}
+
+# Create dummy data for manual legends - one for each crop
+dummy_wheat <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  wheat_tp = names(crop_timepoint_colors_three$wheat)
+)
+
+dummy_rice <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  rice_tp = names(crop_timepoint_colors_three$rice)
+)
+
+dummy_soy <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  soy_tp = names(crop_timepoint_colors_three$soy)
+)
+
+# Add invisible layers with separate aesthetics for each crop
+combined_overlay_plot_suberin <- combined_overlay_plot_suberin +
+  # Wheat legend
+  geom_line(data = dummy_wheat,
+            aes(x = x, y = y, color = wheat_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Wheat",
+    values = crop_timepoint_colors_three$wheat,
+    breaks = names(crop_timepoint_colors_three$wheat),
+    labels = names(crop_timepoint_colors_three$wheat),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 1
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Rice legend
+  geom_line(data = dummy_rice,
+            aes(x = x, y = y, color = rice_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Rice",
+    values = crop_timepoint_colors_three$rice,
+    breaks = names(crop_timepoint_colors_three$rice),
+    labels = names(crop_timepoint_colors_three$rice),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 2
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Soy legend
+  geom_line(data = dummy_soy,
+            aes(x = x, y = y, color = soy_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Soy",
+    values = crop_timepoint_colors_three$soy,
+    breaks = names(crop_timepoint_colors_three$soy),
+    labels = names(crop_timepoint_colors_three$soy),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 3
+    )
+  )
+
+print(combined_overlay_plot_suberin)
 ```
 
 ### Line Plots
