@@ -852,7 +852,7 @@ base_plot_three <- ggplot() +
            alpha = 0.12, fill = "#a8cbad") +
   annotate("text", x = 1800, y = max_y_three, label = "Microbial", 
            size = 4.8, hjust = 0.5) +
-  annotate("rect", xmin = 1600, xmax = 1500, ymin = -Inf, ymax = Inf, 
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
            alpha = 0.12, fill = "#beb5d5") +
   annotate("text", x = 1300, y = max_y_three, label = "Complex Plant", 
            size = 4.8, hjust = 0.5)
@@ -1264,6 +1264,201 @@ combined_stacked <- plot_grid(
 )
 print(combined_stacked)
 ```
+
+
+## Stacked interaction plots (crop x timepoint)
+
+```{r stacked-interaction-plots}
+timepoint_prop_colors <- list(
+  "wk0" = c("Simple Plant" = "#8a82c0", "Microbial" = "#bdb8e0", "Complex Plant" = "#50478A"),
+  "wk10" = c("Simple Plant" = "#7ba7c6", "Microbial" = "#b8d0e0", "Complex Plant" = "#3D6988"),
+  "wk20" = c("Simple Plant" = "#c5aa7c", "Microbial" = "#e0d1b8", "Complex Plant" = "#876B3D"),
+  "wk30" = c("Simple Plant" = "#7cc5af", "Microbial" = "#b8e0d4", "Complex Plant" = "#3D8770"),
+  "wk40" = c("Simple Plant" = "#b4c57c", "Microbial" = "#d6e0b8", "Complex Plant" = "#75873D")
+)
+
+# Stacked interaction plot - crop x timepoint with all three proportions
+# Create stacked data for interaction plot
+interaction_stacked_data <- crop_timepoint_stats %>%
+  select(crop, timepoint, Mean_simple_plant_prop, Mean_complex_plant_prop, Mean_microbial_prop) %>%
+  pivot_longer(cols = starts_with("Mean_"),
+               names_to = "func_type",
+               values_to = "proportion") %>%
+  mutate(func_type = case_when(
+    func_type == "Mean_simple_plant_prop" ~ "Simple Plant",
+    func_type == "Mean_microbial_prop" ~ "Microbial",
+    func_type == "Mean_complex_plant_prop" ~ "Complex Plant"
+  )) %>%
+  mutate(func_type = factor(func_type, levels = c("Simple Plant", "Microbial", "Complex Plant")))
+
+# Create a combined group for positioning (crop:timepoint)
+interaction_stacked_data <- interaction_stacked_data %>%
+  mutate(crop_time = interaction(crop, timepoint, sep = "_"))
+
+# Apply colors - using average of timepoint colors for each functional group
+# Or better - use timepoint-specific colors from timepoint_prop_colors
+# Create fill based on timepoint:func_type combination
+interaction_stacked_data <- interaction_stacked_data %>%
+  mutate(fill_group = paste(timepoint, func_type, sep = "_"))
+
+interaction_plot_stacked <- ggplot(interaction_stacked_data, 
+                                   aes(x = interaction(crop, timepoint), 
+                                       y = proportion * 100, 
+                                       fill = fill_group)) +
+  geom_col(position = "stack") +
+  facet_grid(. ~ crop, scales = "free_x", space = "free_x") +
+  scale_x_discrete(labels = function(x) {
+    # Extract just the timepoint part (after the dot)
+    sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
+  }) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
+  theme_classic() +
+  labs(title = "",
+       x = "",
+       y = "Functional Group Proportion (%)",
+       fill = "") +
+  theme(legend.position = "right",
+        plot.margin = margin(-2, 76, 0, 12), # (top, right, bottom, left)
+        axis.text.x = element_text(angle = 45, hjust = .9, size = 12.5, face = "bold"),
+        axis.title.y = element_text(size = 12),
+        axis.text.y = element_text(size = 11),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14.5, face = "bold")) +
+  coord_cartesian(clip = "off")
+
+# Create manual color scale using timepoint_prop_colors
+color_values <- c()
+color_names <- c()
+for (tp in c("wk0", "wk10", "wk20", "wk30", "wk40")) {
+  for (ft in c("Simple Plant", "Microbial", "Complex Plant")) {
+    color_names <- c(color_names, paste(tp, ft, sep = "_"))
+    color_values <- c(color_values, timepoint_prop_colors[[tp]][ft])
+  }
+}
+names(color_values) <- color_names
+
+interaction_plot_stacked <- interaction_plot_stacked +
+  scale_fill_manual(values = color_values,
+                    labels = function(x) {
+                      parts <- strsplit(x, "_")
+                      sapply(parts, function(p) paste(p[1], p[2], sep = " - "))
+                    }) +
+  theme(legend.position = "none")
+
+# Calculate label positions (midpoint of each segment in the rightmost bar)
+# Get the rightmost crop-timepoint combination for labeling
+label_data <- interaction_stacked_data %>%
+  filter(crop == "soy" & timepoint == "wk40") %>%
+  arrange(func_type) %>%
+  mutate(
+    # Calculate cumulative sum for positioning
+    cum_prop = cumsum(proportion * 100),
+    # Calculate midpoint of each segment
+    label_y = cum_prop - (proportion * 100) / 2
+  )
+
+# Add labels on the right side
+interaction_plot_stacked <- interaction_plot_stacked +
+  geom_text(data = label_data,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = func_type),
+            hjust = 0, 
+            nudge_x = 0.5,
+            size = 3.8,
+            angle = 10,
+            fontface = "bold",
+            inherit.aes = FALSE)
+
+print(interaction_plot_stacked)
+```
+
+```{r stacked-interaction-plots-no-noPlant}
+# Stacked interaction plot - crop x timepoint (without noPlant)
+# Create stacked data for interaction plot
+interaction_stacked_data_no_noPlant <- crop_timepoint_stats %>%
+  filter(crop != "noPlant") %>%
+  select(crop, timepoint, Mean_simple_plant_prop, Mean_complex_plant_prop, Mean_microbial_prop) %>%
+  pivot_longer(cols = starts_with("Mean_"),
+               names_to = "func_type",
+               values_to = "proportion") %>%
+  mutate(func_type = case_when(
+    func_type == "Mean_simple_plant_prop" ~ "Simple Plant",
+    func_type == "Mean_microbial_prop" ~ "Microbial",
+    func_type == "Mean_complex_plant_prop" ~ "Complex Plant"
+  )) %>%
+  mutate(func_type = factor(func_type, levels = c("Simple Plant", "Microbial", "Complex Plant")))
+
+# Create a combined group for positioning (crop:timepoint)
+interaction_stacked_data_no_noPlant <- interaction_stacked_data_no_noPlant %>%
+  mutate(crop_time = interaction(crop, timepoint, sep = "_"))
+
+# Create fill based on timepoint:func_type combination
+interaction_stacked_data_no_noPlant <- interaction_stacked_data_no_noPlant %>%
+  mutate(fill_group = paste(timepoint, func_type, sep = "_"))
+
+interaction_plot_stacked_no_noPlant <- ggplot(interaction_stacked_data_no_noPlant, 
+                                   aes(x = interaction(crop, timepoint), 
+                                       y = proportion * 100, 
+                                       fill = fill_group)) +
+  geom_col(position = "stack") +
+  facet_grid(. ~ crop, scales = "free_x", space = "free_x") +
+  scale_x_discrete(labels = function(x) {
+    # Extract just the timepoint part (after the dot)
+    sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
+  }) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
+  theme_classic() +
+  labs(title = "",
+       x = "",
+       y = "Functional Group Proportion (%)",
+       fill = "") +
+  theme(legend.position = "right",
+        plot.margin = margin(-2, 76, 0, 12), # (top, right, bottom, left)
+        axis.text.x = element_text(angle = 45, hjust = .9, size = 12.5, face = "bold"),
+        axis.title.y = element_text(size = 12),
+        axis.text.y = element_text(size = 11),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14.5, face = "bold")) +
+  coord_cartesian(clip = "off")
+
+# Create manual color scale using timepoint_prop_colors
+interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
+  scale_fill_manual(values = color_values,
+                    labels = function(x) {
+                      parts <- strsplit(x, "_")
+                      sapply(parts, function(p) paste(p[1], p[2], sep = " - "))
+                    }) +
+  theme(legend.position = "none")
+
+# Calculate label positions (midpoint of each segment in the rightmost bar)
+# Get the rightmost crop-timepoint combination for labeling
+label_data_no_noPlant <- interaction_stacked_data_no_noPlant %>%
+  filter(crop == "soy" & timepoint == "wk40") %>%
+  arrange(func_type) %>%
+  mutate(
+    # Calculate cumulative sum for positioning
+    cum_prop = cumsum(proportion * 100),
+    # Calculate midpoint of each segment
+    label_y = cum_prop - (proportion * 100) / 2
+  )
+
+# Add labels on the right side
+interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
+  geom_text(data = label_data_no_noPlant,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = func_type),
+            hjust = 0, 
+            nudge_x = 0.5,
+            size = 3.8,
+            angle = 10,
+            fontface = "bold",
+            inherit.aes = FALSE)
+
+print(interaction_plot_stacked_no_noPlant)
+```
+
 
 # Plotting with suberin annotations
 These ridge plots show the same spectral data as the original Ridge Plots section, but with annotations highlighting suberin-related peaks identified in the literature. The annotations indicate peaks associated with suberin content in plant roots, based on White et al. (2011, 2016).
