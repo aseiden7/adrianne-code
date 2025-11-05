@@ -90,9 +90,11 @@ dev.off()
 
 # Introduction
 
-- the role of roots’ chemical composition in determining SOM persistence remains uncertain. 
+- The role of roots’ chemical composition in determining SOM persistence remains uncertain. 
+  
 - Suberin---a hydrophobic, carbon-rich biopolymer found in root cell walls---has been hypothesized to enhance long-term soil carbon storage
-- Emerging OM-stability paradigms emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance.
+  
+- OM-stability paradigms emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance.
   
 This study investigates how varying suberin content influences mineralization rates and chemical transformations of root-derived organic matter in soil. 
 
@@ -100,23 +102,30 @@ This study investigates how varying suberin content influences mineralization ra
 Using ¹³C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30--40 weeks.
 
 <figure class="methods_pic" style="display: flex; align-items: center; gap: 1em;">
-<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/pot-sampling-graphic.png" style="width: 60%; flex-shrink: 0;">
-<figcaption style="flex: 1; font-size: 0.6em; color: #555555;">Fig. 4 | Sampling procedure for intact pots, showing separation of roots and rhizosphere soil from the bulk soil. Spectroscopic analyses (DRIFTS, 13C-CPMAS NMR) were performed on roots isolated from the intact pots.</figcaption>
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/pot-sampling-graphic.png" style="width: 50%; flex-shrink: 0;">
+<figcaption style="flex: 1; font-size: 0.5em; color: #555555;">Fig. 4 | Sampling procedure for intact pots, showing separation of roots and rhizosphere soil from the bulk soil. Spectroscopic analyses (DRIFTS, 13C-CPMAS NMR) were performed on roots isolated from the intact pots.</figcaption>
 </figure>
 - CO₂ concentrations and δ¹³C of headspace gas (GC + IRMS)
+  
 - Diffuse Reflectance Infrared Fourier Transform Spectroscopy (DRIFTS) of root samples
-- ¹³C-CPMAS NMR spectroscopy of root samples
+  
+- ¹³C-CP/MAS NMR spectroscopy of root samples
 
 # Results
- - CO₂ flux from jars not correlated with suberin content (Fig. 1).
- - The proportion of simple plant compounds decreased over time while complex plant and microbial compounds increased except for the high-suberin treatment (soy) (Figs. 2 and 3).
+ - CO₂ flux from jars not correlated with suberin content
+  
+ - The proportion of simple plant compounds decreased over time while complex plant and microbial compounds increased except for the high-suberin treatment (soy)
 
 # Conclusion
 By integrating ¹³C tracers with molecular characterizations, this work advances a mechanistic understanding of soil carbon cycling at the root–soil interface by quantifying the partitioning of root-derived carbon between incorporation into SOM and mineralization to CO₂. Linking root chemistry variation to SOM dynamics can inform plant breeding programs and trait-based ecosystem management efforts aimed at enhancing long-term soil carbon stability.
 
 # Acknowledgments
 <!-- ![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/Salk_harnessing-plants-initiative.jpg){.logo-salk} -->
-<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/UCM_salk_combo0.png" style="width: 8in; position: absolute; bottom: 0.0001; right: 0.0001; margin: 0;">
+The project was funded by the Salk Institute for Biological Studies’ Harnessing Plant Initiative and the Sustainable Futures program at UC Merced. 
+We’d like thank Janeht Reyes-Rios, Tyler Hooks, April Sanchez, Jenny Alvarez and Precious Nyabami for their help harvesting and processing root and soil samples.
+Thank you to David Rice and Anna Jurusik for their help with ¹³C-CP/MAS NMR spectroscopy.
+
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/UCM_salk_combo0.png" style="width: 8in; position: absolute; bottom: 0.00001; right: 0.00001; margin: 0;">
 ```{r, include=FALSE}
 knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
 ```
