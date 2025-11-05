@@ -140,16 +140,16 @@ column-count: 2;
 -webkit-column-fill: auto;
 -moz-column-fill: auto;
 column-fill: auto;
--webkit-column-rule-width: 0.4;
--moz-column-rule-width: 0.4;
-column-rule-width: 0.4;
+-webkit-column-rule-width: 0.34;
+-moz-column-rule-width: 0.34;
+column-rule-width: 0.34;
 -webkit-column-rule-style: solid;
 -moz-column-rule-style: solid;
 column-rule-style: solid;
 -webkit-column-rule-color: black;
 -moz-column-rule-color: black;
 column-rule-color: black;
--webkit-column-gap: calc(0.4 * 100%);
+-webkit-column-gap: calc(0.34 * 100%);
 background-color: #ffffff;
 font-family: Lexend;
 color: #000000;
@@ -213,10 +213,10 @@ color: #000000;
 text-align: left;
 }
 .main {
-width: calc(44in * 0.4);
+width: calc(44in * 0.34);
 height: 32in;
 position: absolute;
-margin-left: calc(44in * ((1 - 0.4) / 2));
+margin-left: calc(44in * ((1 - 0.34) / 2));
 background-color: #5D4432;
 color: #FFFFFF90;
 font-family: Lexend Giga;
@@ -239,7 +239,7 @@ position: absolute;
 }
 .main p {
 padding-top: 20%;
-font-size: 120px;
+font-size: 60px;
 text-align: left;
 }
 .fab {
@@ -294,7 +294,7 @@ span > #tab:mytable {
   padding-right: 30mm;
 }
 .main_pic {
-  width: 15in;
+  width: 69%;
   display: block;
   margin-left: auto;
   margin-right: auto;
@@ -340,16 +340,19 @@ Adrianne Seiden<sup> 1</sup><br>
 <div id="methods" class="section level1">
 <h1>Methods</h1>
 <p>Using ¹³C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30–40 weeks.</p>
-<figure class="methods_pic" style="width: 55%;">
-<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/pot-sampling-graphic.png" style="width: 100%;">
-<figcaption style="width: 100%; font-size: 0.6em; color: #555555; margin-top: 0.2em;">
-Fig. 2 | Sampling procedure for intact pots, showing separation of roots and rhizosphere soil from the bulk soil. Spectroscopic analyses (DRIFTS, 13C-CPMAS NMR) were performed on roots isolated from the intact pots.
+<figure class="methods_pic" style="display: flex; align-items: center; gap: 1em;">
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/pot-sampling-graphic.png" style="width: 60%; flex-shrink: 0;">
+<figcaption style="flex: 1; font-size: 0.6em; color: #555555;">
+Fig. 4 | Sampling procedure for intact pots, showing separation of roots and rhizosphere soil from the bulk soil. Spectroscopic analyses (DRIFTS, 13C-CPMAS NMR) were performed on roots isolated from the intact pots.
 </figcaption>
 </figure>
 </div>
 <div id="results" class="section level1">
 <h1>Results</h1>
-<p>Spectroscopic analyses indicate that suberin persists in root tissues for at least 10 weeks, but is not readily detectable in the surrounding soil, suggesting limited transfer during early decay. The portion of organic carbon attributed to microbial biomass grew over time as expected.</p>
+<ul>
+<li>CO₂ flux from jars not correlated with suberin content (Fig. 1).</li>
+<li>The proportion of simple plant compounds decreased over time while complex plant and microbial compounds increased except for the high-suberin treatment (soy) (Figs. 2 and 3).</li>
+</ul>
 </div>
 <div id="conclusion" class="section level1">
 <h1>Conclusion</h1>
@@ -362,14 +365,24 @@ Fig. 2 | Sampling procedure for intact pots, showing separation of roots and rhi
 
 </div>
 <div class="main">
-<p>Placeholder for <strong>salient points</strong>.<br><br> <figure class="main_pic"><br />
-<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/cumul-flux-with-jar+suberin.png" style="width: 15in;"><br />
-<figcaption style="margin-top: -0.4em;"><br />
+<p><figure class="main_pic" style="margin-top: -10em; margin-bottom: -5em;"><br />
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/cumul-flux-with-jar+suberin.png" style="width: 100%;"><br />
+<figcaption style="margin-top: -.6em; font-size: 0.5em;"><br />
 Fig. 1 | Cumulative CO₂ flux over time showing differences between suberin treatments. The low-suberin treatment exhibited significantly higher cumulative CO₂ flux than all other treatments after the first week, however, the medium-suberin treatment had a lower cumulative flux than the high-suberin treatment (not significant).<br />
 </figcaption><br />
+</figure><br><br> <figure class="main_pic" style="margin-bottom: -5em;"><br />
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/DRIFTS-stacked-overlay.png" style="width: 100%;"><br />
+<figcaption style="margin-top: -.6em; font-size: 0.5em;"><br />
+Fig. 2 | DRIFTS spectra of root samples from intact pots at 0 weeks, 10 weeks and 40 weeks. All spectra are normalized to the highest peak to better visualize the proportion of different functional groups. The thickness of each line represents the range of data for that crop and timepoint combination. Shaded regions indicate the areas that were integrated for calculations of simple plant, complex plant, and microbial organic matter proportions.<br />
+</figcaption><br />
+</figure><br><br> <figure class="main_pic" style="margin-bottom: -5em;"><br />
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/stacked-proportions-crop-week.png" style="width: 100%;"><br />
+<figcaption style="margin-top: -.6em; font-size: 0.5em;"><br />
+Fig. 3 | Proportions of simple plant, complex plant, and microbial organic matter in roots from each crop over time.<br />
+</figcaption><br />
 </figure></p>
-<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/UCM_salk_combo0.png" class="main-img-left" style="width:9in" />
-<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/CANVAS-2025-logo.png" class="main-img-right" style="width:4.2in" />
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/UCM_salk_combo0.png" class="main-img-left" style="width:8in" />
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/CANVAS-2025-logo.png" class="main-img-right" style="width:4in" />
 </div>
 </div>
 

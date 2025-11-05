@@ -50,14 +50,14 @@ main_width: 0.34
 main_fontfamily: "Lexend Giga"
 main_textsize: "60px"
 main_findings:
-  - '<figure class="main_pic" style="margin-top: -10em; margin-bottom: -6em;"><img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/cumul-flux-with-jar+suberin.png" style="width: 100%;"><figcaption style="margin-top: -.6em; font-size: 0.5em;">Fig. 1 | Cumulative CO₂ flux over time showing differences between suberin treatments. The low-suberin treatment exhibited significantly higher cumulative CO₂ flux than all other treatments after the first week, however, the medium-suberin treatment had a lower cumulative flux than the high-suberin treatment (not significant).</figcaption></figure>'
+  - '<figure class="main_pic" style="margin-top: -9.2em; margin-bottom: -4.6em;"><img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/cumul-flux-with-jar+suberin.png" style="width: 100%;"><figcaption style="margin-top: -.6em; font-size: 0.5em;">Fig. 1 | Cumulative CO₂ flux over time showing differences between suberin treatments. The low-suberin treatment exhibited significantly higher cumulative CO₂ flux than all other treatments after the first week, however, the medium-suberin treatment had a lower cumulative flux than the high-suberin treatment (not significant).</figcaption></figure>'
   
-  - '<figure class="main_pic" style="margin-bottom: -5em;"><img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/DRIFTS-stacked-overlay.png" style="width: 100%;"><figcaption style="margin-top: -.6em; font-size: 0.5em;">Fig. 2 | DRIFTS spectra of root samples from intact pots at 0 weeks, 10 weeks and 40 weeks. All spectra are normalized to the highest peak to better visualize the proportion of different functional groups. The thickness of each line represents the range of data for that crop and timepoint combination. Shaded regions indicate the areas that were integrated for calculations of simple plant, complex plant, and microbial organic matter proportions.</figcaption></figure>'
+  - '<figure class="main_pic" style="margin-bottom: -4.6em;"><img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/DRIFTS-stacked-overlay.png" style="width: 100%;"><figcaption style="margin-top: -.6em; font-size: 0.5em;">Fig. 2 | DRIFTS spectra of root samples from intact pots at 0 weeks, 10 weeks and 40 weeks. All spectra are normalized to the highest peak to better visualize the proportion of different functional groups. The thickness of each line represents the range of data for that crop and timepoint combination. Shaded regions indicate the areas that were integrated for calculations of simple plant, complex plant, and microbial organic matter proportions.</figcaption></figure>'
   
   - '<figure class="main_pic" style="margin-bottom: -5em;"><img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/stacked-proportions-crop-week.png" style="width: 100%;"><figcaption style="margin-top: -.6em; font-size: 0.5em;">Fig. 3 | Proportions of simple plant, complex plant, and microbial organic matter in roots from each crop over time.</figcaption></figure>'
-main_picwidth: "69%"
-logoleft_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/UCM_salk_combo0.png){.main-img-left width="8in"}'
-logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/CANVAS-2025-logo.png){.main-img-right width="4in"}'
+main_picwidth: "76%"
+# logoleft_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/UCM_salk_combo0.png){.main-img-left width="8in"}'
+logoright_name: '![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/CANVAS-2025-logo.png){.main-img-right width="3in"}'
 # Body Section
 
 output: 
@@ -90,25 +90,33 @@ dev.off()
 
 # Introduction
 
-Root-derived carbon is a key input to soil organic matter (SOM) in both managed and natural ecosystems, yet the role of roots’ chemical composition in determining SOM persistence remains uncertain. Suberin---a hydrophobic, carbon-rich biopolymer found in root cell walls---has been hypothesized to enhance long-term soil carbon storage, but its contribution is debated in light of emerging OM-stability paradigms that emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance. This study investigates how varying suberin content influences mineralization rates and chemical transformations of root-derived organic matter in soil. 
+- the role of roots’ chemical composition in determining SOM persistence remains uncertain. 
+- Suberin---a hydrophobic, carbon-rich biopolymer found in root cell walls---has been hypothesized to enhance long-term soil carbon storage
+- Emerging OM-stability paradigms emphasize microbial and mineral interactions over intrinsic biochemical recalcitrance.
+  
+This study investigates how varying suberin content influences mineralization rates and chemical transformations of root-derived organic matter in soil. 
 
 # Methods
 Using ¹³C-labeled roots spanning a natural suberin gradient, we tracked decomposition in both intact pots and litterbag microcosms over 30--40 weeks.
 
-<figure class="methods_pic" style="width: 55%;">
-<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/pot-sampling-graphic.png" style="width: 100%;">
-<figcaption style="width: 100%; font-size: 0.6em; color: #555555; margin-top: 0.2em;">Fig. 2 | Sampling procedure for intact pots, showing separation of roots and rhizosphere soil from the bulk soil. Spectroscopic analyses (DRIFTS, 13C-CPMAS NMR) were performed on roots isolated from the intact pots.</figcaption>
+<figure class="methods_pic" style="display: flex; align-items: center; gap: 1em;">
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/pot-sampling-graphic.png" style="width: 60%; flex-shrink: 0;">
+<figcaption style="flex: 1; font-size: 0.6em; color: #555555;">Fig. 4 | Sampling procedure for intact pots, showing separation of roots and rhizosphere soil from the bulk soil. Spectroscopic analyses (DRIFTS, 13C-CPMAS NMR) were performed on roots isolated from the intact pots.</figcaption>
 </figure>
+- CO₂ concentrations and δ¹³C of headspace gas (GC + IRMS)
+- Diffuse Reflectance Infrared Fourier Transform Spectroscopy (DRIFTS) of root samples
+- ¹³C-CPMAS NMR spectroscopy of root samples
 
 # Results
  - CO₂ flux from jars not correlated with suberin content (Fig. 1).
+ - The proportion of simple plant compounds decreased over time while complex plant and microbial compounds increased except for the high-suberin treatment (soy) (Figs. 2 and 3).
 
 # Conclusion
 By integrating ¹³C tracers with molecular characterizations, this work advances a mechanistic understanding of soil carbon cycling at the root–soil interface by quantifying the partitioning of root-derived carbon between incorporation into SOM and mineralization to CO₂. Linking root chemistry variation to SOM dynamics can inform plant breeding programs and trait-based ecosystem management efforts aimed at enhancing long-term soil carbon stability.
 
 # Acknowledgments
 <!-- ![](https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/Salk_harnessing-plants-initiative.jpg){.logo-salk} -->
-
+<img src="https://raw.githubusercontent.com/aseiden7/adrianne-code/main/conference-posters/figures/UCM_salk_combo0.png" style="width: 8in; position: absolute; bottom: 0.0001; right: 0.0001; margin: 0;">
 ```{r, include=FALSE}
 knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
 ```
