@@ -1187,7 +1187,9 @@ timepoint_plots <- create_proportion_plots(timepoint_stats, "timepoint", "")
 timepoint_combined <- plot_grid(timepoint_plots$p1, timepoint_plots$p2, timepoint_plots$p3, nrow = 1, labels = "auto")
 print(timepoint_combined)
 
-# Recreate the EXACT interaction plot (crop x timepoint) from Leila_code_modified.Rmd
+
+# SIMPLE PLANT PROPORTION INTERACTION PLOT
+# Recreate simple plant proportion interaction plot (crop x timepoint) from Leila_code_modified.Rmd
 interaction_plot <- ggplot(crop_timepoint_stats) +
   geom_col(aes(x = crop, y = Mean_simple_plant_prop, fill = timepoint),
            position = "dodge", alpha = 0.8) +
@@ -1207,7 +1209,48 @@ interaction_plot <- ggplot(crop_timepoint_stats) +
 
 print(interaction_plot)
 
-# Recreate EXACT stacked bar plots from Leila_code_modified.Rmd
+# COMPLEX PLANT PROPORTION INTERACTION PLOT
+CP_interaction_plot <- ggplot(crop_timepoint_stats) +
+  geom_col(aes(x = crop, y = Mean_complex_plant_prop, fill = timepoint),
+           position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_complex_plant_prop - SE_complex_plant_prop,
+                    ymax = Mean_complex_plant_prop + SE_complex_plant_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  theme_classic() +
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Complex Plant OM by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Complex Plant OM Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(CP_interaction_plot)
+
+# MICROBIAL PROPORTION INTERACTION PLOT
+micr_interaction_plot <- ggplot(crop_timepoint_stats) +
+  geom_col(aes(x = crop, y = Mean_microbial_prop, fill = timepoint),
+           position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_microbial_prop - SE_microbial_prop,
+                    ymax = Mean_microbial_prop + SE_microbial_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  theme_classic() +
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Microbial OM by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Microbial OM Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(micr_interaction_plot)
+
+# STACKED BAR PLOTS
+# Recreate stacked bar plots from Leila_code_modified.Rmd
 create_stacked_data <- function(stats_data, group_col) {
   # Reshape data for stacking (exact reproduction)
   long_data <- stats_data %>%
@@ -1225,7 +1268,7 @@ create_stacked_data <- function(stats_data, group_col) {
   long_data
 }
 
-# Create EXACT stacked plots
+# Create stacked plots
 crop_stacked_data <- create_stacked_data(crop_stats, "crop")
 crop_stacked_data$crop <- factor(crop_stacked_data$crop, levels = c("noPlant", "wheat", "rice", "soy"))
 timepoint_stacked_data <- create_stacked_data(timepoint_stats, "timepoint")
