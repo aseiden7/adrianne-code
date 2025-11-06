@@ -1431,21 +1431,41 @@ interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
                     }) +
   theme(legend.position = "none")
 
-# Calculate label positions (midpoint of each segment in the rightmost bar)
-# Get the rightmost crop-timepoint combination for labeling
+# Calculate label positions (midpoint of each segment for ALL bars)
+# Calculate cumulative proportions for positioning percentage labels
 label_data_no_noPlant <- interaction_stacked_data_no_noPlant %>%
-  filter(crop == "soy" & timepoint == "wk40") %>%
+  group_by(crop, timepoint) %>%
   arrange(func_type) %>%
   mutate(
     # Calculate cumulative sum for positioning
     cum_prop = cumsum(proportion * 100),
     # Calculate midpoint of each segment
-    label_y = cum_prop - (proportion * 100) / 2
-  )
+    label_y = cum_prop - (proportion * 100) / 2,
+    # Create percentage label
+    pct_label = paste0(round(proportion * 100, 1), "%"),
+    # Assign label color: black for Microbial (light), white for others (darker)
+    # label_color = ifelse(func_type == "Microbial", "black", "white")
+    label_color = ifelse(func_type == "Complex Plant", "white", "black")
+  ) %>%
+  ungroup()
 
-# Add labels on the right side
+# Create label data for func_type labels (rightmost bar only)
+functype_label_data <- label_data_no_noPlant %>%
+  filter(crop == "soy" & timepoint == "wk40")
+
+# Add percentage labels to all bars
 interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
   geom_text(data = label_data_no_noPlant,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = pct_label,
+                color = label_color),
+            size = 3.2,
+            fontface = "plain",
+            inherit.aes = FALSE) +
+  scale_color_identity() +  # Use the actual color values from label_color
+  # Add func_type labels on the right side
+  geom_text(data = functype_label_data,
             aes(x = interaction(crop, timepoint), 
                 y = label_y, 
                 label = func_type),
