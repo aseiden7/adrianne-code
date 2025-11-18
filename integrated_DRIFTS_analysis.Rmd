@@ -1530,11 +1530,11 @@ These ridge plots show the same spectral data as the original Ridge Plots sectio
 <table style="width: auto; border-collapse: collapse; border: 1px solid #f5f5f5;">
 <tr>
 <td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Aliphatic suberin moiety:</td>
-<td style="padding: 5px; border: 1px solid #f5f5f5;">2976, 2959, 2930, 2856 cm<sup>-1</sup> (within 3000-2800 cm<sup>-1</sup> range)</td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">2923 - 2930, 2854 - 2856 cm<sup>-1</sup> (within 3000-2800 cm<sup>-1</sup> range)</td>
 </tr>
 <tr>
 <td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Suberin esters:</td>
-<td style="padding: 5px; border: 1px solid #f5f5f5;">1737-1740 cm<sup>-1</sup></td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">1737-1742 cm<sup>-1</sup></td>
 </tr>
 <tr>
 <td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Aromatic suberin moiety:</td>
@@ -1577,28 +1577,32 @@ create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
                         scale = 3,
                         alpha = 0.25) +
     
-       # Suberin peak annotations
+    # Suberin peak annotations
     # Aliphatic suberin region (3000-2850 cm-1)
-    annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
-             alpha = 0.07, fill = "#5076ab") +
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.06, fill = "#5076ab") +
     # Specific aliphatic peaks
-    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
-    annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
-             alpha = 0.22, fill = "#5076ab") +
-    geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    
+    annotate("rect", xmin = 2922, xmax = 2932, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+
     # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
-             alpha = 0.15, fill = "#4d653a") +
-    geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#4d653a") +
+    # geom_vline(xintercept = 1739, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
 
+    # Suberin fingerprint (1464, 1240, 1174 cm-1)
+    geom_vline(xintercept = 1464, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+    geom_vline(xintercept = 1240, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+    geom_vline(xintercept = 1174, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
 
-    # Aromatic suberin (1506 cm-1)
-    geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
-
-    xlim(3200, 1200) +
+    xlim(3200, 1100) +
      scale_y_discrete(expand = expansion(mult = c(0.01, 0.56))) +  # Less space below, more above
     theme_classic() +
     theme(axis.text.y = element_text(size = 12),
@@ -1616,9 +1620,9 @@ create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
     # Add esters annotation
     annotate("text", x = 1900, y = max_y, label = "suberin esters", 
              size = 3.3, hjust = 0.5) +
-    # Add aromatic annotation
-    annotate("text", x = 1310, y = max_y + 0.1, label = "aromatic suberin", 
-             size = 3.3, hjust = 0.5)
+    # Add fingerprint annotation
+    annotate("label", x = 1310, y = max_y + 0.1, label = "suberin fingerprint", 
+             size = 3.3, hjust = 0.5, fill = "#ffffff", label.size = NA)
 
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -1679,7 +1683,7 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
                          y = normalized_absorbance_offset,
                          group = filename,
                          color = crop)) +
-    xlim(3200, 1200) +
+    xlim(3200, 1100) +
     geom_line(alpha = 0.7) +
     scale_y_continuous(
       breaks = crop_offsets + 1.111,  # move labels up
@@ -1694,25 +1698,29 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
     labs(x = expression("wavenumber (cm"^-1*")"), 
          y = "", 
          color = "Crop") +
-    # Suberin peak annotations
+      # Suberin peak annotations
     # Aliphatic suberin region (3000-2850 cm-1)
-    annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
-             alpha = 0.07, fill = "#5076ab") +
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.06, fill = "#5076ab") +
     # Specific aliphatic peaks
-    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
-    annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
-             alpha = 0.22, fill = "#5076ab") +
-    geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    
-    # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
-             alpha = 0.15, fill = "#4d653a") +
-    geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+    annotate("rect", xmin = 2922, xmax = 2932, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
 
-    # Aromatic suberin (1506 cm-1)
-    geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+    # Suberin esters (1737-1740 cm-1)
+    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#4d653a") +
+    # geom_vline(xintercept = 1739, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+    # suberin fingerprint (1464, 1240, 1174 cm-1)
+    geom_vline(xintercept = 1464, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
+    geom_vline(xintercept = 1240, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
+    geom_vline(xintercept = 1174, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
 
    # spacer
     annotate("text", x = 1900, y = 11, label = " ", 
@@ -1723,9 +1731,9 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
     # Add esters annotation
     annotate("text", x = 1920, y = text_y*1.32, label = "suberin esters", 
              size = 3.3, hjust = 0.5) +
-    # Add aromatic annotation
-    annotate("text", x = 1310, y = text_y*1.37, label = "aromatic suberin", 
-             size = 3.3, hjust = 0.5)
+    # Add fingerprint annotation
+    annotate("label", x = 1310, y = text_y*1.4, label = "suberin fingerprint", 
+             size = 3.3, hjust = 0.5, fill = "white", label.size = NA)
 
   return(list(plot = line_plot, data = filtered_data))
 }
@@ -1792,32 +1800,37 @@ create_crop_plot <- function(data, crop_name, color_palette) {
                       aes(x = wavenumber,
                           y = normalized_absorbance,
                           color = timepoint)) +
-    xlim(3200, 1200) +
+    xlim(3200, 1100) +
     geom_line() +
     theme_classic() +
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "root suberin")) +
     labs(x = expression("wavenumber (cm"^-1*")"), 
          y = "normalized absorbance") +
-    # Suberin peak annotations
+   # Suberin peak annotations
     # Aliphatic suberin region (3000-2850 cm-1)
-    annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
-             alpha = 0.07, fill = "#5076ab") +
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.06, fill = "#5076ab") +
     # Specific aliphatic peaks
-    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
-    annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
-             alpha = 0.22, fill = "#5076ab") +
-    geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    
-    # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
-             alpha = 0.15, fill = "#4d653a") +
-    geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+    annotate("rect", xmin = 2922, xmax = 2932, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
 
-    # Aromatic suberin (1506 cm-1)
-    geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+    # Suberin esters (1737-1740 cm-1)
+    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#4d653a") +
+    # geom_vline(xintercept = 1739, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+
+    # Suberin fingerprint (1464, 1240, 1174 cm-1)
+    geom_vline(xintercept = 1464, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
+    geom_vline(xintercept = 1240, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
+    geom_vline(xintercept = 1174, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
 
     # Add aliphatic annotation
     annotate("text", x = 2626, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
@@ -1825,9 +1838,8 @@ create_crop_plot <- function(data, crop_name, color_palette) {
     # Add esters annotation
     annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
              size = 3.3, hjust = 0.5) +
-    # Add aromatic annotation
-    annotate("text", x = 1300, y = max(crop_data$normalized_absorbance)+0.02, label = "aromatic suberin", 
-             size = 3.3, hjust = 0.5)
+    # Add fingerprint annotation
+    annotate("label", x = 1300, y = max(crop_data$normalized_absorbance)+0.04, label = "suberin fingerprint", size = 3.3, hjust = 0.5, fill = "white", label.size = NA)
 
   
   return(list(plot = crop_plot, data = crop_data))
@@ -1914,34 +1926,38 @@ base_plot_three <- ggplot() +
   ) +
   
     # Suberin peak annotations
-  # Aliphatic suberin region (3000-2850 cm-1)
-  annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
-            alpha = 0.07, fill = "#5076ab") +
-  # Specific aliphatic peaks
-  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-  geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-  # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
-  annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
-            alpha = 0.22, fill = "#5076ab") +
-  geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-  
-  # Suberin esters (1737-1740 cm-1)
-  annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
-            alpha = 0.15, fill = "#4d653a") +
-  geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 2999, ymin = -Inf, ymax = Inf, 
+             alpha = 0.06, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    # geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2922, xmax = 2932, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
 
-  # Aromatic suberin (1506 cm-1)
-  geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.46, color = "#5f3e38") +
+    # Suberin esters (1737-1740 cm-1)
+    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#4d653a") +
+    # geom_vline(xintercept = 1739, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
 
+    # Suberin fingerprint (1464, 1240, 1174 cm-1)
+    geom_vline(xintercept = 1464, linetype = "dotted", linewidth = 0.5, color = "#5f3e38") +
+    geom_vline(xintercept = 1240, linetype = "dotted", linewidth = 0.5, color = "#5f3e38") +
+    geom_vline(xintercept = 1174, linetype = "dotted", linewidth = 0.5, color = "#5f3e38") +
   # Add aliphatic annotation
   annotate("text", x = 2620, y = max_y_three - 0.03, label = "aliphatic suberin", 
             size = 4.8, hjust = 0.5) +
   # Add esters annotation
-  annotate("text", x = 1920, y = max_y_three - 0.01, label = "suberin esters", 
+  annotate("text", x = 1930, y = max_y_three - 0.01, label = "suberin esters", 
             size = 4.8, hjust = 0.5) +
-  # Add aromatic annotation
-  annotate("text", x = 1290, y = max_y_three, label = "aromatic suberin", 
-            size = 4.8, hjust = 0.5)
+  # Add fingerprint annotation
+  annotate("label", x = 1290, y = max_y_three, label = "suberin fingerprint", 
+            size = 4.8, hjust = 0.5, fill = "white", label.size = NA)
  
 # Add all crop layers without automatic legends, explicitly coloring each line
 combined_overlay_plot_suberin <- base_plot_three
@@ -2059,7 +2075,7 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
                          y = normalized_absorbance,
                          group = filename,
                          color = timepoint)) +
-    xlim(3200, 1200) +
+    xlim(3200, 1100) +
     geom_line(alpha = 0.8) +
     theme_classic() +
     scale_color_manual(values = color_palette) +
@@ -2071,28 +2087,34 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
     annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
              alpha = 0.07, fill = "#5076ab") +
     # Specific aliphatic peaks
-    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    geom_vline(xintercept = 2959, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
-    annotate("rect", xmin = 2919, xmax = 2930, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 2923, xmax = 2930, ymin = -Inf, ymax = Inf, 
              alpha = 0.22, fill = "#5076ab") +
+    geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    
+    annotate("rect", xmin = 2854, xmax = 2856, ymin = -Inf, ymax = Inf, 
+             alpha = 0.22, fill = "#5076ab") +
+
     # Suberin esters (1737-1740 cm-1)
     annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
              alpha = 0.15, fill = "#4d653a") +
     geom_vline(xintercept = 1737, linetype = "dashed", linewidth = 0.23, color = "#4d653a") +
 
-    # Aromatic suberin (1506 cm-1)
-    geom_vline(xintercept = 1506, linetype = "dotted", linewidth = 0.3, color = "#5f3e38") +
+    # Aromatic suberin (1464, 1240, 1174 cm-1)
+    geom_vline(xintercept = 1464, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
+    geom_vline(xintercept = 1240, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
+    geom_vline(xintercept = 1174, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
+
     # Add aliphatic annotation
     annotate("text", x = 2626, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
              size = 3.3, hjust = 0.5, color = "#163a6c") +
     # Add esters annotation
     annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
              size = 3.3, hjust = 0.5, color = "#2b3c1d") +
-    # Add aromatic annotation
-    annotate("text", x = 1296, y = max(crop_data$normalized_absorbance)+0.02, label = "aromatic suberin", 
+    # Add fingerprint annotation
+    annotate("text", x = 1296, y = max(crop_data$normalized_absorbance)+0.02, label = "suberin fingerprint", 
              size = 3.3, hjust = 0.5, color = "#3f2622")
   return(list(plot = line_plot, data = crop_data))
 }
