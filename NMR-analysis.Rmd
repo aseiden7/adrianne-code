@@ -16,7 +16,7 @@ knit: (function(inputFile, encoding) {
 ---
 
 # Overview
-This document outlines the steps for analyzing solid-state <sup>13</sup>C CP/MAS NMR spectra using the `SOMnmR` package in R. The package was developed by Luis Colocho at the Technical University of Munich. You can find the package and its documentation here: https://github.com/LuisCol8/SOMnmR and a peer-reviewed publication describing the methods here: https://doi.org/10.1029%2F2024JG008288. Note that if you are on a Mac, you will need to have [XQuartz](https://www.xquartz.org/) installed to use the `View()` function in R.
+This document outlines the steps for analyzing solid-state <sup>13</sup>C CP/MAS NMR spectra using the `SOMnmR` package in R. The package was developed by Luis Colocho at the Technical University of Munich. You can find the package and its documentation here: https://github.com/LuisCol8/SOMnmR and a peer-reviewed publication describing the methods here: https://doi.org/10.1029%2F2024JG008288.
 
 Full citation:
 Colocho Hurtarte, L. C., Garcia‐Franco,N., Villalba Ayala, G., Prietzel, J., &Koegel‐Knabner, I. (2025). SOMnmR: An R package for analyzing CP MAS <sup>13</sup>C NMR spectra of environmental samples. *Journal of Geophysical Research: Biogeosciences*, 130, e2024JG008288.
@@ -231,3 +231,23 @@ for(col in names(Integrall)) {
 knitr::kable(Integrall, 
              caption = "Results table: All spectra SSB-corrected integrals") %>%
   kableExtra::kable_styling()
+
+# Save the results as a .csv file
+write.csv(Integrall, file.path(outputs_folder, "NMR_SSB_corrected_integrals_Bonanomi.csv"), row.names = FALSE)
+```
+# Make a plot
+"There is a quick plot function that separates the regions of the spectrum."
+
+```{r plot-nmr, message=FALSE, fig.width=10, fig.height=8, results='hide'}
+# load necessary packages
+  library(ggplot2)
+  library(SOMnmR)
+
+# Set working directory to outputs folder for plot saving
+setwd(outputs_folder)
+
+# Generate plots - they will be saved to outputs_folder and displayed in HTML
+plot_NMR(spec, NMRmeth = "Bonanomi", file.output = TRUE , use.tiff = FALSE)
+
+# Return to original directory
+setwd(csv_folder)
