@@ -236,7 +236,7 @@ knitr::kable(Integrall,
 write.csv(Integrall, file.path(outputs_folder, "NMR_SSB_corrected_integrals_Bonanomi.csv"), row.names = FALSE)
 ```
 # Make a plot
-"There is a quick plot function that separates the regions of the spectrum." -- I modified plot_NMR to plot 240 to -20 ppm instead of 400 to -200 ppm, set the y-minimum at -1 (instead of -5), and use the sample names as plot titles.
+"There is a quick plot function that separates the regions of the spectrum." -- I modified plot_NMR to plot 230 to -20 ppm instead of 400 to -200 ppm, set the y-minimum at -0.1 (instead of -5), and use the sample names as plot titles.
 
 ```{r plot-nmr, message=FALSE, fig.width=10, fig.height=8, results='hide'}
 # load necessary packages

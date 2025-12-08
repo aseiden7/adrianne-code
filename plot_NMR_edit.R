@@ -26,14 +26,13 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
   ## check and assign FALSE if optional parameters are not set
   if(is.null(use.tiff)) {use.tiff <- FALSE}
   if(is.null(file.output)) {file.output <- FALSE}
-  ## adding title
-  if (is.null(title)) {
-    title <- paste(sample.name)
-  }
 
   for (i in 1:length(raw.spec)) {
 
     sample.name <- raw.spec[[i]]$name
+    
+    ## Set title to sample name
+    title <- paste(sample.name)
     corr.spec  <- raw.spec[[i]]$data$raw.spec
     corr.spec$raw.intensity <- (corr.spec$raw.intensity/max(corr.spec$raw.intensity))*100
 
@@ -142,10 +141,9 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ylab("Intensity (normalized)")+
 
         ## create line y = 0
-        ylim(-1, plot.ymax)+
+        ylim(-0.1, plot.ymax)+
         scale_x_reverse(limits=c(230, -10))+
-        raincloud_theme+
-        ggtitle(title)
+        raincloud_theme
 
       print(plt)
 
@@ -265,8 +263,7 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ## create line y = 0
         ylim(-0.1, plot.ymax)+
         scale_x_reverse(limits=c(230, -10))+
-        raincloud_theme+
-        ggtitle(title)
+        raincloud_theme
 
       print(plt)
 
@@ -335,8 +332,7 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ## create line y = 0
         ylim(-0.1, plot.ymax)+
         scale_x_reverse(limits=c(230, -10))+
-        raincloud_theme+
-        ggtitle(title)
+        raincloud_theme
 
       print(plt)
 
