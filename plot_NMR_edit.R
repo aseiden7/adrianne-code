@@ -143,7 +143,8 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ## create line y = 0
         ylim(-0.1, plot.ymax)+
         scale_x_reverse(limits=c(230, -10))+
-        raincloud_theme
+        raincloud_theme+
+        ggtitle(title)
 
       print(plt)
 
@@ -263,7 +264,8 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ## create line y = 0
         ylim(-0.1, plot.ymax)+
         scale_x_reverse(limits=c(230, -10))+
-        raincloud_theme
+        raincloud_theme+
+        ggtitle(title)
 
       print(plt)
 
@@ -332,7 +334,8 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ## create line y = 0
         ylim(-0.1, plot.ymax)+
         scale_x_reverse(limits=c(230, -10))+
-        raincloud_theme
+        raincloud_theme+
+        ggtitle(title)
 
       print(plt)
 
