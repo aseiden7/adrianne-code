@@ -143,8 +143,9 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
 
         ## create line y = 0
         ylim(-1, plot.ymax)+
-        scale_x_reverse(limits=c(240, -20))+
-        raincloud_theme
+        scale_x_reverse(limits=c(230, -10))+
+        raincloud_theme+
+        ggtitle(title)
 
       print(plt)
 
@@ -195,9 +196,10 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ylab("Intensity")+
 
         ## create line y = 0
-        ylim(-1, plot.ymax)+
-        scale_x_reverse(limits=c(240, -20))+
-        raincloud_theme
+        ylim(-0.1, plot.ymax)+
+        scale_x_reverse(limits=c(230, -10))+
+        raincloud_theme+
+        ggtitle(title)
 
       print(plt)
 
@@ -261,9 +263,10 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ylab("Intensity")+
 
         ## create line y = 0
-        ylim(-1, plot.ymax)+
-        scale_x_reverse(limits=c(240, -20))+
-        raincloud_theme
+        ylim(-0.1, plot.ymax)+
+        scale_x_reverse(limits=c(230, -10))+
+        raincloud_theme+
+        ggtitle(title)
 
       print(plt)
 
@@ -330,9 +333,10 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         ylab("Intensity")+
 
         ## create line y = 0
-        ylim(-1, plot.ymax)+
-        scale_x_reverse(limits=c(240, -20))+
-        raincloud_theme
+        ylim(-0.1, plot.ymax)+
+        scale_x_reverse(limits=c(230, -10))+
+        raincloud_theme+
+        ggtitle(title)
 
       print(plt)
 

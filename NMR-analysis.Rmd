@@ -243,12 +243,13 @@ write.csv(Integrall, file.path(outputs_folder, "NMR_SSB_corrected_integrals_Bona
   library(ggplot2)
   library(SOMnmR)
 
+# Source the custom function from adrianne-code directory (use absolute path)
+source(file.path(dirname(getwd()), "adrianne-code", "plot_NMR_edit.R"))
+
 # Set working directory to outputs folder for plot saving
 setwd(outputs_folder)
 
 # Generate plots - they will be saved to outputs_folder and displayed in HTML
-# reference modified plot_NMR 
-source("plot_NMR_edit.R")
 plot_NMR_aks(spec, NMRmeth = "Bonanomi", file.output = TRUE , use.tiff = FALSE)
 
 # Return to original directory
