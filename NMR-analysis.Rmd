@@ -333,14 +333,21 @@ color_mapping <- c(
   "wheat_wk10" = "#98C559",
   "wheat_wk40" = "#374B1B"
 )
+crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#98C559")
+# Create numeric timepoint for trendline
+plot_data$timepoint_num <- as.numeric(plot_data$timepoint)
 
 # Create the plot
 p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop_time)) +
-  geom_violin(alpha = 0.6, trim = FALSE) +
+  geom_violin(alpha = 0.7, trim = FALSE) +
   geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
   geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  geom_smooth(aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, group = crop, color = crop), 
+              method = "lm", se = TRUE, linetype = "dashed", 
+              linewidth = 0.6, alpha = 0, show.legend = FALSE) +
   facet_grid(crop ~ ., switch = "y") +
   scale_fill_manual(values = color_mapping) +
+  scale_color_manual(values = crop_color) +
   labs(
     x = "Timepoint",
     y = "Alkyl/O-Alkyl Ratio",
