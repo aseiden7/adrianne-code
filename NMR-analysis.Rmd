@@ -417,7 +417,7 @@ ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
 
 Create plots showing mean NMR spectra for each crop-timepoint combination with standard deviation and full range. The solid line represents the mean spectrum, the medium transparency ribbon represents ±1 standard deviation, and the most transparent ribbon represents the full range (min to max) of spectra at each ppm value (may be the same as ±1 standard deviation).
 
-```{r plot-averaged-spectra, message=FALSE, warning=FALSE, fig.width=12, fig.height=10}
+```{r plot-averaged-spectra, message=FALSE, warning=FALSE, fig.width=12, fig.height=8}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -489,7 +489,7 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
   geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
-  facet_wrap(~ crop_time, ncol = 3, scales = "free_y") +
+  facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
   scale_fill_manual(values = color_map) +
@@ -512,6 +512,6 @@ print(p_spectra)
 
 # Save the plot
 ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_by_crop_timepoint.png"),
-       plot = p_spectra, width = 12, height = 10, dpi = 300)
+       plot = p_spectra, width = 12, height = 8, dpi = 300)
 ```
 
