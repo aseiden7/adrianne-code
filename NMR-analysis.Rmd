@@ -318,20 +318,20 @@ plot_data <- ratios_df %>%
   mutate(
     crop = factor(crop, levels = c("soy", "rice", "wheat")),
     timepoint = factor(timepoint, levels = c("wk0", "wk10", "wk40")),
-    crop_time = interaction(crop, timepoint)
+    crop_time = paste(crop, timepoint, sep = "_")
   )
 
 # Create named color vector for all crop-timepoint combinations
 color_mapping <- c(
-  "soy.wk0" = crop_timepoint_colors$soy["wk0"],
-  "soy.wk10" = crop_timepoint_colors$soy["wk10"],
-  "soy.wk40" = crop_timepoint_colors$soy["wk40"],
-  "rice.wk0" = crop_timepoint_colors$rice["wk0"],
-  "rice.wk10" = crop_timepoint_colors$rice["wk10"],
-  "rice.wk40" = crop_timepoint_colors$rice["wk40"],
-  "wheat.wk0" = crop_timepoint_colors$wheat["wk0"],
-  "wheat.wk10" = crop_timepoint_colors$wheat["wk10"],
-  "wheat.wk40" = crop_timepoint_colors$wheat["wk40"]
+  "soy_wk0" = "#FE71B1",
+  "soy_wk10" = "#FE318E",
+  "soy_wk40" = "#7A0137",
+  "rice_wk0" = "#FDB35E",
+  "rice_wk10" = "#FC9D33",
+  "rice_wk40" = "#B56203",
+  "wheat_wk0" = "#B4D586",
+  "wheat_wk10" = "#98C559",
+  "wheat_wk40" = "#374B1B"
 )
 
 # Create the plot
