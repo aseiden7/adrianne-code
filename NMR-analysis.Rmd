@@ -311,7 +311,7 @@ write.csv(ratio_means, file.path(outputs_folder, "NMR_ratio_means.csv"), row.nam
 Create stacked violin/box plots showing alkyl/O-alkyl ratios across timepoints for each crop type.
 Create stacked violin/box plots showing RDR across timepoints for each crop type.
 
-```{r plot-ratios, message=FALSE, warning=FALSE, fig.width=8, fig.height=10}
+```{r plot-ratios, message=FALSE, warning=FALSE, fig.width=11, fig.height=7}
 library(ggplot2)
 
 # Define color scheme
@@ -332,44 +332,45 @@ plot_data <- ratios_df %>%
 
 # Create named color vector for all crop-timepoint combinations
 color_mapping <- c(
-  "soy_wk0" = "#FE71B1",
-  "soy_wk10" = "#FE318E",
-  "soy_wk40" = "#7A0137",
-  "rice_wk0" = "#FDB35E",
-  "rice_wk10" = "#FC9D33",
-  "rice_wk40" = "#B56203",
-  "wheat_wk0" = "#B4D586",
-  "wheat_wk10" = "#98C559",
-  "wheat_wk40" = "#374B1B"
+  "soy_wk0" = "#FE5CA5",
+  "soy_wk10" = "#DD2578",
+  "soy_wk40" = "#9B0D4D",
+  "rice_wk0" = "#FDAC50",
+  "rice_wk10" = "#f08f20",
+  "rice_wk40" = "#C7710F",
+  "wheat_wk0" = "#ABD077",
+  "wheat_wk10" = "#85b148",
+  "wheat_wk40" = "#4F6A2B"
 )
 crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#98C559")
 # Create numeric timepoint for trendline
 plot_data$timepoint_num <- as.numeric(plot_data$timepoint)
 
 # Create the A/O-A plot
-p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop_time)) +
-#  geom_violin(alpha = 0.7, trim = FALSE) +
-  geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
-  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop, color = crop)) +
+  geom_boxplot(aes(group = interaction(timepoint, crop)), width = 0.6, alpha = 0.7, 
+               outlier.shape = NA, position = position_dodge(width = 0.7)) +
+  geom_point(aes(group = interaction(timepoint, crop)), 
+             position = position_jitterdodge(jitter.width = 0.12, dodge.width = 0.7), 
+             alpha = 0.5, size = 2) +
   geom_smooth(aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, group = crop, color = crop), 
-              method = "lm", se = TRUE, linetype = "dashed", 
-              linewidth = 0.6, alpha = 0, show.legend = FALSE) +
-  facet_grid(crop ~ ., switch = "y") +
-  scale_fill_manual(values = color_mapping) +
-  scale_color_manual(values = crop_color) +
+              method = "lm", se = FALSE, linetype = "dashed", 
+              linewidth = 0.8) +
+  scale_fill_manual(values = crop_color, name = NULL) +
+  scale_color_manual(values = crop_color, name = NULL) +
   labs(
-    x = "Timepoint",
+    x = "",
     y = "Alkyl/O-Alkyl Ratio",
     title = "Alkyl/O-Alkyl Ratios Across Timepoints by Crop Type"
   ) +
   theme_minimal() +
   theme(
-    strip.placement = "outside",
-    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 12, face = "bold"),
-    panel.spacing = unit(1, "lines"),
-    legend.position = "none",
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10)
+    legend.position = "right",
+    legend.text = element_text(size = 14),
+    axis.title = element_text(size = 14.5),
+    axis.text = element_text(size = 14.5),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
   )
 
 # Display the plot
@@ -377,33 +378,34 @@ print(p)
 
 # Save the plot
 ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoint.png"),
-       plot = p, width = 8, height = 10, dpi = 300)
+       plot = p, width = 11, height = 7, dpi = 300)
 ###########################################################################################
 
 # Create the RDR plot
-p1 <- ggplot(plot_data, aes(x = timepoint, y = RDR, fill = crop_time)) +
-#  geom_violin(alpha = 0.7, trim = FALSE) +
-  geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
-  geom_jitter(width = 0.01, alpha = 0.5, size = 2.2) +
+p1 <- ggplot(plot_data, aes(x = timepoint, y = RDR, fill = crop, color = crop)) +
+  geom_boxplot(aes(group = interaction(timepoint, crop)), width = 0.6, alpha = 0.7, 
+               outlier.shape = NA, position = position_dodge(width = 0.7)) +
+  geom_point(aes(group = interaction(timepoint, crop)), 
+             position = position_jitterdodge(jitter.width = 0.12, dodge.width = 0.7), 
+             alpha = 0.5, size = 2) +
   geom_smooth(aes(x = timepoint_num, y = RDR, group = crop, color = crop), 
-              method = "lm", se = TRUE, linetype = "dashed", 
-              linewidth = 0.6, alpha = 0, show.legend = FALSE) +
-  facet_grid(crop ~ ., switch = "y") +
-  scale_fill_manual(values = color_mapping) +
-  scale_color_manual(values = crop_color) +
+              method = "lm", se = FALSE, linetype = "dashed", 
+              linewidth = 0.8) +
+  scale_fill_manual(values = crop_color, name = NULL) +
+  scale_color_manual(values = crop_color, name = NULL) +
   labs(
-    x = "Timepoint",
-    y = "RDR",
+    x = "",
+    y = "Resistance-to-Decomposition Ratio (RDR)",
     title = "Resistance-to-Decomposition Ratio (RDR) Across Timepoints by Crop Type"
   ) +
   theme_minimal() +
   theme(
-    strip.placement = "outside",
-    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 12, face = "bold"),
-    panel.spacing = unit(1, "lines"),
-    legend.position = "none",
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10)
+    legend.position = "right",
+    legend.text = element_text(size = 14),
+    axis.title = element_text(size = 14.5),
+    axis.text = element_text(size = 14.5),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
   )
 
 # Display the plot
@@ -411,7 +413,7 @@ print(p1)
 
 # Save the plot
 ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
-       plot = p1, width = 8, height = 10, dpi = 300)
+       plot = p1, width = 11, height = 7, dpi = 300)
 
 ```
 

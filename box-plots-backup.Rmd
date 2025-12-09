@@ -1,0 +1,107 @@
+# Plot A/O-A and RDR Over Time
+Create stacked violin/box plots showing alkyl/O-alkyl ratios across timepoints for each crop type.
+Create stacked violin/box plots showing RDR across timepoints for each crop type.
+
+```{r plot-ratios, message=FALSE, warning=FALSE, fig.width=8, fig.height=10}
+library(ggplot2)
+
+# Define color scheme
+crop_timepoint_colors <- list(
+  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk40" = "#374B1B"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
+)
+
+# Filter out noPlant and prepare data
+plot_data <- ratios_df %>%
+  filter(crop %in% c("wheat", "rice", "soy")) %>%
+  mutate(
+    crop = factor(crop, levels = c("soy", "rice", "wheat")),
+    timepoint = factor(timepoint, levels = c("wk0", "wk10", "wk40")),
+    crop_time = paste(crop, timepoint, sep = "_")
+  )
+
+# Create named color vector for all crop-timepoint combinations
+color_mapping <- c(
+  "soy_wk0" = "#FE71B1",
+  "soy_wk10" = "#FE318E",
+  "soy_wk40" = "#7A0137",
+  "rice_wk0" = "#FDB35E",
+  "rice_wk10" = "#FC9D33",
+  "rice_wk40" = "#B56203",
+  "wheat_wk0" = "#B4D586",
+  "wheat_wk10" = "#98C559",
+  "wheat_wk40" = "#374B1B"
+)
+crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#98C559")
+# Create numeric timepoint for trendline
+plot_data$timepoint_num <- as.numeric(plot_data$timepoint)
+
+# Create the A/O-A plot
+p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop_time, color = crop_time)) +
+#  geom_violin(alpha = 0.7, trim = FALSE) +
+  geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
+  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  geom_smooth(aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, group = crop, color = crop), 
+              method = "lm", se = TRUE, linetype = "dashed", 
+              linewidth = 0.6, alpha = 0, show.legend = FALSE) +
+  facet_grid(crop ~ ., switch = "y") +
+  scale_fill_manual(values = color_mapping) +
+  scale_color_manual(values = c(color_mapping, crop_color)) +
+  labs(
+    x = "Timepoint",
+    y = "Alkyl/O-Alkyl Ratio",
+    title = "Alkyl/O-Alkyl Ratios Across Timepoints by Crop Type"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.placement = "outside",
+    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 12, face = "bold"),
+    panel.spacing = unit(1, "lines"),
+    legend.position = "none",
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+# Display the plot
+print(p)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoint.png"),
+       plot = p, width = 8, height = 10, dpi = 300)
+###########################################################################################
+
+# Create the RDR plot
+p1 <- ggplot(plot_data, aes(x = timepoint, y = RDR, fill = crop_time)) +
+#  geom_violin(alpha = 0.7, trim = FALSE) +
+  geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
+  geom_jitter(width = 0.01, alpha = 0.5, size = 2.2) +
+  geom_smooth(aes(x = timepoint_num, y = RDR, group = crop, color = crop), 
+              method = "lm", se = TRUE, linetype = "dashed", 
+              linewidth = 0.6, alpha = 0, show.legend = FALSE) +
+  facet_grid(crop ~ ., switch = "y") +
+  scale_fill_manual(values = color_mapping) +
+  scale_color_manual(values = crop_color) +
+  labs(
+    x = "Timepoint",
+    y = "RDR",
+    title = "Resistance-to-Decomposition Ratio (RDR) Across Timepoints by Crop Type"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.placement = "outside",
+    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 12, face = "bold"),
+    panel.spacing = unit(1, "lines"),
+    legend.position = "none",
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+# Display the plot
+print(p1)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
+       plot = p1, width = 8, height = 10, dpi = 300)
+
+```
