@@ -122,16 +122,16 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         scale_fill_manual(breaks = c("Alkyl-C", "O/N-Alkyl-C", "Aryl-C", "Carboxyl-C"),values=colors, labels = c("Alkyl-C", "O/N-Alkyl-C", "Aryl-C", "Carboxyl-C"))+
 
         ## area of Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm>0 & ppm< 45 , ppm, NA), fill = "Alkyl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>0 & ppm< 45 , ppm, NA), fill = "Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of O Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm>45 & ppm< 110 , ppm, NA), fill = "O/N-Alkyl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>45 & ppm< 110 , ppm, NA), fill = "O/N-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of Aryl-C
-        geom_area(mapping = aes(x = ifelse(ppm>110 & ppm< 160 , ppm, NA), fill = "Aryl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>110 & ppm< 160 , ppm, NA), fill = "Aryl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of carboxyl-C
-        geom_area(mapping = aes(x = ifelse(ppm>160 & ppm< 220 , ppm, NA), fill = "Carboxyl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>160 & ppm< 220 , ppm, NA), fill = "Carboxyl-C"), alpha = 0.8, size = 0.1) +
 
         ## plot the NMR spectrum
         geom_line(size = 0.33)+
@@ -176,16 +176,16 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
         scale_fill_manual(breaks = c("Alkyl-C", "O/N-Alkyl-C", "Aryl-C", "Carboxyl-C"),values=colors, labels = c("Alkyl-C", "O/N-Alkyl-C", "Aryl-C", "Carboxyl-C"))+
 
         ## area of Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm>0 & ppm< 45 , ppm, NA), fill = "Alkyl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>0 & ppm< 45 , ppm, NA), fill = "Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of O Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm>45 & ppm< 110 , ppm, NA), fill = "O/N-Alkyl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>45 & ppm< 110 , ppm, NA), fill = "O/N-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of Aryl-C
-        geom_area(mapping = aes(x = ifelse(ppm>110 & ppm< 165 , ppm, NA), fill = "Aryl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>110 & ppm< 165 , ppm, NA), fill = "Aryl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of carboxyl-C
-        geom_area(mapping = aes(x = ifelse(ppm>165 & ppm< 185 , ppm, NA), fill = "Carboxyl-C"), alpha = 0.8, size = 0.6) +
+        geom_area(mapping = aes(x = ifelse(ppm>165 & ppm< 185 , ppm, NA), fill = "Carboxyl-C"), alpha = 0.8, size = 0.1) +
 
         ## plot the NMR spectrum
         geom_line(size = 0.25)+
@@ -234,25 +234,25 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
                                      "Phenolic-C", "Carbonyl and amide-C","Ketone-C"))+
 
         ## area of Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm >= 0 & ppm <= 45, ppm,NA), y = norm.intensity, fill = "Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm >= 0 & ppm <= 45, ppm,NA), y = norm.intensity, fill = "Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of Methoxyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 46 & ppm< 60 , ppm, NA), y = norm.intensity, fill = "Methoxyl/N-Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 46 & ppm< 60 , ppm, NA), y = norm.intensity, fill = "Methoxyl/N-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of O-Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 61 & ppm< 90 , ppm, NA), y = norm.intensity, fill = "O-Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 61 & ppm< 90 , ppm, NA), y = norm.intensity, fill = "O-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of Di-O-Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 91 & ppm< 110 , ppm, NA), y = norm.intensity, fill = "Di-O-Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 91 & ppm< 110 , ppm, NA), y = norm.intensity, fill = "Di-O-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of H and C substituted aromatic -C
-        geom_area(mapping = aes(x = ifelse(ppm> 111 & ppm< 140 , ppm, NA), y = norm.intensity, fill = "Aromatic-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 111 & ppm< 140 , ppm, NA), y = norm.intensity, fill = "Aromatic-C"), alpha = 0.8, size = 0.1) +
 
         ## area of O substituted aromatic -C
-        geom_area(mapping = aes(x = ifelse(ppm> 141 & ppm< 160 , ppm, NA), y = norm.intensity, fill = "Phenolic-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 141 & ppm< 160 , ppm, NA), y = norm.intensity, fill = "Phenolic-C"), alpha = 0.8, size = 0.1) +
 
         ## area of carboxyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 161 & ppm< 190 , ppm, NA), y = norm.intensity, fill = "Carbonyl and amide-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 161 & ppm< 190 , ppm, NA), y = norm.intensity, fill = "Carbonyl and amide-C"), alpha = 0.8, size = 0.1) +
 
         ## plot the NMR spectrum
         geom_line(size = 0.25)+
@@ -301,28 +301,28 @@ plot_NMR_aks <- function (raw.spec, NMRmeth = NULL,  use.tiff = NULL,
                           labels = c("Alkyl-C", "Methoxyl/N-Alkyl-C", "O-Alkyl-C", "Di-O-Alkyl-C", "Aromatic-C",
                                      "Phenolic-C", "Carbonyl and amide-C","Ketone-C"))+
         ## area of Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm >= 0 & ppm <= 45, ppm,NA), y = norm.intensity, fill = "Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm >= 0 & ppm <= 45, ppm,NA), y = norm.intensity, fill = "Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of Methoxyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 45 & ppm< 60 , ppm, NA), y = norm.intensity, fill = "Methoxyl/N-Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 45 & ppm< 60 , ppm, NA), y = norm.intensity, fill = "Methoxyl/N-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of O-Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 60 & ppm< 95 , ppm, NA), y = norm.intensity, fill = "O-Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 60 & ppm< 95 , ppm, NA), y = norm.intensity, fill = "O-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of Di-O-Alkyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 95 & ppm< 110 , ppm, NA), y = norm.intensity, fill = "Di-O-Alkyl-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 95 & ppm< 110 , ppm, NA), y = norm.intensity, fill = "Di-O-Alkyl-C"), alpha = 0.8, size = 0.1) +
 
         ## area of H and C substituted aromatic -C
-        geom_area(mapping = aes(x = ifelse(ppm> 110 & ppm< 145 , ppm, NA), y = norm.intensity, fill = "Aromatic-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 110 & ppm< 145 , ppm, NA), y = norm.intensity, fill = "Aromatic-C"), alpha = 0.8, size = 0.1) +
 
         ## area of O substituted aromatic -C
-        geom_area(mapping = aes(x = ifelse(ppm> 145 & ppm< 165 , ppm, NA), y = norm.intensity, fill = "Phenolic-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 145 & ppm< 165 , ppm, NA), y = norm.intensity, fill = "Phenolic-C"), alpha = 0.8, size = 0.1) +
 
         ## area of carboxyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 165 & ppm< 190 , ppm, NA), y = norm.intensity, fill = "Carbonyl and amide-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 165 & ppm< 190 , ppm, NA), y = norm.intensity, fill = "Carbonyl and amide-C"), alpha = 0.8, size = 0.1) +
 
         ## area of carboxyl-C
-        geom_area(mapping = aes(x = ifelse(ppm> 190 & ppm< 210 , ppm, NA), y = norm.intensity, fill = "Ketone-C"), alpha = 0.8, size = 0.5) +
+        geom_area(mapping = aes(x = ifelse(ppm> 190 & ppm< 210 , ppm, NA), y = norm.intensity, fill = "Ketone-C"), alpha = 0.8, size = 0.1) +
 
         ## plot the NMR spectrum
         geom_line(size = 0.25)+
