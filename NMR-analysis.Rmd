@@ -371,3 +371,105 @@ ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoi
        plot = p, width = 8, height = 10, dpi = 300)
 ```
 
+# Plot Averaged NMR Spectra by Crop and Timepoint
+
+Create plots showing mean NMR spectra for each crop-timepoint combination with standard deviation and full range.
+
+```{r plot-averaged-spectra, message=FALSE, warning=FALSE, fig.width=12, fig.height=10}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Define color scheme
+crop_timepoint_colors <- list(
+  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk40" = "#374B1B"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
+)
+
+# Extract all spectra into a data frame
+spectra_list <- lapply(seq_along(spec), function(i) {
+  df <- spec[[i]]$data$raw.spec
+  # Select ppm and raw.intensity columns and rename
+  df <- data.frame(
+    ppm = df$ppm,
+    intensity = df$raw.intensity,
+    sample_name = spec[[i]]$name
+  )
+  return(df)
+})
+
+spectra_df <- bind_rows(spectra_list)
+
+# Extract crop and timepoint from sample names
+spectra_df$crop <- sub(".*(noPlant|wheat|rice|soy)_.*", "\\1", spectra_df$sample_name)
+spectra_df$timepoint <- sub(".*_(wk[0-9]+).*", "\\1", spectra_df$sample_name)
+
+# Filter for crops of interest and ppm range
+spectra_filtered <- spectra_df %>%
+  filter(crop %in% c("wheat", "rice", "soy"),
+         ppm >= -10 & ppm <= 230)
+
+# Calculate statistics by crop, timepoint, and ppm
+spectra_stats <- spectra_filtered %>%
+  group_by(crop, timepoint, ppm) %>%
+  summarise(
+    mean_intensity = mean(intensity),
+    sd_intensity = sd(intensity),
+    min_intensity = min(intensity),
+    max_intensity = max(intensity),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    upper_sd = mean_intensity + sd_intensity,
+    lower_sd = mean_intensity - sd_intensity,
+    crop_time = paste(crop, timepoint, sep = "_")
+  )
+
+# Create color mapping
+color_map <- c(
+  "soy_wk0" = crop_timepoint_colors$soy["wk0"],
+  "soy_wk10" = crop_timepoint_colors$soy["wk10"],
+  "soy_wk40" = crop_timepoint_colors$soy["wk40"],
+  "rice_wk0" = crop_timepoint_colors$rice["wk0"],
+  "rice_wk10" = crop_timepoint_colors$rice["wk10"],
+  "rice_wk40" = crop_timepoint_colors$rice["wk40"],
+  "wheat_wk0" = crop_timepoint_colors$wheat["wk0"],
+  "wheat_wk10" = crop_timepoint_colors$wheat["wk10"],
+  "wheat_wk40" = crop_timepoint_colors$wheat["wk40"]
+)
+
+# Create the plot
+p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
+  # Full range (most transparent)
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.22, color = NA) +
+  # +/- 1 SD (medium transparency)
+  geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.55, color = NA) +
+  # Mean line (solid)
+  geom_line(linewidth = 0.8) +
+  facet_wrap(~ crop_time, ncol = 3, scales = "free_y") +
+  scale_x_reverse() +
+  scale_color_manual(values = color_map) +
+  scale_fill_manual(values = color_map) +
+  labs(
+    x = "Chemical Shift (ppm)",
+    y = "Intensity",
+    title = "Average NMR Spectra by Crop and Timepoint"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 11, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.spacing = unit(1, "lines")
+  )
+
+# Display the plot
+print(p_spectra)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_by_crop_timepoint.png"),
+       plot = p_spectra, width = 12, height = 10, dpi = 300)
+```
+
