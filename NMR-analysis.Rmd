@@ -348,14 +348,12 @@ plot_data$timepoint_num <- as.numeric(plot_data$timepoint)
 
 # Create the A/O-A plot
 p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop, color = crop)) +
-  geom_boxplot(aes(group = interaction(timepoint, crop)), width = 0.6, alpha = 0.7, 
-               outlier.shape = NA, position = position_dodge(width = 0.7)) +
   geom_point(aes(group = interaction(timepoint, crop)), 
-             position = position_jitterdodge(jitter.width = 0.12, dodge.width = 0.7), 
-             alpha = 0.5, size = 2) +
+             position = position_jitterdodge(jitter.width = 0.02, dodge.width = 0.6), 
+             alpha = 0.9, size = 4.5) +
   geom_smooth(aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
-              linewidth = 0.8) +
+              linewidth = 0.7) +
   scale_fill_manual(values = crop_color, name = NULL) +
   scale_color_manual(values = crop_color, name = NULL) +
   labs(
@@ -383,14 +381,12 @@ ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoi
 
 # Create the RDR plot
 p1 <- ggplot(plot_data, aes(x = timepoint, y = RDR, fill = crop, color = crop)) +
-  geom_boxplot(aes(group = interaction(timepoint, crop)), width = 0.6, alpha = 0.7, 
-               outlier.shape = NA, position = position_dodge(width = 0.7)) +
   geom_point(aes(group = interaction(timepoint, crop)), 
-             position = position_jitterdodge(jitter.width = 0.12, dodge.width = 0.7), 
-             alpha = 0.5, size = 2) +
+             position = position_jitterdodge(jitter.width = 0.02, dodge.width = 0.6), 
+             alpha = 0.9, size = 4.5) +
   geom_smooth(aes(x = timepoint_num, y = RDR, group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
-              linewidth = 0.8) +
+              linewidth = 0.7) +
   scale_fill_manual(values = crop_color, name = NULL) +
   scale_color_manual(values = crop_color, name = NULL) +
   labs(
