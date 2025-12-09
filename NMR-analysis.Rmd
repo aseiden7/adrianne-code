@@ -254,3 +254,113 @@ plot_NMR_aks(spec, NMRmeth = "Bonanomi", file.output = TRUE , use.tiff = FALSE)
 
 # Return to original directory
 setwd(csv_folder)
+```
+
+# Calculate Alkyl/O-Alkyl Ratios
+
+Calculate the alkyl/O-alkyl ratio for each sample and save updated CSV with ratios. Then calculate mean ratios grouped by crop type and timepoint.
+
+```{r calculate-ratios, message=FALSE, warning=FALSE}
+# Read the SSB-corrected integrals CSV
+ratios_df <- read.csv(file.path(outputs_folder, "NMR_SSB_corrected_integrals_Bonanomi.csv"))
+
+# Calculate alkyl/O-alkyl ratio
+ratios_df$Alkyl_O.Alkyl_Ratio <- ratios_df$Alkyl / ratios_df$O.Alkyl
+
+# Round the new ratio column to 3 decimal places
+ratios_df$Alkyl_O.Alkyl_Ratio <- round(ratios_df$Alkyl_O.Alkyl_Ratio, 3)
+
+# Save updated CSV with ratios
+write.csv(ratios_df, file.path(outputs_folder, "NMR_SSB_corrected_integrals_Bonanomi.csv"), row.names = FALSE)
+
+# Extract crop and timepoint from sample names
+# Assuming format like "AS1_noPlant_wk0" or similar
+ratios_df$crop <- sub(".*(noPlant|wheat|rice|soy)_.*", "\\1", ratios_df$name)
+ratios_df$timepoint <- sub(".*_(wk[0-9]+).*", "\\1", ratios_df$name)
+
+# Calculate mean alkyl/O-alkyl ratio grouped by crop and timepoint
+ratio_means <- ratios_df %>%
+  group_by(crop, timepoint) %>%
+  summarise(
+    n_samples = n(),
+    mean_Alkyl_O.Alkyl = round(mean(Alkyl_O.Alkyl_Ratio, na.rm = TRUE), 3),
+    sd_Alkyl_O.Alkyl = round(sd(Alkyl_O.Alkyl_Ratio, na.rm = TRUE), 3),
+    .groups = 'drop'
+  )
+
+# Display the results
+knitr::kable(ratio_means, 
+             caption = "Mean Alkyl/O-Alkyl Ratios by Crop and Timepoint") %>%
+  kableExtra::kable_styling()
+
+# Save the summary table
+# Save the summary table
+write.csv(ratio_means, file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_means.csv"), row.names = FALSE)
+```
+
+# Plot Alkyl/O-Alkyl Ratios Over Time
+
+Create stacked violin/box plots showing alkyl/O-alkyl ratios across timepoints for each crop type.
+
+```{r plot-ratios, message=FALSE, warning=FALSE, fig.width=8, fig.height=10}
+library(ggplot2)
+
+# Define color scheme
+crop_timepoint_colors <- list(
+  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk40" = "#374B1B"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
+)
+
+# Filter out noPlant and prepare data
+plot_data <- ratios_df %>%
+  filter(crop %in% c("wheat", "rice", "soy")) %>%
+  mutate(
+    crop = factor(crop, levels = c("soy", "rice", "wheat")),
+    timepoint = factor(timepoint, levels = c("wk0", "wk10", "wk40")),
+    crop_time = interaction(crop, timepoint)
+  )
+
+# Create named color vector for all crop-timepoint combinations
+color_mapping <- c(
+  "soy.wk0" = crop_timepoint_colors$soy["wk0"],
+  "soy.wk10" = crop_timepoint_colors$soy["wk10"],
+  "soy.wk40" = crop_timepoint_colors$soy["wk40"],
+  "rice.wk0" = crop_timepoint_colors$rice["wk0"],
+  "rice.wk10" = crop_timepoint_colors$rice["wk10"],
+  "rice.wk40" = crop_timepoint_colors$rice["wk40"],
+  "wheat.wk0" = crop_timepoint_colors$wheat["wk0"],
+  "wheat.wk10" = crop_timepoint_colors$wheat["wk10"],
+  "wheat.wk40" = crop_timepoint_colors$wheat["wk40"]
+)
+
+# Create the plot
+p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop_time)) +
+  geom_violin(alpha = 0.6, trim = FALSE) +
+  geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
+  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  facet_grid(crop ~ ., switch = "y") +
+  scale_fill_manual(values = color_mapping) +
+  labs(
+    x = "Timepoint",
+    y = "Alkyl/O-Alkyl Ratio",
+    title = "Alkyl/O-Alkyl Ratios Across Timepoints by Crop Type"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.placement = "outside",
+    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 12, face = "bold"),
+    panel.spacing = unit(1, "lines"),
+    legend.position = "none",
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+# Display the plot
+print(p)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoint.png"),
+       plot = p, width = 8, height = 10, dpi = 300)
+```
+

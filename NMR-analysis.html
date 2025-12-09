@@ -3144,6 +3144,241 @@ sample names as plot titles.</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># Return to original directory</span></span>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">setwd</span>(csv_folder)</span></code></pre></div>
 </div>
+<div id="calculate-alkylo-alkyl-ratios" class="section level1">
+<h1>Calculate Alkyl/O-Alkyl Ratios</h1>
+<p>Calculate the alkyl/O-alkyl ratio for each sample and save updated
+CSV with ratios. Then calculate mean ratios grouped by crop type and
+timepoint.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Read the SSB-corrected integrals CSV</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>ratios_df <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="fu">file.path</span>(outputs_folder, <span class="st">&quot;NMR_SSB_corrected_integrals_Bonanomi.csv&quot;</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co"># Calculate alkyl/O-alkyl ratio</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>ratios_df<span class="sc">$</span>Alkyl_O.Alkyl_Ratio <span class="ot">&lt;-</span> ratios_df<span class="sc">$</span>Alkyl <span class="sc">/</span> ratios_df<span class="sc">$</span>O.Alkyl</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co"># Round the new ratio column to 3 decimal places</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>ratios_df<span class="sc">$</span>Alkyl_O.Alkyl_Ratio <span class="ot">&lt;-</span> <span class="fu">round</span>(ratios_df<span class="sc">$</span>Alkyl_O.Alkyl_Ratio, <span class="dv">3</span>)</span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="co"># Save updated CSV with ratios</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="fu">write.csv</span>(ratios_df, <span class="fu">file.path</span>(outputs_folder, <span class="st">&quot;NMR_SSB_corrected_integrals_Bonanomi.csv&quot;</span>), <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co"># Extract crop and timepoint from sample names</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a><span class="co"># Assuming format like &quot;AS1_noPlant_wk0&quot; or similar</span></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>ratios_df<span class="sc">$</span>crop <span class="ot">&lt;-</span> <span class="fu">sub</span>(<span class="st">&quot;.*(noPlant|wheat|rice|soy)_.*&quot;</span>, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">1&quot;</span>, ratios_df<span class="sc">$</span>name)</span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>ratios_df<span class="sc">$</span>timepoint <span class="ot">&lt;-</span> <span class="fu">sub</span>(<span class="st">&quot;.*_(wk[0-9]+).*&quot;</span>, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">1&quot;</span>, ratios_df<span class="sc">$</span>name)</span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a></span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a><span class="co"># Calculate mean alkyl/O-alkyl ratio grouped by crop and timepoint</span></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>ratio_means <span class="ot">&lt;-</span> ratios_df <span class="sc">%&gt;%</span></span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a>  <span class="fu">group_by</span>(crop, timepoint) <span class="sc">%&gt;%</span></span>
+<span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a>    <span class="at">n_samples =</span> <span class="fu">n</span>(),</span>
+<span id="cb9-23"><a href="#cb9-23" tabindex="-1"></a>    <span class="at">mean_Alkyl_O.Alkyl =</span> <span class="fu">round</span>(<span class="fu">mean</span>(Alkyl_O.Alkyl_Ratio, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">3</span>),</span>
+<span id="cb9-24"><a href="#cb9-24" tabindex="-1"></a>    <span class="at">sd_Alkyl_O.Alkyl =</span> <span class="fu">round</span>(<span class="fu">sd</span>(Alkyl_O.Alkyl_Ratio, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">3</span>),</span>
+<span id="cb9-25"><a href="#cb9-25" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&#39;drop&#39;</span></span>
+<span id="cb9-26"><a href="#cb9-26" tabindex="-1"></a>  )</span>
+<span id="cb9-27"><a href="#cb9-27" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" tabindex="-1"></a><span class="co"># Display the results</span></span>
+<span id="cb9-29"><a href="#cb9-29" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(ratio_means, </span>
+<span id="cb9-30"><a href="#cb9-30" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">&quot;Mean Alkyl/O-Alkyl Ratios by Crop and Timepoint&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-31"><a href="#cb9-31" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kable_styling</span>()</span></code></pre></div>
+<table class="table" style="margin-left: auto; margin-right: auto;">
+<caption>
+Mean Alkyl/O-Alkyl Ratios by Crop and Timepoint
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+crop
+</th>
+<th style="text-align:left;">
+timepoint
+</th>
+<th style="text-align:right;">
+n_samples
+</th>
+<th style="text-align:right;">
+mean_Alkyl_O.Alkyl
+</th>
+<th style="text-align:right;">
+sd_Alkyl_O.Alkyl
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+noPlant
+</td>
+<td style="text-align:left;">
+wk40
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.300
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+rice
+</td>
+<td style="text-align:left;">
+wk0
+</td>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+0.159
+</td>
+<td style="text-align:right;">
+0.066
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+rice
+</td>
+<td style="text-align:left;">
+wk10
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+0.188
+</td>
+<td style="text-align:right;">
+0.010
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+rice
+</td>
+<td style="text-align:left;">
+wk40
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+0.171
+</td>
+<td style="text-align:right;">
+0.003
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+soy
+</td>
+<td style="text-align:left;">
+wk0
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+0.277
+</td>
+<td style="text-align:right;">
+0.039
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+soy
+</td>
+<td style="text-align:left;">
+wk10
+</td>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+0.226
+</td>
+<td style="text-align:right;">
+0.051
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+soy
+</td>
+<td style="text-align:left;">
+wk40
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+0.229
+</td>
+<td style="text-align:right;">
+0.074
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+wheat
+</td>
+<td style="text-align:left;">
+wk0
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+0.170
+</td>
+<td style="text-align:right;">
+0.171
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+wheat
+</td>
+<td style="text-align:left;">
+wk10
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+0.163
+</td>
+<td style="text-align:right;">
+0.024
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+wheat
+</td>
+<td style="text-align:left;">
+wk40
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+0.278
+</td>
+<td style="text-align:right;">
+0.014
+</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Save the summary table</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="fu">write.csv</span>(ratio_means, <span class="fu">file.path</span>(outputs_folder, <span class="st">&quot;Alkyl_O-Alkyl_ratio_means.csv&quot;</span>), <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+</div>
 
 
 
