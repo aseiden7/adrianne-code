@@ -428,15 +428,15 @@ spectra_stats <- spectra_filtered %>%
 
 # Create color mapping
 color_map <- c(
-  "soy_wk0" = crop_timepoint_colors$soy["wk0"],
-  "soy_wk10" = crop_timepoint_colors$soy["wk10"],
-  "soy_wk40" = crop_timepoint_colors$soy["wk40"],
-  "rice_wk0" = crop_timepoint_colors$rice["wk0"],
-  "rice_wk10" = crop_timepoint_colors$rice["wk10"],
-  "rice_wk40" = crop_timepoint_colors$rice["wk40"],
-  "wheat_wk0" = crop_timepoint_colors$wheat["wk0"],
-  "wheat_wk10" = crop_timepoint_colors$wheat["wk10"],
-  "wheat_wk40" = crop_timepoint_colors$wheat["wk40"]
+  "soy_wk0" = "#FE71B1",
+  "soy_wk10" = "#FE318E",
+  "soy_wk40" = "#7A0137",
+  "rice_wk0" = "#FDB35E",
+  "rice_wk10" = "#FC9D33",
+  "rice_wk40" = "#B56203",
+  "wheat_wk0" = "#B4D586",
+  "wheat_wk10" = "#98C559",
+  "wheat_wk40" = "#374B1B"
 )
 
 # Create the plot
