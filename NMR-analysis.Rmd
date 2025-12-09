@@ -348,7 +348,7 @@ plot_data$timepoint_num <- as.numeric(plot_data$timepoint)
 
 # Create the A/O-A plot
 p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop_time)) +
-  geom_violin(alpha = 0.7, trim = FALSE) +
+#  geom_violin(alpha = 0.7, trim = FALSE) +
   geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
   geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
   geom_smooth(aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, group = crop, color = crop), 
@@ -382,9 +382,9 @@ ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoi
 
 # Create the RDR plot
 p1 <- ggplot(plot_data, aes(x = timepoint, y = RDR, fill = crop_time)) +
-  geom_violin(alpha = 0.7, trim = FALSE) +
+#  geom_violin(alpha = 0.7, trim = FALSE) +
   geom_boxplot(width = 0.2, alpha = 0.8, outlier.shape = NA) +
-  geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
+  geom_jitter(width = 0.01, alpha = 0.5, size = 2.2) +
   geom_smooth(aes(x = timepoint_num, y = RDR, group = crop, color = crop), 
               method = "lm", se = TRUE, linetype = "dashed", 
               linewidth = 0.6, alpha = 0, show.legend = FALSE) +
