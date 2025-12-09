@@ -120,7 +120,7 @@ The "MMM" method uses a set of seven integration ranges similar to the "Bonanomi
 
 </div>
 
-To perform the MMM analysis, the SOMnmR package needs both the integrated signal intensities and the molar C:N values of the samples. For now, since I don't have C:N values for these samples, I will just use the "Bonanomi" method. Note that Phung et al. (in review) uses the MMM integration regions for their A/O-A and RDR calculations (with the exception of 'Alkyl' being from 0-45 ppm rather than -10 to 45 ppm and 'Carbonyl' being from 165-215 ppm rather than 165-210 ppm).
+To perform the MMM analysis, the SOMnmR package needs both the integrated signal intensities and the molar C:N values of the samples. For now, since I don't have C:N values for these samples, I will just use the "Bonanomi" method. Note that Phung et al. (in review) uses the MMM integration regions for their A/O-A and RDR calculations (with the exception of 'Alkyl' being from 0 to 45 ppm rather than -10 to 45 ppm and 'Carbonyl' being from 165 to 215 ppm rather than 165 to 210 ppm).
 
 ```{r load-and-integrate, message=FALSE}
 setwd(csv_folder)
@@ -257,9 +257,10 @@ setwd(csv_folder)
 ```
 
 # Calculate Alkyl/O-Alkyl Ratios (A/O-A) and Resistance-to-Decomposition Ratios (RDR). 
-A/O-A ratio is calculated as the ratio of the integrated signal intensities in the alkyl-C (0--45 ppm) and O-alkyl-C (61--90 ppm) regions, according to the Bonanomi method. Note that Phung et al. (in review) uses 60--95 ppm as the O-alkyl region, which is more similar to the MMM integration.
+A/O-A ratio is calculated as the ratio of the integrated signal intensities in the alkyl-C (**0--45 ppm**) and O-alkyl-C (**61--90 ppm**) regions, according to the Bonanomi method. Note that Phung et al. (in review) uses **60--95 ppm** as the O-alkyl region, which is more similar to the MMM integration.
 
-RDR is calculated according to Phung et al. (in review) $(alkyl + aromatic and phenolic)/(O-alkyl + carboxyl and carbonyl carbon)$. Using the Bonanomi integration regions, this corresponds to $(0-45 ppm + 111-160 ppm)/(61-90 ppm + 161-190 ppm)$, but Phung et al. (in review) uses $(0--45 ppm + 110--165 ppm)/(60--95 ppm + 165--215 ppm)$ for their calculations.
+RDR is calculated according to Phung et al. (in review):  **(alkyl + aromatic + phenolic)/(O-alkyl + carboxyl + carbonyl)**.  
+Using the Bonanomi integration regions, this corresponds to  **(0--45 ppm + 111-160 ppm)/(61--90 ppm + 161--190 ppm)**,  but Phung et al. (in review) uses  **(0--45 ppm + 110--165 ppm)/(60--95 ppm + 165--215 ppm)**  for their calculations.
 
 ```{r calculate-ratios, message=FALSE, warning=FALSE}
 # Read the SSB-corrected integrals CSV
@@ -306,7 +307,7 @@ knitr::kable(ratio_means,
 write.csv(ratio_means, file.path(outputs_folder, "NMR_ratio_means.csv"), row.names = FALSE)
 ```
 
-# Plot Alkyl/O-Alkyl (A/O-A) and Resistance-to-decomposition (RDR) Ratios Over Time
+# Plot A/O-A and RDR Over Time
 Create stacked violin/box plots showing alkyl/O-alkyl ratios across timepoints for each crop type.
 Create stacked violin/box plots showing RDR across timepoints for each crop type.
 
@@ -393,7 +394,7 @@ p1 <- ggplot(plot_data, aes(x = timepoint, y = RDR, fill = crop_time)) +
   labs(
     x = "Timepoint",
     y = "RDR",
-    title = "Resistance to decomposition ratio (RDR) Across Timepoints by Crop Type"
+    title = "Resistance-to-Decomposition Ratio (RDR) Across Timepoints by Crop Type"
   ) +
   theme_minimal() +
   theme(
@@ -416,7 +417,7 @@ ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
 
 # Plot Averaged NMR Spectra by Crop and Timepoint
 
-Create plots showing mean NMR spectra for each crop-timepoint combination with standard deviation and full range.
+Create plots showing mean NMR spectra for each crop-timepoint combination with standard deviation and full range. The solid line represents the mean spectrum, the medium transparency ribbon represents ±1 standard deviation, and the most transparent ribbon represents the full range (min to max) of spectra at each ppm value (may be the same as ±1 standard deviation).
 
 ```{r plot-averaged-spectra, message=FALSE, warning=FALSE, fig.width=12, fig.height=10}
 library(ggplot2)
@@ -485,9 +486,9 @@ color_map <- c(
 # Create the plot
 p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
   # Full range (most transparent)
-  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.22, color = NA) +
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.17, color = NA) +
   # +/- 1 SD (medium transparency)
-  geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.55, color = NA) +
+  geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
   facet_wrap(~ crop_time, ncol = 3, scales = "free_y") +
