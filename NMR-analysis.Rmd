@@ -450,7 +450,8 @@ spectra_df$timepoint <- sub(".*_(wk[0-9]+).*", "\\1", spectra_df$sample_name)
 # Filter for crops of interest and ppm range
 spectra_filtered <- spectra_df %>%
   filter(crop %in% c("wheat", "rice", "soy"),
-         ppm >= -10 & ppm <= 230)
+         ppm >= -10 & ppm <= 230) %>%
+  mutate(crop = factor(crop, levels = c("wheat", "rice", "soy")))
 
 # Calculate statistics by crop, timepoint, and ppm
 spectra_stats <- spectra_filtered %>%
@@ -501,9 +502,9 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
   theme_minimal() +
   theme(
     legend.position = "none",
-    strip.text = element_text(size = 11, face = "bold"),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 12),
     panel.spacing = unit(1, "lines")
   )
 
@@ -513,5 +514,94 @@ print(p_spectra)
 # Save the plot
 ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_by_crop_timepoint.png"),
        plot = p_spectra, width = 12, height = 8, dpi = 300)
+```
+
+# Plot Alkyl & Alkyl-Suberin Region
+
+Create zoomed-in plots of the alkyl region (0--45 ppm) and alkyl-suberin region (27--36 ppm) with reference lines at 30 and 33 ppm.
+
+```{r plot-alkyl-zoom, message=FALSE, warning=FALSE, fig.width=12, fig.height=8}
+# Filter data for alkyl region (0-45 ppm)
+spectra_stats_alkyl <- spectra_stats %>%
+  filter(ppm >= 0 & ppm <= 45)
+
+# Create the zoomed plot
+p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
+  # Full range (most transparent)
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.17, color = NA) +
+  # +/- 1 SD (medium transparency)
+  geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
+  # Mean line (solid)
+  geom_line(linewidth = 0.8) +
+  # Add vertical reference lines
+  geom_vline(xintercept = 33, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  facet_grid(timepoint ~ crop, scales = "free_y") +
+  scale_x_reverse() +
+  scale_color_manual(values = color_map) +
+  scale_fill_manual(values = color_map) +
+  labs(
+    x = "Chemical Shift (ppm)",
+    y = "Intensity",
+    title = "Zoomed NMR Spectra: Alkyl Region (0-45 ppm)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 12),
+    panel.spacing = unit(1, "lines")
+  )
+
+# Display the plot
+print(p_alkyl)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_alkyl_region_27-36ppm.png"),
+       plot = p_alkyl, width = 12, height = 8, dpi = 300)
+
+#############################################################################################
+# Just suberin region (30-33 ppm)
+############################################################################
+
+spectra_stats_aSub <- spectra_stats %>%
+  filter(ppm >= 27 & ppm <= 36)
+
+# Create the zoomed plot
+p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
+  # Full range (most transparent)
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.17, color = NA) +
+  # +/- 1 SD (medium transparency)
+  geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
+  # Mean line (solid)
+  geom_line(linewidth = 0.8) +
+  # Add vertical reference lines
+  geom_vline(xintercept = 33, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  facet_grid(timepoint ~ crop, scales = "free_y") +
+  scale_x_reverse() +
+  scale_color_manual(values = color_map) +
+  scale_fill_manual(values = color_map) +
+  labs(
+    x = "Chemical Shift (ppm)",
+    y = "Intensity",
+    title = "Alkyl Suberin Region (27-36 ppm)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 12),
+    panel.spacing = unit(1, "lines")
+  )
+
+# Display the plot
+print(p_aSub)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_27-36ppm.png"),
+       plot = p_aSub, width = 12, height = 8, dpi = 300)
 ```
 
