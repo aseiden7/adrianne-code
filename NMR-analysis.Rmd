@@ -316,7 +316,7 @@ library(ggplot2)
 
 # Define color scheme
 crop_timepoint_colors <- list(
-  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk40" = "#374B1B"),
+  wheat = c("wk0" ="#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#49236C"),
   rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
   soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
 )
@@ -326,7 +326,7 @@ plot_data <- ratios_df %>%
   filter(crop %in% c("wheat", "rice", "soy")) %>%
   mutate(
     crop = factor(crop, levels = c("soy", "rice", "wheat")),
-    timepoint = factor(timepoint, levels = c("wk0", "wk10", "wk40")),
+    timepoint_num = as.numeric(gsub("wk", "", timepoint)),
     crop_time = paste(crop, timepoint, sep = "_")
   )
 
@@ -338,35 +338,32 @@ color_mapping <- c(
   "rice_wk0" = "#FDAC50",
   "rice_wk10" = "#f08f20",
   "rice_wk40" = "#C7710F",
-  "wheat_wk0" = "#ABD077",
-  "wheat_wk10" = "#85b148",
-  "wheat_wk40" = "#4F6A2B"
+  "wheat_wk0" = "#D8B1FB",
+  "wheat_wk10" = "#BD7EF6",
+  "wheat_wk40" = "#49236C"
 )
-crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#98C559")
-# Create numeric timepoint for trendline
-plot_data$timepoint_num <- as.numeric(plot_data$timepoint)
+crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#884EBB")
 
 # Create the A/O-A plot
-p <- ggplot(plot_data, aes(x = timepoint, y = Alkyl_O.Alkyl_Ratio, fill = crop, color = crop)) +
-  geom_point(aes(group = interaction(timepoint, crop)), 
-             position = position_jitterdodge(jitter.width = 0.02, dodge.width = 0.6), 
-             alpha = 0.9, size = 4.5) +
-  geom_smooth(aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, group = crop, color = crop), 
+p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = crop, color = crop)) +
+  geom_jitter(width = 1.2, height = 0, alpha = 0.9, size = 4.5) +
+  geom_smooth(aes(group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
+  scale_x_continuous(breaks = c(0, 10, 40)) +
   scale_fill_manual(values = crop_color, name = NULL) +
   scale_color_manual(values = crop_color, name = NULL) +
   labs(
-    x = "",
+    x = "Time (weeks)",
     y = "Alkyl/O-Alkyl Ratio",
     title = "Alkyl/O-Alkyl Ratios Across Timepoints by Crop Type"
   ) +
   theme_minimal() +
   theme(
     legend.position = "right",
-    legend.text = element_text(size = 14),
-    axis.title = element_text(size = 14.5),
-    axis.text = element_text(size = 14.5),
+    legend.text = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 14.5, face = "bold"),
+    axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank()
   )
@@ -380,26 +377,25 @@ ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoi
 ###########################################################################################
 
 # Create the RDR plot
-p1 <- ggplot(plot_data, aes(x = timepoint, y = RDR, fill = crop, color = crop)) +
-  geom_point(aes(group = interaction(timepoint, crop)), 
-             position = position_jitterdodge(jitter.width = 0.02, dodge.width = 0.6), 
-             alpha = 0.9, size = 4.5) +
+p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = crop)) +
+  geom_jitter(width = 1.2, height = 0, alpha = 0.9, size = 4.5) +
   geom_smooth(aes(x = timepoint_num, y = RDR, group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
+  scale_x_continuous(breaks = c(0, 10, 40)) +
   scale_fill_manual(values = crop_color, name = NULL) +
   scale_color_manual(values = crop_color, name = NULL) +
   labs(
-    x = "",
+    x = "Time (weeks)",
     y = "Resistance-to-Decomposition Ratio (RDR)",
     title = "Resistance-to-Decomposition Ratio (RDR) Across Timepoints by Crop Type"
   ) +
   theme_minimal() +
   theme(
     legend.position = "right",
-    legend.text = element_text(size = 14),
-    axis.title = element_text(size = 14.5),
-    axis.text = element_text(size = 14.5),
+    legend.text = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 14.5, face = "bold"),
+    axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank()
   )
@@ -417,14 +413,14 @@ ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
 
 Create plots showing mean NMR spectra for each crop-timepoint combination with standard deviation and full range. The solid line represents the mean spectrum, the medium transparency ribbon represents ±1 standard deviation, and the most transparent ribbon represents the full range (min to max) of spectra at each ppm value (may be the same as ±1 standard deviation).
 
-```{r plot-averaged-spectra, message=FALSE, warning=FALSE, fig.width=12, fig.height=8}
+```{r plot-averaged-spectra, message=FALSE, warning=FALSE, fig.width=12, fig.height=6}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
 
 # Define color scheme
 crop_timepoint_colors <- list(
-  wheat = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk40" = "#374B1B"),
+  wheat = c("wk0" = "#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#49236C"),
   rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
   soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
 )
@@ -477,9 +473,9 @@ color_map <- c(
   "rice_wk0" = "#FDB35E",
   "rice_wk10" = "#FC9D33",
   "rice_wk40" = "#B56203",
-  "wheat_wk0" = "#B4D586",
-  "wheat_wk10" = "#98C559",
-  "wheat_wk40" = "#374B1B"
+  "wheat_wk0" = "#D8B1FB",
+  "wheat_wk10" = "#BD7EF6",
+  "wheat_wk40" = "#49236C"
 )
 
 # Create the plot
@@ -496,7 +492,7 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
   scale_fill_manual(values = color_map) +
   labs(
     x = "Chemical Shift (ppm)",
-    y = "Intensity",
+    y = "Normalized Intensity",
     title = "Average NMR Spectra by Crop and Timepoint"
   ) +
   theme_minimal() +
@@ -504,8 +500,11 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
     axis.title = element_text(size = 13),
-    axis.text = element_text(size = 12),
-    panel.spacing = unit(1, "lines")
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.y = element_blank(),
+    panel.spacing.x = unit(0, "cm"),
+    panel.spacing.y = unit(-3.3, "cm"),
+    panel.grid = element_blank()
   )
 
 # Display the plot
@@ -513,17 +512,17 @@ print(p_spectra)
 
 # Save the plot
 ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_by_crop_timepoint.png"),
-       plot = p_spectra, width = 12, height = 8, dpi = 300)
+       plot = p_spectra, width = 12, height = 6, dpi = 300)
 ```
 
 # Plot Alkyl & Alkyl-Suberin Region
 
 Create zoomed-in plots of the alkyl region (0--45 ppm) and alkyl-suberin region (27--36 ppm) with reference lines at 30 and 33 ppm.
 
-```{r plot-alkyl-zoom, message=FALSE, warning=FALSE, fig.width=12, fig.height=8}
+```{r plot-alkyl-zoom, message=FALSE, warning=FALSE, fig.width=12, fig.height=6}
 # Filter data for alkyl region (0-45 ppm)
 spectra_stats_alkyl <- spectra_stats %>%
-  filter(ppm >= 0 & ppm <= 45)
+  filter(ppm >= -1 & ppm <= 46)
 
 # Create the zoomed plot
 p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
@@ -550,23 +549,26 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
     axis.title = element_text(size = 13),
-    axis.text = element_text(size = 12),
-    panel.spacing = unit(1, "lines")
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.y = element_blank(),
+    panel.spacing.x = unit(0, "cm"),
+    panel.spacing.y = unit(-3.3, "cm"),
+    panel.grid = element_blank()
   )
 
 # Display the plot
 print(p_alkyl)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_alkyl_region_27-36ppm.png"),
-       plot = p_alkyl, width = 12, height = 8, dpi = 300)
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_alkyl_region_0-45ppm.png"),
+       plot = p_alkyl, width = 12, height = 6, dpi = 300)
 
 #############################################################################################
 # Just suberin region (30-33 ppm)
 ############################################################################
 
 spectra_stats_aSub <- spectra_stats %>%
-  filter(ppm >= 27 & ppm <= 36)
+  filter(ppm >= 16 & ppm <= 40)
 
 # Create the zoomed plot
 p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
@@ -586,22 +588,25 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   labs(
     x = "Chemical Shift (ppm)",
     y = "Intensity",
-    title = "Alkyl Suberin Region (27-36 ppm)"
+    title = "Alkyl Suberin Region"
   ) +
   theme_minimal() +
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
     axis.title = element_text(size = 13),
-    axis.text = element_text(size = 12),
-    panel.spacing = unit(1, "lines")
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.y = element_blank(),
+    panel.spacing.x = unit(0, "cm"),
+    panel.spacing.y = unit(-3.3, "cm"),
+    panel.grid = element_blank()
   )
 
 # Display the plot
 print(p_aSub)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_27-36ppm.png"),
-       plot = p_aSub, width = 12, height = 8, dpi = 300)
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_16-40ppm.png"),
+       plot = p_aSub, width = 12, height = 6, dpi = 300)
 ```
 
