@@ -41,6 +41,12 @@ library(SOMnmR)
     # For better table formatting
 if (!require(kableExtra)) install.packages("kableExtra")
 library(kableExtra)
+    # For multiple fill scales
+if (!require(ggnewscale)) install.packages("ggnewscale")
+library(ggnewscale)
+    # For combining plots
+if (!require(patchwork)) install.packages("patchwork")
+library(patchwork)
 
 # Set Box path
 box_base <- Sys.getenv("BOX_BASE")
@@ -562,7 +568,7 @@ color_map <- c(
   "wheat_wk40" = "#3f0477"
 )
 
-# Create the plot
+# Create the main plot without annotation
 p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
   # Full range (most transparent)
   geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.19, color = NA) +
@@ -575,9 +581,9 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
   scale_color_manual(values = color_map) +
   scale_fill_manual(values = color_map) +
   labs(
-    x = "Chemical Shift (ppm)",
+    x = NULL,  # Remove x-axis label from main plot
     y = "Normalized Intensity",
-    title = "Average NMR Spectra by Crop and Timepoint"
+    title = NULL
   ) +
   theme_minimal() +
   theme(
@@ -585,15 +591,57 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
     strip.text = element_text(size = 14, face = "bold"),
     strip.text.y = element_text(margin = margin(t = 130, r = 1, b = 0, l = 0)),
     axis.title = element_text(size = 13),
-    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.x = element_blank(),  # Remove x-axis text from main plot
     axis.text.y = element_blank(),
-    panel.spacing.x = unit(0, "cm"),
+    panel.spacing.x = unit(-0.75, "cm"),
     panel.spacing.y = unit(-3.3, "cm"),
-    panel.grid = element_blank()
+    panel.grid = element_blank(),
+    plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
   )
 
+# Create annotation bar as a separate plot
+library(patchwork)
+
+# Define Bonanomi regions for annotation strip
+bonanomi_regions <- data.frame(
+  region = c("Alkyl", "N-Alkyl/\nmethoxy", "O-Alkyl", "Di-O-\nAlkyl", "Aromatic", "Phenolic", "Carboxyl"),
+  xmin = c(0, 46, 61, 91, 111, 141, 161),
+  xmax = c(45, 60, 90, 110, 140, 160, 190),
+  color = c("#555553", "#aab49d", "#5d5d5b", "#bbc7b3", "#73746d", "#c0cdbc", "#909583")
+)
+
+# Create annotation bars for each crop (to match facet columns)
+bonanomi_regions_faceted <- bind_rows(
+  bonanomi_regions %>% mutate(crop = "soy"),
+  bonanomi_regions %>% mutate(crop = "rice"),
+  bonanomi_regions %>% mutate(crop = "wheat")
+)
+
+p_annotation <- ggplot(bonanomi_regions_faceted) +
+  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = 0.7, fill = color)) +
+  scale_fill_identity() +
+  scale_x_reverse(limits = c(230, -10)) +
+  scale_y_continuous(limits = c(0, 0.7), expand = c(0, 0)) +
+  facet_grid(. ~ crop) +
+  labs(x = "Chemical Shift (ppm)") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 13, face = "bold", margin = margin(t = 5)),
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.grid = element_blank(),
+    panel.spacing.x = unit(-0.75, "cm"),
+    strip.text = element_blank(),
+    plot.margin = margin(0, 5, 5, 5)
+  )
+
+# Combine plots vertically
+p_combined <- p_spectra / p_annotation + plot_layout(heights = c(20, 1))
+
 # Display the plot
-print(p_spectra)
+print(p_combined)
 
 # Save the plot
 ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_by_crop_timepoint.png"),
