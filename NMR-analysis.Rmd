@@ -644,8 +644,8 @@ p_combined <- p_spectra / p_annotation + plot_layout(heights = c(20, 1))
 print(p_combined)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_by_crop_timepoint.png"),
-       plot = p_spectra, width = 12, height = 6, dpi = 300)
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_annotated.png"),
+       plot = p_combined, width = 12, height = 6, dpi = 300)
 ```
 
 # Plot Alkyl & Alkyl-Suberin Region
