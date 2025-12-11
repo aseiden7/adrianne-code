@@ -367,7 +367,7 @@ fig, ax = plt.subplots(figsize=(12, 8))
 
 # Define colors for noPlant, wheat, rice, soy
 crop_order = ['noPlant', 'wheat', 'rice', 'soy']
-colors = ['#9F29FF', '#98C65D', '#FC9D33', '#FE318E']  # purple, green, orange, pink
+colors = ['#2fb1b9', '#8c4dc3', '#FC9D33', '#FE318E']  # aqua, purple, orange, pink
 
 # Plot cumulative flux for each crop with error bars
 for i, crop in enumerate(crop_order):
@@ -753,7 +753,7 @@ fig4.suptitle(r'Intact Pots: $\mathrm{CO_2}$ Flux by Crop', fontsize=16);
 crops = df1_clean['crop'].unique()
 
 # Define colors for crops (matching previous plots)
-crop_colors = {'noPlant': '#9F29FF', 'wheat': '#98C65D', 'rice': '#FC9D33', 'soy': '#FE318E'}  # purple, green, orange, pink
+crop_colors = {'noPlant': '#2fb1b9', 'wheat': '#8c4dc3', 'rice': '#FC9D33', 'soy': '#FE318E'}  # aqua, purple, orange, pink
 
 # Plot CO2 flux for each crop (ignoring isotope)
 for crop in crops:
@@ -828,7 +828,7 @@ for crop in crops_pots:
 fig5, ax = plt.subplots(figsize=(12, 8))
 
 # Define colors for crops (matching previous plots)
-crop_colors = {'noPlant': '#9F29FF', 'wheat': '#98C65D', 'rice': '#FC9D33', 'soy': '#FE318E'}  # purple, green, orange, pink
+crop_colors = {'noPlant': '#2fb1b9', 'wheat': '#8c4dc3', 'rice': '#FC9D33', 'soy': '#FE318E'}  # aqua, purple, orange, pink
 
 # Plot cumulative flux for each crop
 for crop in crops_pots:

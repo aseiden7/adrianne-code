@@ -47,6 +47,10 @@ library(ggnewscale)
     # For combining plots
 if (!require(patchwork)) install.packages("patchwork")
 library(patchwork)
+    # For loading images
+if (!require(png)) install.packages("png")
+library(png)
+library(grid)
 
 # Set Box path
 box_base <- Sys.getenv("BOX_BASE")
@@ -600,7 +604,6 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
   )
 
 # Create annotation bar as a separate plot
-library(patchwork)
 
 # Define Bonanomi regions for annotation strip
 bonanomi_regions <- data.frame(
@@ -637,8 +640,20 @@ p_annotation <- ggplot(bonanomi_regions_faceted) +
     plot.margin = margin(0, 5, 5, 5)
   )
 
+# Load the NMR annotations image and create a plot for it
+nmr_img <- readPNG("NMR-annotations.png")
+img_dim <- dim(nmr_img)
+img_aspect_ratio <- img_dim[1] / img_dim[2]  # height / width
+
+p_image <- ggplot() +
+  annotation_custom(rasterGrob(nmr_img, width = unit(1, "npc"), height = unit(1, "npc"),
+                                just = "center"),
+                    xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
+  theme_void() +
+  theme(plot.margin = margin(5, 5, 5, 5), aspect.ratio = img_aspect_ratio)
+
 # Combine plots vertically
-p_combined <- p_spectra / p_annotation + plot_layout(heights = c(20, 1))
+p_combined <- p_spectra / p_annotation / p_image + plot_layout(heights = c(20, 1, 2))
 
 # Display the plot
 print(p_combined)
