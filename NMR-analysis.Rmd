@@ -359,6 +359,25 @@ plot_means <- plot_data %>%
   group_by(crop, timepoint_num) %>%
   summarise(mean_ratio = mean(Alkyl_O.Alkyl_Ratio, na.rm = TRUE), .groups = 'drop')
 
+# Calculate R² and p-values for each crop
+lm_stats <- plot_data %>%
+  group_by(crop) %>%
+  summarise(
+    model = list(lm(Alkyl_O.Alkyl_Ratio ~ timepoint_num)),
+    r_squared = summary(model[[1]])$r.squared,
+    p_value = summary(model[[1]])$coefficients[2, 4],
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    label = sprintf("R² = %.3f, p = %.3f", r_squared, p_value),
+    x = 44,  # Position for text (outside plot area)
+    y = case_when(
+      crop == "soy" ~ 0.3,
+      crop == "rice" ~ 0.289,
+      crop == "wheat" ~ 0.278
+    )
+  )
+
 # Create the A/O-A plot
 p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = crop, color = crop)) +
   geom_jitter(width = 1.2, height = 0, alpha = 0.9, size = 4.5) +
@@ -369,6 +388,9 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
   geom_smooth(aes(group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
+  geom_text(data = lm_stats, aes(x = x, y = y, label = label, color = crop),
+            size = 3, fontface = "bold", hjust = 0, show.legend = FALSE) +
+  coord_cartesian(clip = "off") +
   scale_x_continuous(breaks = c(0, 10, 40)) +
   scale_fill_manual(values = crop_color, name = NULL, guide = "none") +
   scale_color_manual(values = crop_color, name = NULL, 
@@ -378,7 +400,7 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
   labs(
     x = "Time (weeks)",
     y = "Alkyl/O-Alkyl Ratio",
-    title = "Alkyl/O-Alkyl Ratios Across Timepoints by Crop Type"
+    title = NULL
   ) +
   theme_minimal() +
   theme(
@@ -387,7 +409,8 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
     axis.title = element_text(size = 14.5, face = "bold"),
     axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank()
+    panel.grid.minor.x = element_blank(),
+    plot.margin = margin(5, 30, 5, 5)
   )
 
 # Display the plot
@@ -404,6 +427,25 @@ rdr_means <- plot_data %>%
   group_by(crop, timepoint_num) %>%
   summarise(mean_rdr = mean(RDR, na.rm = TRUE), .groups = 'drop')
 
+# Calculate R² and p-values for RDR
+rdr_lm_stats <- plot_data %>%
+  group_by(crop) %>%
+  summarise(
+    model = list(lm(RDR ~ timepoint_num)),
+    r_squared = summary(model[[1]])$r.squared,
+    p_value = summary(model[[1]])$coefficients[2, 4],
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    label = sprintf("R² = %.3f, p = %.3f", r_squared, p_value),
+    x = 44,  # Position for text (outside plot area)
+    y = case_when(
+      crop == "soy" ~ 0.72,
+      crop == "rice" ~ 0.70,
+      crop == "wheat" ~ 0.68
+    )
+  )
+
 p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = crop)) +
   geom_jitter(width = 1.2, height = 0, alpha = 0.9, size = 4.5) +
     geom_point(data = rdr_means, aes(x = timepoint_num, y = mean_rdr, color = crop),
@@ -413,6 +455,9 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
   geom_smooth(aes(group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
+  geom_text(data = rdr_lm_stats, aes(x = x, y = y, label = label, color = crop),
+            size = 3, fontface = "bold", hjust = 0, show.legend = FALSE) +
+  coord_cartesian(clip = "off") +
   scale_x_continuous(breaks = c(0, 10, 40)) +
   scale_fill_manual(values = crop_color, name = NULL, guide = "none") +
   scale_color_manual(values = crop_color, name = NULL, 
@@ -422,7 +467,7 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
   labs(
     x = "Time (weeks)",
     y = "Resistance-to-Decomposition Ratio (RDR)",
-    title = "Resistance-to-Decomposition Ratio (RDR) Across Timepoints by Crop Type"
+    title = NULL
   ) +
   theme_minimal() +
   theme(
@@ -431,7 +476,8 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
     axis.title = element_text(size = 14.5, face = "bold"),
     axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank()
+    panel.grid.minor.x = element_blank(),
+    plot.margin = margin(5, 30, 5, 5)
   )
 
 # Display the plot
@@ -469,12 +515,34 @@ scatter_data <- plot_data %>%
   mutate(crop_time = paste(crop, "wk", timepoint_num, sep = "_"),
          crop_time = gsub("_wk_", "_wk", crop_time))
 
+# Calculate R² and p-values for scatter plot
+scatter_lm_stats <- scatter_data %>%
+  group_by(crop) %>%
+  summarise(
+    model = list(lm(RDR ~ Alkyl_O.Alkyl_Ratio)),
+    r_squared = summary(model[[1]])$r.squared,
+    p_value = summary(model[[1]])$coefficients[2, 4],
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    label = sprintf("R² = %.3f, p = %.3f", r_squared, p_value),
+    x = max(scatter_data$Alkyl_O.Alkyl_Ratio, na.rm = TRUE) * 1.02,
+    y = case_when(
+      crop == "soy" ~ 0.75,
+      crop == "rice" ~ 0.73,
+      crop == "wheat" ~ 0.71
+    )
+  )
+
 # Create scatter plot
 p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
   geom_point(aes(color = crop_time), size = 4, alpha = 0.8) +
   geom_smooth(aes(group = crop, color = crop), 
             method = "lm", se = FALSE, linetype = "dashed", 
             linewidth = 0.7, show.legend = FALSE) +
+  geom_text(data = scatter_lm_stats, aes(x = x, y = y, label = label, color = crop),
+            size = 3, fontface = "bold", hjust = 0, show.legend = FALSE) +
+  coord_cartesian(clip = "off") +
   scale_color_manual(values = c(color_map, crop_color), 
                      breaks = names(color_map),
                      labels = c("soy wk0", "soy wk10", "soy wk40",
@@ -484,14 +552,15 @@ p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
   labs(
     x = "Alkyl/O-Alkyl Ratio",
     y = "Resistance to Decomposition Ratio (RDR)",
-    title = "Relationship between RDR and Alkyl/O-Alkyl Ratio"
+    title = NULL
   ) +
   theme_minimal() +
   theme(
     legend.position = "right",
     legend.text = element_text(size = 11),
     axis.title = element_text(size = 13, face = "bold"),
-    axis.text = element_text(size = 12)
+    axis.text = element_text(size = 12),
+    plot.margin = margin(5, 30, 5, 5)
   )
 
 # Display the plot
@@ -717,7 +786,7 @@ ggsave(filename = file.path(outputs_folder, "NMR_spectra_alkyl_region_0-45ppm.pn
 ############################################################################
 
 spectra_stats_aSub <- spectra_stats %>%
-  filter(ppm >= 16 & ppm <= 40)
+  filter(ppm >= 17 & ppm <= 40)
 
 # Create the zoomed plot
 p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
