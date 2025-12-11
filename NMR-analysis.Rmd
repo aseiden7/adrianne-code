@@ -825,7 +825,7 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
 print(p_aSub)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_16-40ppm.png"),
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_17-40ppm.png"),
        plot = p_aSub, width = 12, height = 6, dpi = 300)
 ```
 
