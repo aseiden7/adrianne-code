@@ -317,7 +317,7 @@ library(ggplot2)
 # Define color scheme
 crop_timepoint_colors <- list(
   wheat = c("wk0" ="#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#49236C"),
-  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
+  rice = c("wk0" = "#FDAC50", "wk10" = "#F08F20", "wk40" = "#B56203"),
   soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
 )
 
@@ -336,9 +336,9 @@ color_mapping <- c(
   "soy_wk10" = "#DD2578",
   "soy_wk40" = "#9B0D4D",
   "rice_wk0" = "#FDAC50",
-  "rice_wk10" = "#f08f20",
-  "rice_wk40" = "#C7710F",
-  "wheat_wk0" = "#D8B1FB",
+  "rice_wk10" = "#F08F20",
+  "rice_wk40" = "#B56203",
+  "wheat_wk0" = "#d2a9f6",
   "wheat_wk10" = "#BD7EF6",
   "wheat_wk40" = "#49236C"
 )
@@ -467,13 +467,13 @@ spectra_stats <- spectra_filtered %>%
 
 # Create color mapping
 color_map <- c(
-  "soy_wk0" = "#FE71B1",
-  "soy_wk10" = "#FE318E",
-  "soy_wk40" = "#7A0137",
-  "rice_wk0" = "#FDB35E",
-  "rice_wk10" = "#FC9D33",
+  "soy_wk0" = "#FE5CA5",
+  "soy_wk10" = "#DD2578",
+  "soy_wk40" = "#9B0D4D",
+  "rice_wk0" = "#FDAC50",
+  "rice_wk10" = "#F08F20",
   "rice_wk40" = "#B56203",
-  "wheat_wk0" = "#D8B1FB",
+  "wheat_wk0" = "#d2a9f6",
   "wheat_wk10" = "#BD7EF6",
   "wheat_wk40" = "#49236C"
 )
@@ -481,7 +481,7 @@ color_map <- c(
 # Create the plot
 p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
   # Full range (most transparent)
-  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.17, color = NA) +
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.19, color = NA) +
   # +/- 1 SD (medium transparency)
   geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
   # Mean line (solid)
@@ -499,6 +499,7 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
+    strip.text.y = element_text(margin = margin(t = 130, r = 1, b = 0, l = 0)),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),
@@ -527,7 +528,7 @@ spectra_stats_alkyl <- spectra_stats %>%
 # Create the zoomed plot
 p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
   # Full range (most transparent)
-  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.17, color = NA) +
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.19, color = NA) +
   # +/- 1 SD (medium transparency)
   geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
   # Mean line (solid)
@@ -548,6 +549,7 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
+    strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0)),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),
@@ -573,7 +575,7 @@ spectra_stats_aSub <- spectra_stats %>%
 # Create the zoomed plot
 p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
   # Full range (most transparent)
-  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.17, color = NA) +
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.19, color = NA) +
   # +/- 1 SD (medium transparency)
   geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
   # Mean line (solid)
@@ -594,6 +596,7 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
+    strip.text.y = element_text(margin = margin(t = 40, r = 1, b = -60, l = 0)),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),
