@@ -344,15 +344,27 @@ color_mapping <- c(
 )
 crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#884EBB")
 
+# Calculate means for each crop-timepoint combination
+plot_means <- plot_data %>%
+  group_by(crop, timepoint_num) %>%
+  summarise(mean_ratio = mean(Alkyl_O.Alkyl_Ratio, na.rm = TRUE), .groups = 'drop')
+
 # Create the A/O-A plot
 p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = crop, color = crop)) +
   geom_jitter(width = 1.2, height = 0, alpha = 0.9, size = 4.5) +
+  geom_point(data = plot_means, aes(x = timepoint_num, y = mean_ratio, color = crop),
+             shape = 4, size = 5.2, stroke = 2, show.legend = FALSE) +
+  # Add a dummy point for legend only
+  geom_point(aes(shape = "Mean"), x = NA, y = NA, color = "black", size = 5.2, stroke = 2) +
   geom_smooth(aes(group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
   scale_x_continuous(breaks = c(0, 10, 40)) +
-  scale_fill_manual(values = crop_color, name = NULL) +
-  scale_color_manual(values = crop_color, name = NULL) +
+  scale_fill_manual(values = crop_color, name = NULL, guide = "none") +
+  scale_color_manual(values = crop_color, name = NULL, 
+                     guide = guide_legend(order = 1, override.aes = list(shape = 16, size = 4.5))) +
+  scale_shape_manual(values = 4, name = NULL,
+                     guide = guide_legend(order = 2, override.aes = list(size = 5.2, stroke = 2))) +
   labs(
     x = "Time (weeks)",
     y = "Alkyl/O-Alkyl Ratio",
@@ -377,14 +389,26 @@ ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoi
 ###########################################################################################
 
 # Create the RDR plot
+# Calculate means for each crop-timepoint combination
+rdr_means <- plot_data %>%
+  group_by(crop, timepoint_num) %>%
+  summarise(mean_rdr = mean(RDR, na.rm = TRUE), .groups = 'drop')
+
 p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = crop)) +
   geom_jitter(width = 1.2, height = 0, alpha = 0.9, size = 4.5) +
-  geom_smooth(aes(x = timepoint_num, y = RDR, group = crop, color = crop), 
+    geom_point(data = rdr_means, aes(x = timepoint_num, y = mean_rdr, color = crop),
+             shape = 4, size = 5.2, stroke = 2, show.legend = FALSE) +
+  # Add a dummy point for legend only
+  geom_point(aes(shape = "Mean"), x = NA, y = NA, color = "black", size = 5.2, stroke = 2) +
+  geom_smooth(aes(group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
   scale_x_continuous(breaks = c(0, 10, 40)) +
-  scale_fill_manual(values = crop_color, name = NULL) +
-  scale_color_manual(values = crop_color, name = NULL) +
+  scale_fill_manual(values = crop_color, name = NULL, guide = "none") +
+  scale_color_manual(values = crop_color, name = NULL, 
+                     guide = guide_legend(order = 1, override.aes = list(shape = 16, size = 4.5))) +
+  scale_shape_manual(values = 4, name = NULL,
+                     guide = guide_legend(order = 2, override.aes = list(size = 5.2, stroke = 2))) +
   labs(
     x = "Time (weeks)",
     y = "Resistance-to-Decomposition Ratio (RDR)",
@@ -408,6 +432,8 @@ ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
        plot = p1, width = 11, height = 7, dpi = 300)
 
 ```
+# Plot RDR against A/O-a
+
 
 # Plot Averaged NMR Spectra by Crop and Timepoint
 
