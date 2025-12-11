@@ -316,8 +316,8 @@ library(ggplot2)
 
 # Define color scheme
 crop_timepoint_colors <- list(
-  wheat = c("wk0" ="#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#49236C"),
-  rice = c("wk0" = "#FDAC50", "wk10" = "#F08F20", "wk40" = "#B56203"),
+  wheat = c("wk0" ="#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#3f0477"),
+  rice = c("wk0" = "#ffad4f", "wk10" = "#F08F20", "wk40" = "#B56203"),
   soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
 )
 
@@ -331,16 +331,16 @@ plot_data <- ratios_df %>%
   )
 
 # Create named color vector for all crop-timepoint combinations
-color_mapping <- c(
+color_map <- c(
   "soy_wk0" = "#FE5CA5",
   "soy_wk10" = "#DD2578",
   "soy_wk40" = "#9B0D4D",
-  "rice_wk0" = "#FDAC50",
+  "rice_wk0" = "#ffad4f",
   "rice_wk10" = "#F08F20",
   "rice_wk40" = "#B56203",
   "wheat_wk0" = "#d2a9f6",
   "wheat_wk10" = "#BD7EF6",
-  "wheat_wk40" = "#49236C"
+  "wheat_wk40" = "#3f0477"
 )
 crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#884EBB")
 
@@ -432,7 +432,65 @@ ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
        plot = p1, width = 11, height = 7, dpi = 300)
 
 ```
-# Plot RDR against A/O-a
+# Plot RDR vs Alkyl/O-Alkyl Ratio
+
+Plot the relationship between Resistance to Decomposition Ratio (RDR) and Alkyl/O-Alkyl ratio, colored by crop-timepoint combination.
+
+```{r plot-rdr-vs-alkyl, message=FALSE, warning=FALSE, fig.width=9, fig.height=7}
+library(ggplot2)
+
+# Create named color vector for all crop-timepoint combinations
+color_map <- c(
+  "soy_wk0" = "#FE5CA5",
+  "soy_wk10" = "#DD2578",
+  "soy_wk40" = "#9B0D4D",
+  "rice_wk0" = "#ffad4f",
+  "rice_wk10" = "#F08F20",
+  "rice_wk40" = "#B56203",
+  "wheat_wk0" = "#d2a9f6",
+  "wheat_wk10" = "#BD7EF6",
+  "wheat_wk40" = "#3f0477"
+)
+
+crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#8c4dc3")
+
+# Prepare data with crop_time variable
+scatter_data <- plot_data %>%
+  mutate(crop_time = paste(crop, "wk", timepoint_num, sep = "_"),
+         crop_time = gsub("_wk_", "_wk", crop_time))
+
+# Create scatter plot
+p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
+  geom_point(aes(color = crop_time), size = 4, alpha = 0.8) +
+  geom_smooth(aes(group = crop, color = crop), 
+            method = "lm", se = FALSE, linetype = "dashed", 
+            linewidth = 0.7, show.legend = FALSE) +
+  scale_color_manual(values = c(color_map, crop_color), 
+                     breaks = names(color_map),
+                     labels = c("soy wk0", "soy wk10", "soy wk40",
+                               "rice wk0", "rice wk10", "rice wk40",
+                               "wheat wk0", "wheat wk10", "wheat wk40"),
+                     name = NULL) +
+  labs(
+    x = "Alkyl/O-Alkyl Ratio",
+    y = "Resistance to Decomposition Ratio (RDR)",
+    title = "Relationship between RDR and Alkyl/O-Alkyl Ratio"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = 11),
+    axis.title = element_text(size = 13, face = "bold"),
+    axis.text = element_text(size = 12)
+  )
+
+# Display the plot
+print(p_scatter)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "RDR_vs_Alkyl-O-Alkyl_ratio.png"),
+       plot = p_scatter, width = 9, height = 7, dpi = 300)
+```
 
 
 # Plot Averaged NMR Spectra by Crop and Timepoint
@@ -446,7 +504,7 @@ library(tidyr)
 
 # Define color scheme
 crop_timepoint_colors <- list(
-  wheat = c("wk0" = "#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#49236C"),
+  wheat = c("wk0" = "#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#3f0477"),
   rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
   soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
 )
@@ -496,12 +554,12 @@ color_map <- c(
   "soy_wk0" = "#FE5CA5",
   "soy_wk10" = "#DD2578",
   "soy_wk40" = "#9B0D4D",
-  "rice_wk0" = "#FDAC50",
+  "rice_wk0" = "#ffb45e",
   "rice_wk10" = "#F08F20",
   "rice_wk40" = "#B56203",
   "wheat_wk0" = "#d2a9f6",
   "wheat_wk10" = "#BD7EF6",
-  "wheat_wk40" = "#49236C"
+  "wheat_wk40" = "#3f0477"
 )
 
 # Create the plot
