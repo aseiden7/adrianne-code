@@ -817,7 +817,7 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),
     panel.spacing.x = unit(0, "cm"),
-    panel.spacing.y = unit(-3.3, "cm"),
+    panel.spacing.y = unit(-2.4, "cm"),
     panel.grid = element_blank()
   )
 
