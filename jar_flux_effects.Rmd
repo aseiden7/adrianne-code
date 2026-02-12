@@ -1,0 +1,530 @@
+---
+title: "Jar Flux Analysis"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+# Set Box path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+# Set paths
+csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2 data")
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2 data/confounding-factors-outputs")
+
+# Load required libraries
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+library(gridExtra)
+```
+
+## Load Data
+
+```{r load-data}
+# Load the data with GWC from jar-co2-moisture.Rmd output
+file_path <- file.path(csv_folder, "jar_co2_with_gwc.csv")
+
+if (!file.exists(file_path)) {
+  stop("Data file not found: ", file_path, "\nPlease run jar-co2-moisture.Rmd first to generate this file.")
+}
+
+jar_co2_with_gwc <- read.csv(file_path, stringsAsFactors = FALSE) %>%
+  mutate(
+    jar_num = as.character(jar_num),
+    # Parse MM/DD/YY format dates
+    sampling_date = mdy(sampling_date)
+  ) %>%
+  # Rename the Flux column to remove special characters
+  rename_with(~gsub("Flux.*g.CO2.*minute", "Flux_ugC_per_gsoil_per_min", .x))
+
+# Check data structure
+cat("Data loaded successfully!\n")
+cat("Rows:", nrow(jar_co2_with_gwc), "\n")
+cat("Columns:", ncol(jar_co2_with_gwc), "\n")
+cat("Date parsing results:\n")
+cat("  Non-NA dates:", sum(!is.na(jar_co2_with_gwc$sampling_date)), "\n")
+cat("  NA dates:", sum(is.na(jar_co2_with_gwc$sampling_date)), "\n")
+cat("Date range:", as.character(range(jar_co2_with_gwc$sampling_date, na.rm = TRUE)), "\n")
+cat("Crops:", paste(sort(unique(jar_co2_with_gwc$crop)), collapse = ", "), "\n")
+cat("NA in crop column:", sum(is.na(jar_co2_with_gwc$crop)), "\n")
+cat("NA in sampling_date:", sum(is.na(jar_co2_with_gwc$sampling_date)), "\n")
+cat("NA in Flux column:", sum(is.na(jar_co2_with_gwc$Flux_ugC_per_gsoil_per_min)), "\n")
+cat("\nColumn names:\n")
+print(colnames(jar_co2_with_gwc))
+cat("\nFirst few rows:\n")
+print(head(jar_co2_with_gwc %>% select(jar_num, crop, sampling_date, Flux_ugC_per_gsoil_per_min, GWC)))
+```
+
+# Analysis of CO2 Flux Relationships
+
+## Time Sealed vs CO2 Accumulation
+
+Does CO2 concentration level off over time? Let's examine the relationship between sealing time and CO2 accumulation.
+
+```{r time-sealed-analysis, fig.width=12, fig.height=8}
+# Plot Time_sealed_min vs CO2_ppm_minus_blank
+ggplot(jar_co2_with_gwc, aes(x = Time_sealed_min, y = CO2_ppm_minus_blank)) +
+  geom_point(aes(color = crop), alpha = 0.5, size = 2) +
+  geom_smooth(method = "loess", se = TRUE, color = "black", linewidth = 1) +
+  facet_wrap(~crop) +
+  labs(
+    title = "CO2 Accumulation vs. Time Sealed by Crop Type",
+    subtitle = "Does CO2 level off indicating system saturation?",
+    x = "Time Sealed (minutes)",
+    y = "CO2 Concentration (ppm, blank-corrected)",
+    color = "Crop Type"
+  ) +
+  theme_minimal()
+
+# Check for non-linearity indicating leveling off
+# Fit both linear and quadratic models
+linear_model <- lm(CO2_ppm_minus_blank ~ Time_sealed_min, data = jar_co2_with_gwc)
+quadratic_model <- lm(CO2_ppm_minus_blank ~ Time_sealed_min + I(Time_sealed_min^2), 
+                      data = jar_co2_with_gwc)
+
+cat("\n=== Linear vs Quadratic Model Comparison ===\n")
+cat("Linear model R²:", summary(linear_model)$r.squared, "\n")
+cat("Quadratic model R²:", summary(quadratic_model)$r.squared, "\n")
+cat("\nANOVA comparison (is quadratic significantly better?):\n")
+print(anova(linear_model, quadratic_model))
+
+# Summary statistics by time sealed ranges
+time_ranges <- jar_co2_with_gwc %>%
+  mutate(
+    time_range = cut(Time_sealed_min, 
+                     breaks = c(0, 30, 60, 90, 120, 150, Inf),
+                     labels = c("0-30", "30-60", "60-90", "90-120", "120-150", "150+"))
+  ) %>%
+  group_by(time_range) %>%
+  summarise(
+    n = n(),
+    mean_CO2_ppm = mean(CO2_ppm_minus_blank, na.rm = TRUE),
+    sd_CO2_ppm = sd(CO2_ppm_minus_blank, na.rm = TRUE),
+    mean_flux = mean(Flux_ugC_per_gsoil_per_min, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+cat("\nCO2 accumulation by time sealed ranges:\n")
+print(time_ranges)
+```
+
+## Flux Relationships with GWC, Time Sealed, and Crop
+
+```{r flux-relationships, fig.width=14, fig.height=10}
+# Create a multi-panel plot showing flux relationships
+
+# 1. Flux vs GWC
+p1 <- ggplot(jar_co2_with_gwc, aes(x = GWC, y = Flux_ugC_per_gsoil_per_min)) +
+  geom_point(aes(color = crop), alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(
+    title = "Flux vs. Gravimetric Water Content",
+    x = "GWC (g water / g dry soil)",
+    y = "CO2 Flux (μg C/g-soil/min)",
+    color = "Crop"
+  ) +
+  theme_minimal()
+
+# 2. Flux vs Time Sealed
+p2 <- ggplot(jar_co2_with_gwc, aes(x = Time_sealed_min, y = Flux_ugC_per_gsoil_per_min)) +
+  geom_point(aes(color = crop), alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(
+    title = "Flux vs. Time Sealed",
+    x = "Time Sealed (minutes)",
+    y = "CO2 Flux (μg C/g-soil/min)",
+    color = "Crop"
+  ) +
+  theme_minimal()
+
+# 3. Flux by Crop
+p3 <- ggplot(jar_co2_with_gwc, aes(x = crop, y = Flux_ugC_per_gsoil_per_min, fill = crop)) +
+  geom_boxplot(alpha = 0.7) +
+  geom_jitter(width = 0.2, alpha = 0.3, size = 0.5) +
+  labs(
+    title = "Flux by Crop Type",
+    x = "Crop Type",
+    y = "CO2 Flux (μg C/g-soil/min)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# 4. Flux vs GWC faceted by crop
+p4 <- ggplot(jar_co2_with_gwc, aes(x = GWC, y = Flux_ugC_per_gsoil_per_min)) +
+  geom_point(aes(color = crop), alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linewidth = 0.8) +
+  facet_wrap(~crop, scales = "free") +
+  labs(
+    title = "Flux vs. GWC by Crop Type",
+    x = "GWC (g/g)",
+    y = "CO2 Flux (μg C/g-soil/min)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Arrange plots
+grid.arrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
+
+# Correlation analysis
+cat("\n=== CORRELATION ANALYSIS ===\n")
+cor_data <- jar_co2_with_gwc %>%
+  select(Flux = Flux_ugC_per_gsoil_per_min, GWC, Time_sealed_min) %>%
+  na.omit()
+
+cat("Pearson correlations:\n")
+cor_matrix <- cor(cor_data, method = "pearson")
+print(round(cor_matrix, 3))
+
+cat("\nSpearman correlations (for non-linear relationships):\n")
+cor_matrix_spearman <- cor(cor_data, method = "spearman")
+print(round(cor_matrix_spearman, 3))
+
+# Statistical tests
+cat("\n=== Correlation significance tests ===\n")
+cat("\nFlux vs GWC:\n")
+print(cor.test(jar_co2_with_gwc$Flux_ugC_per_gsoil_per_min, jar_co2_with_gwc$GWC))
+
+cat("\nFlux vs Time_sealed_min:\n")
+print(cor.test(jar_co2_with_gwc$Flux_ugC_per_gsoil_per_min, jar_co2_with_gwc$Time_sealed_min))
+
+# ANOVA for crop effect on flux
+cat("\n=== ANOVA: Crop effect on Flux ===\n")
+n_crops_for_anova <- length(unique(jar_co2_with_gwc$crop[!is.na(jar_co2_with_gwc$crop)]))
+
+if (n_crops_for_anova >= 2) {
+  flux_aov <- aov(Flux_ugC_per_gsoil_per_min ~ crop, data = jar_co2_with_gwc)
+  print(summary(flux_aov))
+  
+  cat("\nTukey HSD post-hoc test:\n")
+  print(TukeyHSD(flux_aov))
+} else {
+  cat("Only", n_crops_for_anova, "crop type found - cannot perform ANOVA\n")
+}
+```
+
+## Multiple Regression: Predictors of Instantaneous Flux
+
+```{r flux-multiple-regression}
+# Check number of crop types
+n_crops_flux <- length(unique(jar_co2_with_gwc$crop[!is.na(jar_co2_with_gwc$crop)]))
+cat("Number of crop types in flux data:", n_crops_flux, "\n\n")
+
+# Build multiple regression model
+if (n_crops_flux >= 2) {
+  flux_model <- lm(Flux_ugC_per_gsoil_per_min ~ GWC + Time_sealed_min + crop, 
+                   data = jar_co2_with_gwc)
+  cat("\n=== MULTIPLE REGRESSION MODEL ===\n")
+  cat("Predicting: Flux (μg CO2-C/g-soil/minute)\n")
+  cat("Predictors: GWC, Time_sealed_min, crop\n\n")
+} else {
+  flux_model <- lm(Flux_ugC_per_gsoil_per_min ~ GWC + Time_sealed_min, 
+                   data = jar_co2_with_gwc)
+  cat("\n=== MULTIPLE REGRESSION MODEL ===\n")
+  cat("Predicting: Flux (μg CO2-C/g-soil/minute)\n")
+  cat("Predictors: GWC, Time_sealed_min (crop excluded - only 1 level)\n\n")
+}
+print(summary(flux_model))
+
+# Check model assumptions
+par(mfrow = c(2, 2))
+plot(flux_model, main = "Model Diagnostics")
+par(mfrow = c(1, 1))
+
+# Relative importance of predictors
+cat("\n=== Standardized Coefficients (effect sizes) ===\n")
+# Standardize predictors
+jar_co2_std <- jar_co2_with_gwc %>%
+  mutate(
+    GWC_std = scale(GWC)[,1],
+    Time_sealed_std = scale(Time_sealed_min)[,1]
+  )
+
+if (n_crops_flux >= 2) {
+  flux_model_std <- lm(Flux_ugC_per_gsoil_per_min ~ GWC_std + Time_sealed_std + crop, 
+                       data = jar_co2_std)
+} else {
+  flux_model_std <- lm(Flux_ugC_per_gsoil_per_min ~ GWC_std + Time_sealed_std, 
+                       data = jar_co2_std)
+}
+
+cat("Standardized coefficients allow comparison of effect sizes:\n")
+print(coef(flux_model_std))
+```
+
+## Cumulative CO2 Flux Analysis
+
+```{r cumulative-flux-analysis, fig.width=12, fig.height=8}
+# Calculate cumulative flux for each jar
+cumulative_flux <- jar_co2_with_gwc %>%
+  filter(!is.na(sampling_date), !is.na(Flux_ugC_per_gsoil_per_min)) %>%  # Remove NA values
+  arrange(jar_num, sampling_date) %>%  # Ensure proper ordering before grouping
+  group_by(jar_num, crop) %>%
+  mutate(
+    # Calculate days since start for this jar
+    days_since_start = as.numeric(sampling_date - min(sampling_date)),
+    # Cumulative flux (sum of all measurements)
+    cumulative_flux = cumsum(Flux_ugC_per_gsoil_per_min)
+  ) %>%
+  ungroup()
+
+# Check for data issues
+cat("Cumulative flux calculation:\n")
+cat("Rows after filtering:", nrow(cumulative_flux), "\n")
+cat("Unique crops after filtering:", paste(unique(cumulative_flux$crop), collapse = ", "), "\n")
+cat("Crop counts:", "\n")
+print(table(cumulative_flux$crop))
+cat("Date range:", as.character(range(cumulative_flux$sampling_date, na.rm = TRUE)), "\n")
+cat("Any NA dates?", any(is.na(cumulative_flux$sampling_date)), "\n")
+cat("Any NA cumulative flux?", any(is.na(cumulative_flux$cumulative_flux)), "\n")
+
+# Get final cumulative flux for each jar (at ~30 weeks / 210 days)
+final_cumulative <- cumulative_flux %>%
+  group_by(jar_num, crop) %>%
+  filter(sampling_date == max(sampling_date)) %>%
+  ungroup() %>%
+  mutate(
+    # Calculate mean GWC and Time_sealed for each jar
+    mean_GWC = GWC,  # Use final GWC as representative
+    mean_time_sealed = Time_sealed_min
+  )
+
+# Add mean GWC across all sampling dates for each jar
+jar_means <- cumulative_flux %>%
+  group_by(jar_num, crop) %>%
+  summarise(
+    mean_GWC_overall = mean(GWC, na.rm = TRUE),
+    mean_time_sealed_overall = mean(Time_sealed_min, na.rm = TRUE),
+    final_cumulative_flux = max(cumulative_flux, na.rm = TRUE),
+    n_samples = n(),
+    .groups = "drop"
+  ) %>%
+  # Remove rows with Inf or NaN values
+  filter(is.finite(final_cumulative_flux),
+         is.finite(mean_GWC_overall),
+         is.finite(mean_time_sealed_overall))
+
+cat("\n=== JAR MEANS DATA CHECK ===\n")
+cat("Rows in jar_means:", nrow(jar_means), "\n")
+if (nrow(jar_means) > 0) {
+  cat("Unique crops in jar_means:", paste(sort(unique(jar_means$crop)), collapse = ", "), "\n")
+  cat("Crop counts in jar_means:\n")
+  print(table(jar_means$crop, useNA = "ifany"))
+  cat("\nSummary of jar_means:\n")
+  print(summary(jar_means))
+} else {
+  cat("WARNING: jar_means is empty after filtering!\n")
+}
+
+# Plot cumulative flux over time by crop
+# Check what data we have for plotting
+plot_data_cumul <- cumulative_flux %>% 
+  filter(!is.na(sampling_date), !is.na(cumulative_flux))
+
+cat("\nData for cumulative plot:\n")
+cat("Rows:", nrow(plot_data_cumul), "\n")
+cat("Unique crops:", paste(unique(plot_data_cumul$crop), collapse = ", "), "\n")
+cat("Unique jars:", length(unique(plot_data_cumul$jar_num)), "\n")
+
+if (nrow(plot_data_cumul) > 0) {
+  ggplot(plot_data_cumul, aes(x = sampling_date, y = cumulative_flux, 
+                              color = crop, group = jar_num)) +
+    geom_line(alpha = 0.6, linewidth = 0.8) +
+    facet_wrap(~crop) +
+    labs(
+      title = "Cumulative CO2 Flux Over Time by Crop Type",
+      x = "Sampling Date",
+      y = "Cumulative Flux (μg CO2-C/g-soil/min, summed)",
+      color = "Crop Type"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+} else {
+  cat("ERROR: No data available for cumulative flux plot!\n")
+}
+
+# Statistical analysis of final cumulative flux
+cat("\n=== CUMULATIVE FLUX SUMMARY BY CROP ===\n")
+
+if (nrow(jar_means) == 0) {
+  cat("ERROR: No data in jar_means - cannot perform statistical analysis\n")
+} else {
+  cumulative_summary <- jar_means %>%
+    group_by(crop) %>%
+    summarise(
+      n_jars = n(),
+      mean_cumulative = mean(final_cumulative_flux, na.rm = TRUE),
+      sd_cumulative = sd(final_cumulative_flux, na.rm = TRUE),
+      se_cumulative = sd_cumulative / sqrt(n_jars),
+      .groups = "drop"
+    )
+  print(cumulative_summary)
+  
+  # ANOVA: Is cumulative flux different by crop?
+  cat("\n=== ANOVA: Crop effect on Cumulative Flux ===\n")
+  n_crops <- length(unique(jar_means$crop[!is.na(jar_means$crop)]))
+  cat("Number of crop types:", n_crops, "\n")
+  
+  if (n_crops >= 2) {
+    cumulative_aov <- aov(final_cumulative_flux ~ crop, data = jar_means)
+    print(summary(cumulative_aov))
+    
+    cat("\nTukey HSD post-hoc test:\n")
+    print(TukeyHSD(cumulative_aov))
+  } else {
+    cat("Only one crop type found. Cannot perform ANOVA.\n")
+  }
+  
+  # Plot final cumulative flux by crop
+  if (n_crops >= 2) {
+  ggplot(jar_means, aes(x = crop, y = final_cumulative_flux, fill = crop)) +
+    geom_boxplot(alpha = 0.7) +
+    geom_jitter(width = 0.2, alpha = 0.5, size = 2) +
+    labs(
+      title = "Final Cumulative CO2 Flux by Crop Type",
+      subtitle = "Total flux summed over ~30 weeks",
+      x = "Crop Type",
+      y = "Cumulative Flux (μg CO2-C/g-soil/min, summed)"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+} else {
+  # Simple histogram if only one crop
+  ggplot(jar_means, aes(x = final_cumulative_flux)) +
+    geom_histogram(bins = 20, fill = "steelblue", alpha = 0.7) +
+    labs(
+      title = "Distribution of Final Cumulative CO2 Flux",
+      subtitle = paste("Single crop type:", unique(jar_means$crop)[1]),
+      x = "Cumulative Flux (μg CO2-C/g-soil/min, summed)",
+      y = "Count"
+    ) +
+    theme_minimal()
+}
+
+# Multiple regression for cumulative flux
+cat("\n=== MULTIPLE REGRESSION: Predictors of Cumulative Flux ===\n")
+
+# Check if we have valid data for modeling
+valid_data <- jar_means %>%
+  filter(!is.na(final_cumulative_flux), 
+         !is.na(mean_GWC_overall), 
+         !is.na(mean_time_sealed_overall),
+         !is.na(crop))
+
+cat("Valid observations for regression:", nrow(valid_data), "\n")
+
+if (nrow(valid_data) < 3) {
+  cat("ERROR: Insufficient data for regression (need at least 3 observations)\n")
+  cat("jar_means has", nrow(jar_means), "rows\n")
+  cat("NA counts:\n")
+  cat("  final_cumulative_flux:", sum(is.na(jar_means$final_cumulative_flux)), "\n")
+  cat("  mean_GWC_overall:", sum(is.na(jar_means$mean_GWC_overall)), "\n")
+  cat("  mean_time_sealed_overall:", sum(is.na(jar_means$mean_time_sealed_overall)), "\n")
+  cat("  crop:", sum(is.na(jar_means$crop)), "\n")
+} else {
+  if (n_crops >= 2) {
+    cumulative_model <- lm(final_cumulative_flux ~ mean_GWC_overall + mean_time_sealed_overall + crop, 
+                           data = valid_data)
+  } else {
+    cat("Only one crop type - fitting model without crop predictor\n")
+    cumulative_model <- lm(final_cumulative_flux ~ mean_GWC_overall + mean_time_sealed_overall, 
+                           data = valid_data)
+  }
+  print(summary(cumulative_model))
+  
+  # Plot relationships
+  par(mfrow = c(1, 3))
+  
+  plot(valid_data$mean_GWC_overall, valid_data$final_cumulative_flux, 
+       xlab = "Mean GWC", ylab = "Final Cumulative Flux",
+       main = "Cumulative Flux vs Mean GWC", pch = 19, col = as.numeric(as.factor(valid_data$crop)))
+  abline(lm(final_cumulative_flux ~ mean_GWC_overall, data = valid_data), col = "red", lwd = 2)
+  
+  plot(valid_data$mean_time_sealed_overall, valid_data$final_cumulative_flux,
+       xlab = "Mean Time Sealed (min)", ylab = "Final Cumulative Flux",
+       main = "Cumulative Flux vs Mean Time Sealed", pch = 19, col = as.numeric(as.factor(valid_data$crop)))
+  abline(lm(final_cumulative_flux ~ mean_time_sealed_overall, data = valid_data), col = "red", lwd = 2)
+  
+  boxplot(final_cumulative_flux ~ crop, data = valid_data,
+          xlab = "Crop Type", ylab = "Final Cumulative Flux",
+          main = "Cumulative Flux by Crop", col = 2:4)
+  
+  par(mfrow = c(1, 1))
+  
+  # Correlation summary
+  cat("\n=== CORRELATIONS WITH CUMULATIVE FLUX ===\n")
+  cat("Cumulative Flux vs Mean GWC:\n")
+  print(cor.test(valid_data$final_cumulative_flux, valid_data$mean_GWC_overall))
+  
+  cat("\nCumulative Flux vs Mean Time Sealed:\n")
+  print(cor.test(valid_data$final_cumulative_flux, valid_data$mean_time_sealed_overall))
+}
+}  # End of jar_means check
+```
+
+## Summary of Key Findings
+
+```{r summary-findings}
+cat("\n")
+cat("=" %>% rep(70) %>% paste(collapse = ""))
+cat("\n=== SUMMARY OF KEY FINDINGS ===\n")
+cat("=" %>% rep(70) %>% paste(collapse = ""))
+cat("\n\n")
+
+cat("1. TIME SEALED vs CO2 ACCUMULATION:\n")
+cat("   - Linear model R²:", round(summary(linear_model)$r.squared, 3), "\n")
+cat("   - Quadratic model R²:", round(summary(quadratic_model)$r.squared, 3), "\n")
+if (summary(quadratic_model)$r.squared - summary(linear_model)$r.squared > 0.01) {
+  cat("   → CO2 shows NON-LINEAR accumulation (may level off over time)\n\n")
+} else {
+  cat("   → CO2 accumulates relatively LINEARLY (no evidence of leveling off)\n\n")
+}
+
+cat("2. INSTANTANEOUS FLUX RELATIONSHIPS:\n")
+cat("   - Correlation with GWC:", round(cor(jar_co2_with_gwc$Flux_ugC_per_gsoil_per_min, 
+                                             jar_co2_with_gwc$GWC, use = "complete.obs"), 3), "\n")
+cat("   - Correlation with Time_sealed:", round(cor(jar_co2_with_gwc$Flux_ugC_per_gsoil_per_min, 
+                                                      jar_co2_with_gwc$Time_sealed_min, use = "complete.obs"), 3), "\n")
+flux_r2 <- summary(flux_model)$r.squared
+cat("   - Multiple R² (GWC + Time + Crop):", round(flux_r2, 3), "\n")
+cat("   → These factors explain", round(flux_r2 * 100, 1), "% of flux variation\n\n")
+
+cat("3. CUMULATIVE FLUX (30 weeks):\n")
+cumulative_r2 <- summary(cumulative_model)$r.squared
+cat("   - Multiple R² (Mean GWC + Time", ifelse(n_crops >= 2, " + Crop", ""), "):", round(cumulative_r2, 3), "\n")
+if (n_crops >= 2 && exists("cumulative_aov")) {
+  cat("   - Crop effect p-value:", round(summary(cumulative_aov)[[1]][1, "Pr(>F)"], 4), "\n")
+  if (summary(cumulative_aov)[[1]][1, "Pr(>F)"] < 0.05) {
+    cat("   → Crop type SIGNIFICANTLY affects cumulative CO2 production\n")
+  } else {
+    cat("   → Crop type does NOT significantly affect cumulative CO2 production\n")
+  }
+} else {
+  cat("   - Crop effect: Not tested (only one crop type in data)\n")
+}
+
+cat("\n")
+cat("=" %>% rep(70) %>% paste(collapse = ""))
+cat("\n")
+```
+

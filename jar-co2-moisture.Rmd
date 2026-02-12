@@ -1,0 +1,479 @@
+---
+title: "Jar Flux Analysis"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+# Set Box path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+# Set paths
+csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2 data")
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2 data/confounding-factors-outputs")
+
+# Load required libraries
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(purrr)
+```
+
+## Load Data
+
+```{r load-data}
+# Load both sheets from the Excel file
+file_path <- file.path(csv_folder, "jar_flux_moisture_csv.xlsx")
+
+# Load CO2 data
+jar_co2 <- read_excel(file_path, sheet = "Jars") %>%
+  mutate(
+    sampling_date = as_date(sampling_date),
+    jar_num = as.character(jar_num)
+  )
+
+# Load moisture data
+jar_moisture <- read_excel(file_path, sheet = "moisture-data") %>%
+  mutate(
+    watering_date = as_date(watering_date),
+    jar_num = as.character(jar_num)
+  )
+
+# Display data structure
+glimpse(jar_co2)
+glimpse(jar_moisture)
+
+# Check the date ranges and number of observations
+cat("\n=== DATA DIAGNOSTICS ===\n")
+cat("Number of rows in jar_co2:", nrow(jar_co2), "\n")
+cat("Number of unique jars in jar_co2:", length(unique(jar_co2$jar_num)), "\n")
+cat("Number of unique sampling dates in jar_co2:", length(unique(jar_co2$sampling_date)), "\n")
+cat("\nUnique CO2 sampling dates:\n")
+print(sort(unique(jar_co2$sampling_date)))
+
+cat("\nNumber of rows in jar_moisture:", nrow(jar_moisture), "\n")
+cat("Number of unique jars in jar_moisture:", length(unique(jar_moisture$jar_num)), "\n")
+cat("Number of unique watering dates in jar_moisture:", length(unique(jar_moisture$watering_date)), "\n")
+cat("\nUnique watering dates:\n")
+print(sort(unique(jar_moisture$watering_date)))
+
+# Check for any date formatting issues
+cat("\nSample of sampling_date values (first 10):\n")
+print(head(jar_co2$sampling_date, 10))
+```
+
+## Calculate GWC for Each CO2 Sampling Date
+
+The approach:
+1. For CO2 sampling dates that match a watering date, use the pre-watering GWC
+2. For dates between watering events, interpolate between the post-watering water content (previous watering) and pre-watering water content (next watering)
+
+### Interpolation Methods
+
+Multiple interpolation methods available:
+
+- **Linear**: Simple straight-line interpolation
+  - *Assumes*: Constant drying rate
+  - *Best for*: Short time intervals or conservative estimates
+  
+- **Exponential** (RECOMMENDED): Exponential decay model
+  - *Assumes*: Drying rate proportional to current moisture (most realistic for soil)
+  - *Best for*: Natural soil drying processes
+  - *Formula*: Water follows exponential decay from post-watering to pre-watering values
+  
+- **Logarithmic**: Log-space interpolation
+  - *Assumes*: Multiplicative changes in water content
+  - *Best for*: When percentage changes are more consistent than absolute changes
+
+**Recommendation**: Use **exponential** for most soil applications, as it best captures the physics of evaporative drying where the rate decreases as soil becomes drier.
+
+```{r calculate-gwc}
+# Choose interpolation method: "linear", "exponential", or "logarithmic"
+interpolation_method <- "exponential"
+
+# Function to calculate GWC for a single jar on a single date
+calculate_gwc_for_jar <- function(jar_id, sample_date, moisture_data, method) {
+  # Get moisture data for this specific jar
+  jar_moisture_data <- moisture_data %>% 
+    filter(jar_num == jar_id) %>%
+    arrange(watering_date)
+  
+  # Check if no moisture data exists for this jar
+  if (nrow(jar_moisture_data) == 0) {
+    return(NA_real_)
+  }
+  
+  # Check if sampling date exactly matches a watering date (use pre-watering GWC)
+  exact_match <- jar_moisture_data %>%
+    filter(watering_date == sample_date) %>%
+    pull(`GWC_pre-watering_g/g`)
+  
+  if (length(exact_match) > 0) {
+    # Exact match found - use pre-watering GWC
+    return(exact_match[1])
+  }
+  
+  # Interpolate between watering events
+  # Find the most recent watering date before sampling_date
+  prev_watering <- jar_moisture_data %>%
+    filter(watering_date < sample_date) %>%
+    arrange(desc(watering_date)) %>%
+    slice(1)
+  
+  # Find the next watering date after sampling_date
+  next_watering <- jar_moisture_data %>%
+    filter(watering_date > sample_date) %>%
+    arrange(watering_date) %>%
+    slice(1)
+  
+  if (nrow(prev_watering) == 0 && nrow(next_watering) == 0) {
+    # No watering data available
+    return(NA_real_)
+  } else if (nrow(prev_watering) == 0) {
+    # Before first watering - use first pre-watering GWC
+    return(next_watering$`GWC_pre-watering_g/g`[1])
+  } else if (nrow(next_watering) == 0) {
+    # After last watering - use last post-watering GWC
+    return(prev_watering$`GWC_post-watering`[1])
+  }
+  
+  # Interpolate between prev post-watering and next pre-watering
+  # Get the water content values
+  water_prev_post <- prev_watering$`water_post-watering_g`[1]
+  water_next_pre <- next_watering$`water_pre-watering_g`[1]
+  
+  # Get the dates
+  date_prev <- prev_watering$watering_date[1]
+  date_next <- next_watering$watering_date[1]
+  
+  # Get dry soil mass (should be constant for a jar)
+  dry_soil_mass <- prev_watering$`Mass_dry_soil_g_no-root`[1]
+  
+  # Calculate time fraction (0 to 1)
+  time_fraction <- as.numeric(sample_date - date_prev) / 
+                  as.numeric(date_next - date_prev)
+  
+  # Apply selected interpolation method
+  water_interpolated <- if (method == "linear") {
+    # Linear interpolation (constant drying rate)
+    water_prev_post + time_fraction * (water_next_pre - water_prev_post)
+    
+  } else if (method == "exponential") {
+    # Exponential decay (realistic for soil drying)
+    if (water_prev_post <= water_next_pre) {
+      # Water is increasing or staying same (shouldn't happen, but use linear)
+      water_prev_post + time_fraction * (water_next_pre - water_prev_post)
+    } else {
+      # Normal case: water is decreasing
+      W_min <- 0.01  # Minimum water content (nearly dry)
+      
+      if (water_next_pre <= W_min) {
+        # If next value is at minimum, use linear
+        water_prev_post + time_fraction * (water_next_pre - water_prev_post)
+      } else {
+        # Calculate decay constant
+        k <- -log((water_next_pre - W_min) / (water_prev_post - W_min))
+        # Interpolate using exponential decay
+        W_min + (water_prev_post - W_min) * exp(-k * time_fraction)
+      }
+    }
+    
+  } else if (method == "logarithmic") {
+    # Logarithmic interpolation
+    if (water_prev_post <= 0 || water_next_pre <= 0) {
+      # Can't take log of negative/zero, use linear
+      water_prev_post + time_fraction * (water_next_pre - water_prev_post)
+    } else {
+      # Interpolate in log space
+      log_start <- log(water_prev_post)
+      log_end <- log(water_next_pre)
+      exp(log_start + time_fraction * (log_end - log_start))
+    }
+    
+  } else {
+    # Default to linear if method not recognized
+    water_prev_post + time_fraction * (water_next_pre - water_prev_post)
+  }
+  
+  # Convert to GWC
+  gwc_interpolated <- water_interpolated / dry_soil_mass
+  
+  return(gwc_interpolated)
+}
+
+# For each jar and CO2 sampling date, estimate GWC
+gwc_estimates <- jar_co2 %>%
+  select(jar_num, sampling_date) %>%
+  distinct() %>%
+  mutate(
+    estimated_GWC = purrr::map2_dbl(
+      jar_num, 
+      sampling_date, 
+      ~calculate_gwc_for_jar(.x, .y, jar_moisture, interpolation_method)
+    )
+  )
+
+# Display the estimates
+cat("\nFirst 20 GWC estimates (showing jar-specific values):\n")
+head(gwc_estimates, 20) %>% print()
+
+# Check for variety in estimates
+cat("\nGWC estimates by jar for first sampling date:\n")
+gwc_estimates %>%
+  filter(sampling_date == min(sampling_date)) %>%
+  arrange(jar_num) %>%
+  head(10) %>%
+  print()
+
+# Summary statistics
+cat("\nInterpolation method used:", interpolation_method, "\n")
+cat("Summary of estimated GWC:\n")
+print(summary(gwc_estimates$estimated_GWC))
+cat("\nNumber of unique GWC values:", length(unique(gwc_estimates$estimated_GWC)), "\n")
+```
+
+## Join GWC Back to CO2 Data
+
+```{r join-gwc}
+# Check gwc_estimates before join
+cat("\n=== BEFORE JOIN ===\n")
+cat("Rows in gwc_estimates:", nrow(gwc_estimates), "\n")
+cat("Unique dates in gwc_estimates:", length(unique(gwc_estimates$sampling_date)), "\n")
+cat("Date range in gwc_estimates:", as.character(range(gwc_estimates$sampling_date)), "\n")
+
+# Join the estimated GWC to the original jar_co2 data
+jar_co2_with_gwc <- jar_co2 %>%
+  left_join(gwc_estimates, by = c("jar_num", "sampling_date")) %>%
+  # Replace the empty GWC column with our estimates
+  mutate(GWC = estimated_GWC) %>%
+  select(-estimated_GWC)
+
+# Check the results
+cat("\n=== GWC RESULTS DIAGNOSTICS ===\n")
+cat("Number of rows in jar_co2_with_gwc:", nrow(jar_co2_with_gwc), "\n")
+cat("Number of unique dates in jar_co2_with_gwc:", length(unique(jar_co2_with_gwc$sampling_date)), "\n")
+cat("Date class:", class(jar_co2_with_gwc$sampling_date), "\n")
+cat("Unique dates in final data:\n")
+print(sort(unique(jar_co2_with_gwc$sampling_date)))
+
+cat("\nGWC summary:\n")
+summary(jar_co2_with_gwc$GWC)
+
+cat("\nNumber of non-NA GWC values:", sum(!is.na(jar_co2_with_gwc$GWC)), "\n")
+cat("Number of NA GWC values:", sum(is.na(jar_co2_with_gwc$GWC)), "\n")
+
+# View data across multiple dates
+cat("\nExample data from multiple dates:\n")
+jar_co2_with_gwc %>%
+  filter(jar_num %in% c("1", "2")) %>%
+  select(jar_num, sampling_date, crop, sampling_wk, GWC) %>%
+  arrange(jar_num, sampling_date) %>%
+  print(n = 25)
+```
+
+## Visualize GWC Over Time
+
+```{r plot-gwc, fig.width=12, fig.height=6}
+library(ggplot2)
+
+# Check data before plotting
+cat("\n=== PLOT DATA CHECK ===\n")
+cat("Total rows in jar_co2_with_gwc:", nrow(jar_co2_with_gwc), "\n")
+cat("Date class:", class(jar_co2_with_gwc$sampling_date), "\n")
+cat("Date range:", as.character(min(jar_co2_with_gwc$sampling_date, na.rm = TRUE)), 
+    "to", as.character(max(jar_co2_with_gwc$sampling_date, na.rm = TRUE)), "\n")
+cat("Unique dates:", length(unique(jar_co2_with_gwc$sampling_date)), "\n")
+
+# Find jars with the most sampling dates (to show trends)
+jar_sampling_counts <- jar_co2_with_gwc %>%
+  group_by(jar_num) %>%
+  summarise(
+    n_dates = n_distinct(sampling_date),
+    first_date = min(sampling_date),
+    last_date = max(sampling_date),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n_dates))
+
+cat("Jars with most sampling dates:\n")
+print(head(jar_sampling_counts, 30))
+
+# Select jars that were sampled until the last date (kept until the end)
+last_sampling_date <- max(jar_co2_with_gwc$sampling_date)
+jars_kept_to_end <- jar_co2_with_gwc %>%
+  filter(sampling_date == last_sampling_date) %>%
+  pull(jar_num) %>%
+  unique()
+
+cat("\nNumber of jars sampled on last date (", as.character(last_sampling_date), "):", 
+    length(jars_kept_to_end), "\n")
+cat("Jar numbers:", paste(sort(jars_kept_to_end), collapse=", "), "\n")
+
+# Use all 24 jars that were kept to the end
+example_jars <- jars_kept_to_end
+
+plot_data <- jar_co2_with_gwc %>%
+  filter(jar_num %in% example_jars)
+
+cat("Rows in plot_data:", nrow(plot_data), "\n") 
+cat("Dates in plot_data:", length(unique(plot_data$sampling_date)), "\n")
+cat("Date range in plot_data:", as.character(range(plot_data$sampling_date)), "\n")
+
+# Show a sample of the plot data
+cat("\nSample of plot_data:\n")
+plot_data %>%
+  select(jar_num, sampling_date, GWC) %>%
+  arrange(jar_num, sampling_date) %>%
+  print(n = 20)
+
+# Create plot - with 24 jars, facet by crop for clarity
+ggplot(plot_data, aes(x = sampling_date, y = GWC, color = crop, group = jar_num)) +
+  geom_line(linewidth = 0.5, alpha = 0.7) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b %y") +
+  labs(
+    title = paste("Gravimetric Water Content Over Time - All Jars Kept to End (n=", 
+                  length(example_jars), ", ", interpolation_method, " interpolation)", sep=""),
+    x = "Sampling Date",
+    y = "GWC (g water / g dry soil)",
+    color = "Crop Type"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Compare Interpolation Methods
+
+Let's compare how different interpolation methods affect the GWC estimates for a single jar.
+
+```{r compare-methods, fig.width=12, fig.height=8}
+# Calculate GWC with all three methods using our function
+gwc_linear <- jar_co2 %>%
+  select(jar_num, sampling_date) %>%
+  distinct() %>%
+  mutate(
+    estimated_GWC = purrr::map2_dbl(
+      jar_num, 
+      sampling_date, 
+      ~calculate_gwc_for_jar(.x, .y, jar_moisture, "linear")
+    ),
+    method = "linear"
+  )
+
+gwc_exponential <- jar_co2 %>%
+  select(jar_num, sampling_date) %>%
+  distinct() %>%
+  mutate(
+    estimated_GWC = purrr::map2_dbl(
+      jar_num, 
+      sampling_date, 
+      ~calculate_gwc_for_jar(.x, .y, jar_moisture, "exponential")
+    ),
+    method = "exponential"
+  )
+
+gwc_logarithmic <- jar_co2 %>%
+  select(jar_num, sampling_date) %>%
+  distinct() %>%
+  mutate(
+    estimated_GWC = purrr::map2_dbl(
+      jar_num, 
+      sampling_date, 
+      ~calculate_gwc_for_jar(.x, .y, jar_moisture, "logarithmic")
+    ),
+    method = "logarithmic"
+  )
+
+# Combine results
+gwc_comparison <- bind_rows(gwc_linear, gwc_exponential, gwc_logarithmic)
+
+cat("\n=== COMPARISON DATA CHECK ===\n")
+cat("Total rows in gwc_comparison:", nrow(gwc_comparison), "\n")
+cat("Unique dates in comparison:", length(unique(gwc_comparison$sampling_date)), "\n")
+cat("Date range:", as.character(min(gwc_comparison$sampling_date, na.rm = TRUE)), 
+    "to", as.character(max(gwc_comparison$sampling_date, na.rm = TRUE)), "\n")
+
+# Use the same jars that were kept to the end
+last_sampling_date <- max(gwc_comparison$sampling_date)
+jars_kept_to_end <- gwc_comparison %>%
+  filter(sampling_date == last_sampling_date, method == "linear") %>%  # Just one method to avoid duplication
+  pull(jar_num) %>%
+  unique()
+
+# Select a subset for comparison (4-6 jars for readability in facets)
+example_jars_compare <- sort(jars_kept_to_end)[1:6]
+
+cat("Plotting jars for comparison:", paste(example_jars_compare, collapse=", "), "\n")
+
+# Plot comparison
+comparison_plot_data <- gwc_comparison %>%
+  filter(jar_num %in% example_jars_compare)
+
+cat("Rows in comparison plot:", nrow(comparison_plot_data), "\n")
+
+comparison_plot_data %>%
+  ggplot(aes(x = sampling_date, y = estimated_GWC, color = method, group = method)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  facet_wrap(~jar_num, scales = "free_y", ncol = 2) +
+  scale_x_date(date_breaks = "2 months", date_labels = "%b %y") +
+  labs(
+    title = "Comparison of Interpolation Methods Across Jars",
+    subtitle = "Exponential decay typically best represents soil drying behavior",
+    x = "Sampling Date",
+    y = "Estimated GWC (g/g)",
+    color = "Method"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Calculate differences between methods
+method_differences <- gwc_comparison %>%
+  select(jar_num, sampling_date, method, estimated_GWC) %>%
+  pivot_wider(names_from = method, values_from = estimated_GWC) %>%
+  mutate(
+    diff_linear_exponential = abs(linear - exponential),
+    diff_linear_logarithmic = abs(linear - logarithmic),
+    diff_exponential_logarithmic = abs(exponential - logarithmic)
+  )
+
+cat("\nAverage absolute differences between methods:\n")
+cat("Linear vs Exponential:", 
+    mean(method_differences$diff_linear_exponential, na.rm = TRUE), "\n")
+cat("Linear vs Logarithmic:", 
+    mean(method_differences$diff_linear_logarithmic, na.rm = TRUE), "\n")
+cat("Exponential vs Logarithmic:", 
+    mean(method_differences$diff_exponential_logarithmic, na.rm = TRUE), "\n")
+```
+
+## Save Results
+
+```{r save-results}
+# Save the updated data
+output_file <- file.path(csv_folder, "jar_co2_with_gwc.csv")
+write.csv(jar_co2_with_gwc, output_file, row.names = FALSE)
+
+cat("Data saved to:", output_file, "\n")
+```
+
