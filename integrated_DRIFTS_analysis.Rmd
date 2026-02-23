@@ -216,7 +216,11 @@ dpt_data_roots <- dpt_data_roots %>%
 # Plotting DRIFTS spectra
 ## Plotting by timepoint
 ### Ridge plots
-These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.  
+These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.
+Integration regions according to Mainka et al. (2022):
+
+Mainka, M., Summerauer, L., Wasner, D., Garland, G., Griepentrog, M., Berhe, A. A., & Doetterl, S. (2022). Soil geochemistry as a driver of soil organic matter composition: Insights from a soil chronosequence. Biogeosciences, 19(6), 1675–1689. https://doi.org/10.5194/bg-19-1675-2022
+
 
 <table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
 <tr>
