@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../../Library/CloudStorage/Box-Box/Salk Institute Project/AKS Salk files"
+		},
+		{
+			"path": "../jekyll-site"
 		}
 	],
 	"settings": {}
