@@ -1721,24 +1721,24 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
 
     # Suberin esters (1735-1742 cm-1)
     annotate("rect", xmin = 1728, xmax = 1749, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#4d653a") +
+             alpha = 0.27, fill = "#4d653a") +
     # geom_vline(xintercept = 1706, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#4d653a") + # free acid C=O stretch Garcia et al. 2015
 
     # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-19 cm-1)
     annotate("rect", xmin = 1454, xmax = 1472, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
+             alpha = 0.27, fill = "#5f3e38") +
     annotate("rect", xmin = 1355, xmax = 1375, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
+             alpha = 0.27, fill = "#5f3e38") +
     annotate("rect", xmin = 1233, xmax = 1253, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
+             alpha = 0.27, fill = "#5f3e38") +
     annotate("rect", xmin = 1153, xmax = 1183, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
+             alpha = 0.27, fill = "#5f3e38") +
     # annotate("rect", xmin = 1169, xmax = 1184, ymin = -Inf, ymax = Inf, 
     #          alpha = 0.3, fill = "#5f3e38") +
     # annotate("rect", xmin = 1152, xmax = 1163, ymin = -Inf, ymax = Inf, 
     #          alpha = 0.3, fill = "#5f3e38") +
     annotate("rect", xmin = 714, xmax = 728, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
+             alpha = 0.27, fill = "#5f3e38") +
 
    # spacer
     annotate("text", x = 1900, y = 11, label = " ", 
@@ -1948,35 +1948,39 @@ base_plot_three <- ggplot() +
     expand = c(0.002, 0.003)  # Remove padding on x-axis
   ) +
   
-    # Suberin peak annotations
+        # Suberin peak annotations
     # Aliphatic suberin region (3000-2850 cm-1)
-    annotate("rect", xmin = 2825, xmax = 2999, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
              alpha = 0.06, fill = "#5076ab") +
     # Specific aliphatic peaks
-    # geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    # geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
-    annotate("rect", xmin = 2922, xmax = 2932, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 2918, xmax = 2928, ymin = -Inf, ymax = Inf, 
              alpha = 0.27, fill = "#5076ab") +
     # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
-    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 2848, xmax = 2858, ymin = -Inf, ymax = Inf, 
              alpha = 0.27, fill = "#5076ab") +
 
-    # Suberin esters (1737-1740 cm-1)
-    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#4d653a") +
+    # Suberin esters (1735-1742 cm-1)
+    annotate("rect", xmin = 1728, xmax = 1749, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#4d653a") +
+    # geom_vline(xintercept = 1706, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#4d653a") + # free acid C=O stretch Garcia et al. 2015
 
-    # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-20 cm-1)
-    annotate("rect", xmin = 1462, xmax = 1464, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
-    geom_vline(xintercept = 1374, linetype = "dotted", linewidth = 0.33, color = "#5f3e38") +
-    annotate("rect", xmin = 1240, xmax = 1245, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
-    annotate("rect", xmin = 1179, xmax = 1174, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
-    annotate("rect", xmin = 720, xmax = 723, ymin = -Inf, ymax = Inf, 
-             alpha = 0.3, fill = "#5f3e38") +
+    # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-19 cm-1)
+    annotate("rect", xmin = 1454, xmax = 1472, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    annotate("rect", xmin = 1355, xmax = 1375, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    annotate("rect", xmin = 1233, xmax = 1253, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    annotate("rect", xmin = 1153, xmax = 1183, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1169, xmax = 1184, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1152, xmax = 1163, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 714, xmax = 728, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
 
   # Add aliphatic annotation
   annotate("text", x = 2620, y = max_y_three - 0.03, label = "aliphatic suberin", 
