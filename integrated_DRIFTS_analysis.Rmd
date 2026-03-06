@@ -1919,7 +1919,7 @@ max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
 
 # Create the base plot with functional region annotations
 base_plot_three <- ggplot() +
-  xlim(3777, 422) +
+  xlim(3100, 600) +
   theme_classic() +
   labs(x = expression("wavenumber (cm"^-1*")"), 
        y = "normalized absorbance") +
@@ -1943,7 +1943,7 @@ base_plot_three <- ggplot() +
     expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
   ) +
   scale_x_reverse(
-    limits = c(3770, 415),
+    limits = c(3100, 600),
     breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
     expand = c(0.002, 0.003)  # Remove padding on x-axis
   ) +
