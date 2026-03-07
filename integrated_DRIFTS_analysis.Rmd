@@ -2241,14 +2241,31 @@ suberin_spectral_integration <- function(dpt_data) {
     current_sample <- sample[i]
     
     # Extract data for current sample from each spectral window
+    # Sort by wavelength in ASCENDING order to ensure positive integration
     sample_red1 <- red1[red1$sample == current_sample, ]
+    sample_red1 <- sample_red1[order(sample_red1$wavelength), ]
+    
     sample_red2 <- red2[red2$sample == current_sample, ]
+    sample_red2 <- sample_red2[order(sample_red2$wavelength), ]
+    
     sample_red3 <- red3[red3$sample == current_sample, ]
+    sample_red3 <- sample_red3[order(sample_red3$wavelength), ]
+    
     sample_red4 <- red4[red4$sample == current_sample, ]
+    sample_red4 <- sample_red4[order(sample_red4$wavelength), ]
+    
     sample_red5 <- red5[red5$sample == current_sample, ]
+    sample_red5 <- sample_red5[order(sample_red5$wavelength), ]
+    
     sample_red6 <- red6[red6$sample == current_sample, ]
+    sample_red6 <- sample_red6[order(sample_red6$wavelength), ]
+    
     sample_red7 <- red7[red7$sample == current_sample, ]
+    sample_red7 <- sample_red7[order(sample_red7$wavelength), ]
+    
     sample_red8 <- red8[red8$sample == current_sample, ]
+    sample_red8 <- sample_red8[order(sample_red8$wavelength), ]
+    
     # Calculate area under curve (integration) using trapezoidal rule
     if (nrow(sample_red1) > 1) {
       S_ints$int_2918_2928[i] <- pracma::trapz(sample_red1$wavelength, sample_red1$abs)
