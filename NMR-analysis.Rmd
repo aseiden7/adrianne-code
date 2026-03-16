@@ -737,6 +737,55 @@ ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_annotated.png"
 Create zoomed-in plots of the alkyl region (0--45 ppm) and alkyl-suberin region (27--36 ppm) with reference lines at 30 and 33 ppm.
 
 ```{r plot-alkyl-zoom, message=FALSE, warning=FALSE, fig.width=12, fig.height=6}
+# Filter data for suberin region (0-172 ppm)
+spectra_stats_suber <- spectra_stats %>%
+  filter(ppm >= -1 & ppm <= 185)
+
+# Create the zoomed plot
+p_suber <- ggplot(spectra_stats_suber, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
+  # Full range (most transparent)
+  geom_ribbon(aes(ymin = min_intensity, ymax = max_intensity), alpha = 0.19, color = NA) +
+  # +/- 1 SD (medium transparency)
+  geom_ribbon(aes(ymin = lower_sd, ymax = upper_sd), alpha = 0.44, color = NA) +
+  # Mean line (solid)
+  geom_line(linewidth = 0.8) +
+  # Add vertical reference lines
+  geom_vline(xintercept = 172, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  geom_vline(xintercept = 33, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  facet_grid(timepoint ~ crop, scales = "free_y") +
+  scale_x_reverse() +
+  scale_color_manual(values = color_map) +
+  scale_fill_manual(values = color_map) +
+  labs(
+    x = "Chemical Shift (ppm)",
+    y = "Intensity",
+    title = "Zoomed NMR Spectra: Suberin Region (0-172 ppm)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 14, face = "bold"),
+    strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0)),
+    axis.title = element_text(size = 13),
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.y = element_blank(),
+    panel.spacing.x = unit(0, "cm"),
+    panel.spacing.y = unit(-3.3, "cm"),
+    panel.grid = element_blank()
+  )
+
+# Display the plot
+print(p_suber)
+
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_suber_region_0-172ppm.png"),
+       plot = p_suber, width = 12, height = 6, dpi = 300)
+
+
+
+
+##########################################
 # Filter data for alkyl region (0-45 ppm)
 spectra_stats_alkyl <- spectra_stats %>%
   filter(ppm >= -1 & ppm <= 46)
