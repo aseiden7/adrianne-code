@@ -344,18 +344,10 @@ plot_data %>%
   arrange(jar_num, sampling_date) %>%
   print(n = 20)
 
-crop_colors <- c(
-  "noPlant" = "#2fb1b9",
-  "wheat"   = "#8c4dc3",
-  "rice"    = "#FC9D33",
-  "soy"     = "#FE318E"
-)
-
 # Create plot - with 24 jars, facet by crop for clarity
 ggplot(plot_data, aes(x = sampling_date, y = GWC, color = crop, group = jar_num)) +
   geom_line(linewidth = 0.5, alpha = 0.7) +
   geom_point(size = 1.5, alpha = 0.7) +
-  scale_color_manual(values = crop_colors) +
   scale_x_date(date_breaks = "1 month", date_labels = "%b %y") +
   labs(
     title = paste("Gravimetric Water Content Over Time - All Jars Kept to End (n=", 
@@ -364,123 +356,8 @@ ggplot(plot_data, aes(x = sampling_date, y = GWC, color = crop, group = jar_num)
     y = "GWC (g water / g dry soil)",
     color = "Crop Type"
   ) +
-  theme_dark() +
-  theme(
-    plot.background = element_rect(fill = "#0B0B0B", color = NA),
-    panel.background = element_rect(fill = "#111111", color = NA),
-    panel.grid.major = element_line(color = "#3A3A3A", linewidth = 0.25),
-    panel.grid.minor = element_line(color = "#242424", linewidth = 0.2),
-    axis.text = element_text(color = "#F5F5F5"),
-    axis.title = element_text(color = "#FFFFFF"),
-    plot.title = element_text(color = "#FFFFFF", face = "bold"),
-    legend.background = element_rect(fill = "#0B0B0B", color = NA),
-    legend.key = element_rect(fill = "#111111", color = NA),
-    legend.text = element_text(color = "#F5F5F5"),
-    legend.title = element_text(color = "#FFFFFF"),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-```
-
-## Average GWC by Crop Over Time (24 Jars Kept to End)
-
-```{r plot-gwc-crop-average, fig.width=12, fig.height=6}
-# Average GWC across jars for each crop and sampling date
-avg_gwc_by_crop <- plot_data %>%
-  group_by(crop, sampling_date) %>%
-  summarise(
-    mean_GWC = mean(GWC, na.rm = TRUE),
-    sd_GWC = sd(GWC, na.rm = TRUE),
-    n_jars = sum(!is.na(GWC)),
-    se_GWC = if_else(n_jars > 1, sd_GWC / sqrt(n_jars), NA_real_),
-    .groups = "drop"
-  )
-
-cat("\nRows in avg_gwc_by_crop:", nrow(avg_gwc_by_crop), "\n")
-cat("Crops in avg_gwc_by_crop:", paste(unique(avg_gwc_by_crop$crop), collapse = ", "), "\n")
-
-ggplot(avg_gwc_by_crop, aes(x = sampling_date, y = mean_GWC, color = crop, group = crop)) +
-  geom_errorbar(
-    aes(ymin = mean_GWC - se_GWC, ymax = mean_GWC + se_GWC),
-    width = 2,
-    linewidth = 0.5,
-    alpha = 0.8
-  ) +
-  geom_line(linewidth = 1.1, alpha = 0.95) +
-  geom_point(size = 2.3, alpha = 0.95) +
-  scale_color_manual(values = crop_colors) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b %y") +
-  labs(
-    title = "Average Gravimetric Water Content Over Time by Crop (24 End-Kept Jars)",
-    x = "Sampling Date",
-    y = "Average GWC (g water / g dry soil)",
-    color = "Crop Type"
-  ) +
-  theme_dark() +
-  theme(
-    plot.background = element_rect(fill = "#0B0B0B", color = NA),
-    panel.background = element_rect(fill = "#111111", color = NA),
-    panel.grid.major = element_line(color = "#3A3A3A", linewidth = 0.25),
-    panel.grid.minor = element_line(color = "#242424", linewidth = 0.2),
-    axis.text = element_text(color = "#F5F5F5"),
-    axis.title = element_text(color = "#FFFFFF"),
-    plot.title = element_text(color = "#FFFFFF", face = "bold"),
-    legend.background = element_rect(fill = "#0B0B0B", color = NA),
-    legend.key = element_rect(fill = "#111111", color = NA),
-    legend.text = element_text(color = "#F5F5F5"),
-    legend.title = element_text(color = "#FFFFFF"),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-```
-
-## Cumulative Moving Average GWC by Crop
-
-```{r plot-gwc-crop-moving-average, fig.width=12, fig.height=6}
-# Moving average = average of all prior dates (including current date) for each crop
-moving_avg_by_crop <- avg_gwc_by_crop %>%
-  arrange(crop, sampling_date) %>%
-  group_by(crop) %>%
-  mutate(
-    moving_avg_GWC = cummean(mean_GWC),
-    n_points = row_number(),
-    moving_sd_GWC = purrr::map_dbl(row_number(), ~sd(mean_GWC[1:.x], na.rm = TRUE)),
-    moving_se_GWC = if_else(n_points > 1, moving_sd_GWC / sqrt(n_points), NA_real_)
-  ) %>%
-  ungroup()
-
-ggplot(moving_avg_by_crop, aes(x = sampling_date, y = moving_avg_GWC, color = crop, group = crop)) +
-  geom_errorbar(
-    aes(ymin = moving_avg_GWC - moving_se_GWC, ymax = moving_avg_GWC + moving_se_GWC),
-    width = 2,
-    linewidth = 0.5,
-    alpha = 0.8
-  ) +
-  geom_line(linewidth = 1.2, alpha = 0.95) +
-  geom_point(size = 2.4, alpha = 0.95) +
-  scale_color_manual(values = crop_colors) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b %y") +
-  labs(
-    title = "Cumulative Moving Average GWC by Crop (24 End-Kept Jars)",
-    subtitle = "Each point is the mean of all crop-average values up to that date",
-    x = "Sampling Date",
-    y = "Cumulative moving average GWC (g water / g dry soil)",
-    color = "Crop Type"
-  ) +
-  theme_dark() +
-  theme(
-    plot.background = element_rect(fill = "#0B0B0B", color = NA),
-    panel.background = element_rect(fill = "#111111", color = NA),
-    panel.grid.major = element_line(color = "#3A3A3A", linewidth = 0.25),
-    panel.grid.minor = element_line(color = "#242424", linewidth = 0.2),
-    axis.text = element_text(color = "#F5F5F5"),
-    axis.title = element_text(color = "#FFFFFF"),
-    plot.title = element_text(color = "#FFFFFF", face = "bold"),
-    plot.subtitle = element_text(color = "#DADADA"),
-    legend.background = element_rect(fill = "#0B0B0B", color = NA),
-    legend.key = element_rect(fill = "#111111", color = NA),
-    legend.text = element_text(color = "#F5F5F5"),
-    legend.title = element_text(color = "#FFFFFF"),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 ## Compare Interpolation Methods

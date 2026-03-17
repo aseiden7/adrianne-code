@@ -1,0 +1,363 @@
+---
+title: "Jar Flux Analysis"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+# Set Box path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+# Set paths
+csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2 data")
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2 data/confounding-factors-outputs")
+
+# Load required libraries
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(purrr)
+
+```
+
+## Load Data
+
+```{r load-data}
+library(ggplot2)
+
+crop_colors <- c(
+  "noPlant" = "#2fb1b9",
+  "wheat"   = "#8c4dc3",
+  "rice"    = "#FC9D33",
+  "soy"     = "#FE318E"
+)
+
+read_flux_csv <- function(path, week_label) {
+  df <- read.csv(path, check.names = FALSE, fileEncoding = "UTF-8-BOM")
+  df$week <- week_label
+  df
+}
+
+wk10 <- read_flux_csv(file.path(csv_folder, "wk10_flux_factors_jars.csv"), "Week 10")
+wk20 <- read_flux_csv(file.path(csv_folder, "wk20_flux_factors_jars.csv"), "Week 20")
+wk30 <- read_flux_csv(file.path(csv_folder, "wk30_flux_factors_jars.csv"), "Week 30")
+
+# Rename the cumulative flux column for easier use
+rename_flux <- function(df) {
+  flux_col <- grep("cumul_Flux", names(df), value = TRUE)[1]
+  names(df)[names(df) == flux_col] <- "cumul_flux"
+  df$crop <- factor(df$crop, levels = names(crop_colors))
+  df
+}
+
+wk10 <- rename_flux(wk10)
+wk20 <- rename_flux(wk20)
+wk30 <- rename_flux(wk30)
+
+all_data <- bind_rows(wk10, wk20, wk30)
+all_data$week <- factor(all_data$week, levels = c("Week 10", "Week 20", "Week 30"))
+
+# Global y limits shared across all flux plots
+global_y_limits <- range(all_data$cumul_flux, na.rm = TRUE)
+
+format_p_value <- function(p_value) {
+  case_when(
+    is.na(p_value) ~ "p = NA",
+    p_value < 0.001 ~ "p < 0.001",
+    TRUE ~ paste0("p = ", formatC(p_value, format = "f", digits = 3))
+  )
+}
+
+compute_regression_stats <- function(data, x_var) {
+  data %>%
+    filter(!is.na(.data[[x_var]]), !is.na(cumul_flux), !is.na(crop)) %>%
+    group_by(week, crop) %>%
+    group_modify(~ {
+      if (nrow(.x) < 2 || dplyr::n_distinct(.x[[x_var]]) < 2) {
+        return(tibble(r_squared = NA_real_, p_value = NA_real_))
+      }
+
+      model <- lm(reformulate(x_var, response = "cumul_flux"), data = .x)
+      model_summary <- summary(model)
+      slope_p_value <- coef(model_summary)[2, "Pr(>|t|)"]
+
+      tibble(
+        r_squared = model_summary$r.squared,
+        p_value = slope_p_value
+      )
+    }) %>%
+    ungroup() %>%
+    mutate(
+      label = if_else(
+        is.na(r_squared),
+        "R² = NA, p = NA",
+        paste0(
+          "R² = ", sprintf("%.2f", r_squared),
+          ", ", format_p_value(p_value),
+          if_else(!is.na(p_value) & p_value < 0.05, "*", "")
+        )
+      ),
+      fontface = if_else(!is.na(p_value) & p_value < 0.05, "bold", "plain")
+    )
+}
+
+build_annotation_df <- function(data, x_var) {
+  stats_df <- compute_regression_stats(data, x_var)
+
+  panel_positions <- data %>%
+    filter(!is.na(.data[[x_var]]), !is.na(cumul_flux), !is.na(crop)) %>%
+    group_by(week) %>%
+    summarise(
+      x_min = min(.data[[x_var]], na.rm = TRUE),
+      x_span = diff(range(.data[[x_var]], na.rm = TRUE)),
+      y_max = max(cumul_flux, na.rm = TRUE),
+      y_span = diff(range(cumul_flux, na.rm = TRUE)),
+      .groups = "drop"
+    )
+
+  stats_df %>%
+    left_join(panel_positions, by = "week") %>%
+    mutate(crop = factor(crop, levels = names(crop_colors))) %>%
+    arrange(week, crop) %>%
+    group_by(week) %>%
+    mutate(
+      x_step = if_else(x_span > 0, x_span, pmax(abs(x_min), 1)),
+      x = x_min + 0.03 * x_step,
+      y = Inf,
+      vjust = 1.2 + (row_number() - 1) * 1.5
+    ) %>%
+    ungroup()
+}
+
+make_flux_plot <- function(data, x_var, x_label, plot_title, top_expand = 0.08, y_limits = NULL) {
+  annotation_df <- build_annotation_df(data, x_var)
+
+  ggplot(data, aes(x = .data[[x_var]], y = cumul_flux, color = crop)) +
+    geom_point(size = 2, alpha = 0.8) +
+    geom_smooth(method = "lm", se = TRUE, aes(fill = crop), alpha = 0.15, linewidth = 0.8) +
+    geom_text(
+      data = annotation_df,
+      aes(x = x, y = y, label = label, color = crop, fontface = fontface, vjust = vjust),
+      inherit.aes = FALSE,
+      hjust = 0,
+      size = 3.2,
+      show.legend = FALSE
+    ) +
+    scale_color_manual(values = crop_colors) +
+    scale_fill_manual(values = crop_colors) +
+    guides(fill = "none") +
+    scale_y_continuous(limits = y_limits, expand = expansion(mult = c(0.05, top_expand))) +
+    facet_wrap(~week, nrow = 1) +
+    labs(
+      x = x_label,
+      y = expression("Cumulative flux ("*mu*"g CO"[2]*"-C g"^{-1}*" soil min"^{-1}*")"),
+      color = "Crop", fill = "Crop",
+      title = plot_title
+    ) +
+    theme_dark() +
+    theme(
+      plot.background = element_rect(fill = "#0B0B0B", color = NA),
+      panel.background = element_rect(fill = "#111111", color = NA),
+      panel.grid.major = element_line(color = "#3A3A3A", linewidth = 0.25),
+      panel.grid.minor = element_line(color = "#242424", linewidth = 0.2),
+      axis.text = element_text(color = "#F5F5F5"),
+      axis.title = element_text(color = "#FFFFFF"),
+      plot.title = element_text(color = "#FFFFFF", face = "bold"),
+      legend.background = element_rect(fill = "#0B0B0B", color = NA),
+      legend.key = element_rect(fill = "#111111", color = NA),
+      legend.text = element_text(color = "#F5F5F5"),
+      legend.title = element_text(color = "#FFFFFF"),
+      strip.background = element_rect(fill = "#1E1E1E", color = "#4D4D4D"),
+      strip.text = element_text(color = "#FFFFFF")
+    )
+}
+```
+
+## Cumulative Flux vs Initial Litter Mass
+
+```{r plot-flux-vs-mass, fig.width=12, fig.height=4}
+make_flux_plot(
+  data = all_data,
+  x_var = "initial_mass_mg",
+  x_label = "Initial root litter mass (mg)",
+  plot_title = expression("Cumulative " * CO[2] * " flux vs initial litter mass"),
+  top_expand = 0.10,
+  y_limits = global_y_limits
+)
+```
+
+## Cumulative Flux vs Average Gravimetric Water Content
+
+```{r plot-flux-vs-gwc, fig.width=12, fig.height=4}
+make_flux_plot(
+  data = all_data,
+  x_var = "avg_GWC",
+  x_label = "Average gravimetric water content (g/g)",
+  plot_title = expression("Cumulative " * CO[2] * " flux vs average GWC"),
+  y_limits = global_y_limits
+)
+```
+
+## Cumulative Flux vs Average Sealed Time
+
+```{r plot-flux-vs-sealtime, fig.width=12, fig.height=4}
+make_flux_plot(
+  data = all_data,
+  x_var = "avg_seal_time",
+  x_label = "Average interval duration (minutes)",
+  plot_title = expression("Cumulative " * CO[2] * " flux vs average sealed time"),
+  y_limits = global_y_limits
+)
+```
+
+## Combined Trendline Plots (all crops pooled)
+
+```{r combined-stats}
+compute_regression_stats_pooled <- function(data, x_var) {
+  data %>%
+    filter(!is.na(.data[[x_var]]), !is.na(cumul_flux)) %>%
+    group_by(week) %>%
+    group_modify(~ {
+      if (nrow(.x) < 2 || dplyr::n_distinct(.x[[x_var]]) < 2) {
+        return(tibble(r_squared = NA_real_, p_value = NA_real_))
+      }
+      model <- lm(reformulate(x_var, response = "cumul_flux"), data = .x)
+      s <- summary(model)
+      tibble(r_squared = s$r.squared, p_value = coef(s)[2, "Pr(>|t|)"])
+    }) %>%
+    ungroup() %>%
+    mutate(
+      label = if_else(
+        is.na(r_squared),
+        "R\u00b2 = NA, p = NA",
+        paste0(
+          "R\u00b2 = ", sprintf("%.2f", r_squared),
+          ", ", format_p_value(p_value),
+          if_else(!is.na(p_value) & p_value < 0.05, "*", "")
+        )
+      ),
+      fontface = if_else(!is.na(p_value) & p_value < 0.05, "bold", "plain")
+    )
+}
+
+build_annotation_df_pooled <- function(data, x_var) {
+  stats_df <- compute_regression_stats_pooled(data, x_var)
+
+  panel_positions <- data %>%
+    filter(!is.na(.data[[x_var]]), !is.na(cumul_flux)) %>%
+    group_by(week) %>%
+    summarise(
+      x_min = min(.data[[x_var]], na.rm = TRUE),
+      x_span = diff(range(.data[[x_var]], na.rm = TRUE)),
+      .groups = "drop"
+    )
+
+  stats_df %>%
+    left_join(panel_positions, by = "week") %>%
+    mutate(
+      x_step = if_else(x_span > 0, x_span, pmax(abs(x_min), 1)),
+      x = x_min + 0.03 * x_step,
+      y = Inf,
+      vjust = 1.5
+    )
+}
+
+make_flux_plot_pooled <- function(data, x_var, x_label, plot_title, top_expand = 0.08, y_limits = NULL) {
+  annotation_df <- build_annotation_df_pooled(data, x_var)
+
+  ggplot(data, aes(x = .data[[x_var]], y = cumul_flux, color = crop)) +
+    geom_point(size = 2, alpha = 0.8) +
+    geom_smooth(
+      aes(group = 1), method = "lm", se = TRUE,
+      color = "grey30", fill = "grey70", alpha = 0.2, linewidth = 0.8
+    ) +
+    geom_text(
+      data = annotation_df,
+      aes(x = x, y = y, label = label, fontface = fontface, vjust = vjust),
+      inherit.aes = FALSE,
+      hjust = 0, size = 3.2, color = "#e8e8e8",
+      show.legend = FALSE
+    ) +
+    scale_color_manual(values = crop_colors) +
+    scale_y_continuous(limits = y_limits, expand = expansion(mult = c(0.05, top_expand))) +
+    facet_wrap(~week, nrow = 1) +
+    labs(
+      x = x_label,
+      y = expression("Cumulative flux ("*mu*"g CO"[2]*"-C g"^{-1}*" soil min"^{-1}*")"),
+      color = "Crop",
+      title = plot_title
+    ) +
+    theme_dark() +
+    theme(
+      plot.background = element_rect(fill = "#0B0B0B", color = NA),
+      panel.background = element_rect(fill = "#111111", color = NA),
+      panel.grid.major = element_line(color = "#3A3A3A", linewidth = 0.25),
+      panel.grid.minor = element_line(color = "#242424", linewidth = 0.2),
+      axis.text = element_text(color = "#F5F5F5"),
+      axis.title = element_text(color = "#FFFFFF"),
+      plot.title = element_text(color = "#FFFFFF", face = "bold"),
+      legend.background = element_rect(fill = "#0B0B0B", color = NA),
+      legend.key = element_rect(fill = "#111111", color = NA),
+      legend.text = element_text(color = "#F5F5F5"),
+      legend.title = element_text(color = "#FFFFFF"),
+      strip.background = element_rect(fill = "#1E1E1E", color = "#4D4D4D"),
+      strip.text = element_text(color = "#FFFFFF")
+    )
+}
+```
+
+### Flux vs Initial Litter Mass (pooled)
+
+```{r plot-pooled-mass, fig.width=12, fig.height=4}
+make_flux_plot_pooled(
+  data = all_data,
+  x_var = "initial_mass_mg",
+  x_label = "Initial root litter mass (mg)",
+  plot_title = expression("Cumulative " * CO[2] * " flux vs initial litter mass (pooled)"),
+  top_expand = 0.12,
+  y_limits = global_y_limits
+)
+```
+
+### Flux vs Average GWC (pooled)
+
+```{r plot-pooled-gwc, fig.width=12, fig.height=4}
+make_flux_plot_pooled(
+  data = all_data,
+  x_var = "avg_GWC",
+  x_label = "Average gravimetric water content (g/g)",
+  plot_title = expression("Cumulative " * CO[2] * " flux vs average GWC (pooled)"),
+  y_limits = global_y_limits
+)
+```
+
+### Flux vs Average Sealed Time (pooled)
+
+```{r plot-pooled-sealtime, fig.width=12, fig.height=4}
+make_flux_plot_pooled(
+  data = all_data,
+  x_var = "avg_seal_time",
+  x_label = "Average interval duration (minutes)",
+  plot_title = expression("Cumulative " * CO[2] * " flux vs average sealed time (pooled)"),
+  y_limits = global_y_limits
+)
+```
+
