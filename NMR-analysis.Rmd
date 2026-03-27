@@ -835,7 +835,7 @@ ggsave(filename = file.path(outputs_folder, "NMR_spectra_alkyl_region_0-45ppm.pn
 ############################################################################
 
 spectra_stats_aSub <- spectra_stats %>%
-  filter(ppm >= 17 & ppm <= 40)
+  filter(ppm >= 21 & ppm <= 41)
 
 # Create the zoomed plot
 p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
@@ -874,7 +874,7 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
 print(p_aSub)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_17-40ppm.png"),
+ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_21-41ppm.png"),
        plot = p_aSub, width = 12, height = 6, dpi = 300)
 ```
 

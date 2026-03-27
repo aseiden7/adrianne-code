@@ -1,0 +1,380 @@
+00.---
+title: "NMR Data Analysis"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+# Overview
+This document outlines the steps for analyzing solid-state <sup>13</sup>C CP/MAS NMR spectra using the `SOMnmR` package in R. The package was developed by Luis Colocho at the Technical University of Munich. You can find the package and its documentation here: https://github.com/LuisCol8/SOMnmR and a peer-reviewed publication describing the methods here: https://doi.org/10.1029%2F2024JG008288.
+
+Full citation:
+Colocho Hurtarte, L. C., Garcia‐Franco,N., Villalba Ayala, G., Prietzel, J., &Koegel‐Knabner, I. (2025). SOMnmR: An R package for analyzing CP MAS <sup>13</sup>C NMR spectra of environmental samples. *Journal of Geophysical Research: Biogeosciences*, 130, e2024JG008288.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+# Load required libraries
+    # SOMnmR dependencies
+library(minpack.lm)
+library(quadprog)
+library(pracma)
+library(ggplot2)
+library(dplyr)
+library(data.table)
+library(IntervalSurgeon)
+    # SOMnmR -- main package
+library(SOMnmR)
+    # For better table formatting
+if (!require(kableExtra)) install.packages("kableExtra")
+library(kableExtra)
+
+# Set Box path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+# Set paths
+csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/MNova-CSVs")
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/NMR_analysis_outputs")
+```
+
+<style>
+/* Scoped narrow table styles with !important to override theme */
+.nmr-narrow table {
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    width: 290px !important;
+    max-width: 300px !important;
+}
+.nmr-narrow table th, .nmr-narrow table td {
+    padding: 6px !important;
+    border: 0.6px solid #545454 !important;
+    /* text-align: left !important; */
+}
+.nmr-narrow table th:nth-child(1), .nmr-narrow table td:nth-child(1) { width: 150px !important; }
+.nmr-narrow table th:nth-child(2), .nmr-narrow table td:nth-child(2) { width: 140px !important; }
+/* Banded rows - more visible on dark theme */
+.nmr-narrow table tbody tr:nth-child(odd) { background-color: rgba(255, 255, 255, 0.02) !important; }
+.nmr-narrow table tbody tr:nth-child(even) { background-color: rgba(255, 255, 255, 0.09) !important; }
+</style>
+
+# Basic Integration of NMR Data
+modified from SOMnmR "Basic example" vignette: https://github.com/LuisCol8/SOMnmR/blob/main/how-to-use.md
+
+The following code chunk will load and integrate all CP/MAS <sup>13</sup>C NMR spectra stored as comma-separated value (.csv) files in the specified folder. Note that the resulting integrals are not yet spinning side-band (SSB) corrected. There are  three integration methods available in the `int_nmr` function: "4region", "Bonanomi", and "MMM". 
+"4region" divides the spectrum into four chemical shift regions:
+
+<div class="nmr-narrow">
+
+|        |       |
+|--------|-------|
+| Alkyl | 0–45 ppm |
+| O/N-Alkyl | 45–110 ppm |
+| Aryl | 110–160 ppm |
+| Carboxyl | 160–210 ppm |
+
+</div>
+
+"Bonanomi" uses 7 integration regions defined in [Bonanomi et al., 2011](https://doi.org/10.1111/j.1469-8137.2011.03765.x). This method is used to investigate detailed chemical changes in organic materials, such as during litter decomposition. 
+
+<div class="nmr-narrow">
+
+|        |       |
+|--------|-------|
+| Alkyl | 0–45 ppm |
+| N-Alkyl/methoxy | 46–60 ppm |
+| O-Alkyl | 61–90 ppm |
+| Di-O-Alkyl | 91–110 ppm |
+| Aromatic | 111–140 ppm |
+| Phenolic | 141–160 ppm |
+| Carboxyl | 161–190 ppm |
+
+</div>
+
+The "MMM" method uses a set of seven integration ranges similar to the "Bonanomi" method, tailored for input into the mixing models based on previous work from [Nelson et al. (1999)](https://doi.org/10.1071/S98076), [Baldock et al. (2004)](https://doi.org/10.1016/j.marchem.2004.06.016)  and [Nelson and Baldock (2005)](https://doi.org/10.1007/s10533-004-0076-3). 
+
+<div class="nmr-narrow">
+
+|        |       |
+|--------|-------|
+| Alkyl | −10–45 ppm |
+| N-Alkyl/methoxy | 45–60 ppm |
+| O-Alkyl | 60–95 ppm |
+| Di-O-Alkyl | 95–110 ppm |
+| Aromatic | 110–145 ppm |
+| Phenolic | 145–165 ppm |
+| Carbonyl | 165–210 ppm |
+
+</div>
+
+To perform the MMM analysis, the SOMnmR package needs both the integrated signal intensities and the molar C:N values of the samples. For now, since I don't have C:N values for these samples, I will just use the "Bonanomi" method.
+
+```{r load-and-integrate, message=FALSE}
+setwd(csv_folder)
+
+## list all the files
+files <- list.files()
+
+## list all the files that end with .csv
+files <- files[grep("\\.csv$", files)]
+
+# Load data, choose either  "Bruker" (standard Bruker file), "coma" (coma separated value), "tab" (tab separated value) 
+spec <- read_raw_spec(files, filetype = "coma")
+
+# Integrate the whole data set, NMRmeth can be "4region", "Bonanomi" and "MMM". I will chose Bonanomi.
+# For this you will need to input the magnetic field of your NMR machine and the spinning frequency of the probe.
+# In this example we used an NMR of 500 MHz and a spinning frequency of 10,000 Hz.
+
+# Suppress progress bar output
+invisible(capture.output(
+  Integralregions <- int_nmr(spec, NMRmeth = "Bonanomi", NMR_field = 500, NMR_rotation = 10000)
+))
+
+# Display results in the knitted output
+print(paste("Integrated", length(Integralregions), "spectra"))
+
+# Show the first spectrum's integral table
+integral_table <- Integralregions[[1]][["data"]][["Integral"]]
+# Round numeric columns to 3 decimal places
+integral_table[] <- lapply(integral_table, function(x) if(is.numeric(x)) round(x, 3) else x)
+knitr::kable(integral_table, 
+             caption = "Example: Integral regions for first spectrum")
+```
+
+# Correcting for Spinning Side Bands (SSB)
+"We now know how to load a spectrum a perform a simple integration. There is a wraped function that performs the integration, and corrects for the SSBs. The example follows"
+```{r ssb-correction, message=FALSE}
+# load necessary packages
+  library(minpack.lm)
+  library(quadprog)
+  library(pracma)
+  library(ggplot2)
+  library(data.table)
+  library(dplyr)
+  library(IntervalSurgeon)
+  library(SOMnmR)
+
+# Source modified region_calc function that adds Suberin region
+code_folder <- "c:/Users/adria/adrianne-code"
+# # Debug: Print the full path and check if file exists
+# print(paste("Attempting to source:", file.path(code_folder, "region_calc_suberin.R")))
+# print(paste("File exists:", file.exists(file.path(code_folder, "region_calc_suberin.R"))))
+source(file.path(code_folder, "region_calc_suberin.R"))
+#source("c:/Users/adria/adrianne-code/region_calc_suberin.R")
+
+# load data
+## set working directory
+csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/MNova-CSVs")
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/NMR_analysis_outputs")
+
+## go to directory containing all spectra
+setwd(csv_folder)
+
+## list all the files
+files <- list.files()
+
+## list all the files that end with .csv
+files <- files[grep("\\.csv$", files)]
+
+# Load data, choose either  "Bruker" (standard Bruker file), "coma" (coma separated value), "tab" (tab separated value
+spec <- read_raw_spec(files, filetype = "coma")
+
+# Integrate and correct for the SSB of the whole data set, NMRmeth can be "4region", "Bonanomi" and "MMM".
+# I will chose Bonanomi.
+# For this you will need to input the magnetic field of your NMR machine and the spinning frequency of the probe.
+# For this research I used an NMR of 500 MHz and a spinning frequency of 10000 Hz.
+
+# Suppress progress bar output
+# Using region_calc_suberin which adds Suberin region (28-35 ppm)
+invisible(capture.output(
+  IntegralSSBc <- region_calc_suberin(spec, NMRmeth = "Bonanomi", NMR_field = 500, NMR_rotation = 10000)
+))
+
+# Debug: Check if Suberin column exists in first result
+if (!is.null(IntegralSSBc[[1]]$Suberin)) {
+  print("Suberin column successfully added!")
+  print(paste("Suberin value for first sample:", round(IntegralSSBc[[1]]$Suberin, 3)))
+} else {
+  print("Warning: Suberin column not found in results")
+  print(paste("Columns in result:", paste(names(IntegralSSBc[[1]]), collapse=", ")))
+}
+
+
+# Convert character columns to numeric in each data frame (except 'name')
+IntegralSSBc <- lapply(IntegralSSBc, function(df) {
+  for(col in names(df)) {
+    if(col != "name") {
+      df[[col]] <- as.numeric(df[[col]])
+    }
+  }
+  return(df)
+})
+#To view the output of a single spectrum
+# View(IntegralSSBc[[1]])
+
+# Round and display first spectrum
+ssb_table <- IntegralSSBc[[1]]
+ssb_table[] <- lapply(ssb_table, function(x) if(is.numeric(x)) round(x, 3) else x)
+knitr::kable(ssb_table, 
+             caption = "Example: SSB-corrected output for a single spectrum")
+
+#Generate a table with all the results instead of having each in a list
+Integrall <- NULL
+for (i in 1:length(IntegralSSBc)) {
+  Integral <- data.frame(IntegralSSBc[[i]], stringsAsFactors = FALSE)
+  Integrall <- rbind(Integrall, Integral)
+}
+
+# Convert all columns except 'name' to numeric and round to 3 decimals
+for(col in names(Integrall)) {
+  if(col != "name") {
+    Integrall[[col]] <- round(as.numeric(Integrall[[col]]), 3)
+  }
+}
+
+# Display all results
+knitr::kable(Integrall, 
+             caption = "Results table: All spectra SSB-corrected integrals") %>%
+  kableExtra::kable_styling()
+
+# Save the results as a .csv file
+write.csv(Integrall, file.path(outputs_folder, "NMR_SSB_corrected_integrals_Bonanomi.csv"), row.names = FALSE)
+```
+# Make a plot
+"There is a quick plot function that separates the regions of the spectrum." -- I modified plot_NMR to plot 240 to -20 ppm instead of 400 to -200 ppm, set the y-minimum at -1 (instead of -5), and use the sample names as plot titles.
+
+```{r plot-nmr, message=FALSE, fig.width=10, fig.height=8, results='hide'}
+# load necessary packages
+  library(ggplot2)
+  library(SOMnmR)
+
+# Source the modified plot function using full path
+code_folder <- "c:/Users/adria/adrianne-code"
+source(file.path(code_folder, "plot_NMR_edit.R"))
+
+# Set working directory to outputs folder for plot saving
+setwd(outputs_folder)
+
+# Generate plots - they will be saved to outputs_folder and displayed in HTML
+plot_NMR_aks(spec, NMRmeth = "Bonanomi", file.output = TRUE , use.tiff = FALSE)
+
+# Return to original directory
+setwd(csv_folder)
+```
+# Suberin Over Time
+Plot the Suberin percentage changes over time for each crop type.
+
+```{r suberin-time-plot, message=FALSE, fig.width=10, fig.height=6}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggpmisc)
+
+# Extract crop type and timepoint from sample names
+Integrall_time <- Integrall %>%
+  mutate(
+    # Extract crop type (wheat, rice, soy, noPlant)
+    crop = case_when(
+      str_detect(name, "wheat") ~ "wheat",
+      str_detect(name, "rice") ~ "rice",
+      str_detect(name, "soy") ~ "soy",
+      str_detect(name, "noPlant") ~ "noPlant",
+      TRUE ~ NA_character_
+    ),
+    # Extract timepoint (wk0, wk10, wk40)
+    timepoint = str_extract(name, "wk[0-9]+"),
+    # Extract numeric week value
+    week = as.numeric(str_extract(timepoint, "[0-9]+"))
+  ) %>%
+  filter(!is.na(crop) & !is.na(week) & crop != "noPlant")
+
+# Define crop colors
+crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#884EBB")
+
+# Calculate R-squared and p-values for each crop
+stats_by_crop <- Integrall_time %>%
+  group_by(crop) %>%
+  summarise(
+    model = list(lm(Suberin ~ week)),
+    r_squared = summary(model[[1]])$r.squared,
+    p_value = summary(model[[1]])$coefficients[2, 4],
+    .groups = "drop"
+  ) %>%
+  mutate(
+    label = sprintf("R² = %.3f, p = %.3f%s", 
+                    r_squared, p_value, 
+                    ifelse(p_value < 0.05, " *", "")),
+    crop_label = paste0(toupper(substring(crop, 1, 1)), substring(crop, 2))
+  )
+
+# Create labels for legend
+legend_labels <- stats_by_crop %>%
+  arrange(factor(crop, levels = c("soy", "rice", "wheat"))) %>%
+  mutate(full_label = paste0(crop_label, "\n", label)) %>%
+  pull(full_label)
+
+names(legend_labels) <- stats_by_crop %>%
+  arrange(factor(crop, levels = c("soy", "rice", "wheat"))) %>%
+  pull(crop)
+# Calculate means for each crop-timepoint combination
+sub_means <- Integrall_time %>%
+  group_by(crop, week) %>%
+  summarise(mean_suberin = mean(Suberin, na.rm = TRUE), .groups = 'drop')
+# Create the plot
+p <- ggplot(Integrall_time, aes(x = week, y = Suberin, color = crop)) +
+  geom_jitter(size = 4.5, alpha = 0.7, width = 1.5) +
+  geom_point(data = sub_means, aes(x = week, y = mean_suberin, color = crop),
+             shape = 4, size = 5.2, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", linewidth = 1) +
+  scale_color_manual(
+    values = crop_color,
+    labels = legend_labels
+  ) +
+  scale_x_continuous(breaks = c(0, 10, 40)) +
+  labs(
+    title = NULL,
+    x = "Time (weeks)",
+    y = "Relative Suberin Content",
+    color = ""
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 14.5, face = "bold"),
+    axis.text = element_text(size = 14.5, face = "bold"),
+    axis.line = element_line(size = 0.8),
+    legend.position = "right",
+    legend.text = element_text(size = 10, lineheight = 1.2),
+    legend.key.height = unit(1.5, "cm")
+  )
+print(p)
+# Save the plot
+ggsave(filename = file.path(outputs_folder, "suberin_22-40_by_crop_timepoint.png"),
+       plot = p, width = 11, height = 7, dpi = 300)
+# Print summary statistics
+cat("\nSuberin content summary by crop and timepoint:\n")
+Integrall_time %>%
+  group_by(crop, timepoint) %>%
+  summarise(
+    n = n(),
+    mean_suberin = round(mean(Suberin, na.rm = TRUE), 3),
+    sd_suberin = round(sd(Suberin, na.rm = TRUE), 3),
+    .groups = "drop"
+  ) %>%
+  knitr::kable() %>%
+  kableExtra::kable_styling()
+```
+
