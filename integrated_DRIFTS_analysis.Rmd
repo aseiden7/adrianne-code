@@ -76,6 +76,51 @@ for (pkg in required_packages) {
   }
 }
 
+# Define custom themes
+theme_dark_custom <- function() {
+  theme_classic() +
+  theme(
+    plot.background = element_rect(fill = "black", color = "#0a0a0a"),
+    panel.background = element_rect(fill = "#0a0a0a", color = NA),
+    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
+    axis.title = element_text(color = "white", size = 12),
+    axis.text = element_text(color = "white", size = 11),
+    axis.line = element_line(color = "white", linewidth = 0.5),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white", size = 11),
+    legend.title = element_text(color = "white", size = 12)
+  )
+}
+
+theme_light_custom <- function() {
+  theme_classic() +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = "black"),
+    plot.title = element_text(color = "black", size = 13, face = "bold", margin = margin(b = 10)),
+    axis.title = element_text(color = "black", size = 12),
+    axis.text = element_text(color = "black", size = 11),
+    axis.line = element_line(color = "black", linewidth = 0.5),
+    legend.background = element_rect(fill = "white", color = "black"),
+    legend.text = element_text(color = "black", size = 11),
+    legend.title = element_text(color = "black", size = 12)
+  )
+}
+
+# Set default theme for all plots (toggle between theme_light_custom() and theme_dark_custom())
+theme_set(theme_dark_custom())
+theme_suffix <- "-dark"  # Change to "-light" when using theme_light_custom()
+annotation_text_color <- ifelse(theme_suffix == "-dark", "white", "black")  # Change to "black" when using theme_light_custom()
+annotation_fill_color <- ifelse(theme_suffix == "-dark", "black", "white")  # Set annotation fill color based on theme
+# Wrapper function for ggsave with automatic theme suffix
+ggsave_themed <- function(filename, plot, width = NA, height = NA, dpi = 300, ...) {
+  # Remove existing -light or -dark suffix if present, then add the current theme suffix
+  base_filename <- gsub("-light\\.png$|-dark\\.png$", ".png", filename)
+  themed_filename <- sub("\\.png$", paste0(theme_suffix, ".png"), base_filename)
+  output_path <- file.path(outputs_folder, themed_filename)
+  ggsave(output_path, plot, width = width, height = height, dpi = dpi, ...)
+}
+
 # Define exact color palettes from original files
 crop_colors <- c('wheat' = '#7B41A9', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#98C65D')
 timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
@@ -275,33 +320,32 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
     geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
     xlim(3777, 422) +
     scale_y_discrete(expand = expansion(mult = c(0.0, 0.56))) +  # Less space below, more above
-    theme_classic() +
+    
     theme(axis.text.y = element_text(size = 12),
           legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
     scale_color_manual(values = crop_colors) +
     ggtitle(title) +
     labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
-       # spacer
     annotate("text", x = 1900, y = max_y + 0.2, label = " ", 
-             size = 3, hjust = 0.5) +
+             size = 3, hjust = 0.5, color = annotation_text_color) +
     # Add simple plant region annotation
     annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("text", x = 2560, y = max_y, label = "Simple Plant", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
     annotate("text", x = 1870, y = max_y + 0.11, label = "Microbial", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
     annotate("text", x = 1190, y = max_y + 0.11, label = "Complex Plant", 
-             size = 3.3, hjust = 0.5)
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
   
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -381,7 +425,7 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
       breaks = crop_offsets,
       labels = names(crop_offsets) # Reduce top space from 0.56 to 0.15
     ) +
-    theme_classic() +
+    
     theme(axis.text.y = element_text(size = 12),
           legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
@@ -402,24 +446,24 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
     # Add region annotations - positioned to match ridge plot style
     # spacer
     annotate("text", x = 1900, y = 10.201, 
-             label = " ", size = 3, hjust = 0.5) +
+             label = " ", size = 3, hjust = 0.5, color = annotation_text_color) +
     # Add simple plant region annotation
     annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#e3c8b1") +
     annotate("text", x = 2560, y = text_y, 
-             label = "Simple Plant", size = 3.3, hjust = 0.5) +
+             label = "Simple Plant", size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#a8cbad") +
     annotate("text", x = 1870, y = text_y, 
-             label = "Microbial", size = 3.3, hjust = 0.5) +
+             label = "Microbial", size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#beb5d5") +
     annotate("text", x = 1200, y = text_y, 
-             label = "Complex Plant", size = 3.3, hjust = 0.5)
+             label = "Complex Plant", size = 3.3, hjust = 0.5, color = annotation_text_color)
 
   return(list(plot = line_plot, data = filtered_data))
 }
@@ -504,7 +548,7 @@ create_crop_plot <- function(data, crop_name, color_palette) {
                           color = timepoint)) +
     xlim(3777, 422) +
     geom_line() +
-    theme_classic() +
+    
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "Roots DRIFTS")) +
     labs(x = expression("wavenumber (cm"^-1*")"), 
@@ -523,17 +567,17 @@ create_crop_plot <- function(data, crop_name, color_palette) {
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
     annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
     annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
-             size = 3.3, hjust = 0.5)
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
   
   return(list(plot = crop_plot, data = crop_data))
 }
@@ -610,7 +654,7 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
                          color = timepoint)) +
     xlim(3777, 422) +
     geom_line(alpha = 0.8) +
-    theme_classic() +
+    
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "roots DRIFTS")) +
     labs(x = expression("wavenumber (cm"^-1*")"), 
@@ -630,17 +674,17 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#e3c8b1") +
     annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#a8cbad") +
     annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.12, fill = "#beb5d5") +
     annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
-             size = 3.3, hjust = 0.5)
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
 
   return(list(plot = line_plot, data = crop_data))
 }
@@ -701,7 +745,7 @@ max_y <- max(all_crops_data$offset_absorbance, na.rm = TRUE) + 0.2
 # Create the base plot with functional region annotations
 base_plot <- ggplot() +
   xlim(3777, 422) +
-  theme_classic() +
+  
   labs(x = expression("wavenumber (cm"^-1*")"), 
        y = "",
        title = "DRIFTS Spectra: All Crops and Timepoints") +
@@ -735,15 +779,15 @@ base_plot <- ggplot() +
   annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
            alpha = 0.12, fill = "#e3c8b1") +
   annotate("text", x = 2550, y = max_y, label = "Simple Plant", 
-           size = 3.3, hjust = 0.5) +
+           size = 3.3, hjust = 0.5, color = annotation_text_color) +
   annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
            alpha = 0.12, fill = "#a8cbad") +
   annotate("text", x = 1850, y = max_y, label = "Microbial", 
-           size = 3.3, hjust = 0.5) +
+           size = 3.3, hjust = 0.5, color = annotation_text_color) +
   annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
            alpha = 0.12, fill = "#beb5d5") +
   annotate("text", x = 1200, y = max_y, label = "Complex Plant", 
-           size = 3.3, hjust = 0.5)
+           size = 3.3, hjust = 0.5, color = annotation_text_color)
 
 # Install ggnewscale if needed for multiple color scales
 if (!require(ggnewscale, quietly = TRUE)) {
@@ -807,7 +851,7 @@ max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
 # Create the base plot with functional region annotations
 base_plot_three <- ggplot() +
   xlim(3777, 422) +
-  theme_classic() +
+  
   labs(x = expression("wavenumber (cm"^-1*")"), 
        y = "normalized absorbance") +
   theme(
@@ -849,15 +893,15 @@ base_plot_three <- ggplot() +
   annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
            alpha = 0.12, fill = "#e3c8b1") +
   annotate("text", x = 2650, y = max_y_three - 0.05, label = "Simple Plant", 
-           size = 4.8, hjust = 0.5) +
+           size = 4.8, hjust = 0.5, color = annotation_text_color) +
   annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
            alpha = 0.12, fill = "#a8cbad") +
   annotate("text", x = 1800, y = max_y_three, label = "Microbial", 
-           size = 4.8, hjust = 0.5) +
+           size = 4.8, hjust = 0.5, color = annotation_text_color) +
   annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
            alpha = 0.12, fill = "#beb5d5") +
   annotate("text", x = 1300, y = max_y_three, label = "Complex Plant", 
-           size = 4.8, hjust = 0.5)
+           size = 4.8, hjust = 0.5, color = annotation_text_color)
 
 # Add all crop layers without automatic legends, explicitly coloring each line
 combined_overlay_plot_no_noplant <- base_plot_three
@@ -1133,7 +1177,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_simple_plant_prop - SE_simple_plant_prop", 
                             ymax = "Mean_simple_plant_prop + SE_simple_plant_prop"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Simple Plant OM"),
          x = str_to_title(group_col),
@@ -1149,7 +1193,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_complex_plant_prop - SE_complex_plant_prop", 
                             ymax = "Mean_complex_plant_prop + SE_complex_plant_prop"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Complex Plant OM"),
          x = str_to_title(group_col),
@@ -1165,7 +1209,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_microbial_prop - SE_microbial_prop", 
                             ymax = "Mean_microbial_prop + SE_microbial_prop"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Microbial OM"),
          x = str_to_title(group_col),
@@ -1200,7 +1244,7 @@ interaction_plot <- ggplot(crop_timepoint_stats) +
                     ymax = Mean_simple_plant_prop + SE_simple_plant_prop,
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
-  theme_classic() +
+  
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Simple Plant OM by Crop and Timepoint",
        x = "Crop Type",
@@ -1220,7 +1264,7 @@ CP_interaction_plot <- ggplot(crop_timepoint_stats) +
                     ymax = Mean_complex_plant_prop + SE_complex_plant_prop,
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
-  theme_classic() +
+  
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Complex Plant OM by Crop and Timepoint",
        x = "Crop Type",
@@ -1240,7 +1284,7 @@ micr_interaction_plot <- ggplot(crop_timepoint_stats) +
                     ymax = Mean_microbial_prop + SE_microbial_prop,
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
-  theme_classic() +
+  
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Microbial OM by Crop and Timepoint",
        x = "Crop Type",
@@ -1279,7 +1323,7 @@ p_crop_stacked <- ggplot(crop_stacked_data, aes(x = crop, y = proportion * 100, 
   geom_col(position = "stack") +
   scale_fill_manual(values = c("#93deed", "#d2f0f4", "#1ca5cf"),
                     breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
-  theme_classic() +
+  
   labs(x = "Crop Type",
        y = "Functional Group Amount (%)",
        fill = "") +
@@ -1292,7 +1336,7 @@ p_timepoint_stacked <- ggplot(timepoint_stacked_data, aes(x = timepoint, y = pro
   geom_col(position = "stack") +
   scale_fill_manual(values = c("#e8aa9c", "#f5d8d1", "#c54e30"),
                     breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
-  theme_classic() +
+  
   labs(x = "Timepoint",
        y = "Functional Group Amount (%)",
        fill = "") +
@@ -1357,7 +1401,7 @@ interaction_plot_stacked <- ggplot(interaction_stacked_data,
     sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
   }) +
   scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
-  theme_classic() +
+  
   labs(title = "",
        x = "",
        y = "Functional Group Proportion (%)",
@@ -1368,7 +1412,7 @@ interaction_plot_stacked <- ggplot(interaction_stacked_data,
         axis.title.y = element_text(size = 12),
         axis.text.y = element_text(size = 11),
         strip.background = element_blank(),
-        strip.text = element_text(size = 14.5, face = "bold")) +
+        strip.text = element_text(size = 14.5, face = "bold", color = annotation_text_color)) +
   coord_cartesian(clip = "off")
 
 # Create manual color scale using timepoint_prop_colors
@@ -1453,7 +1497,7 @@ interaction_plot_stacked_no_noPlant <- ggplot(interaction_stacked_data_no_noPlan
     sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
   }) +
   scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
-  theme_classic() +
+  
   labs(title = "",
        x = "",
        y = "Functional Group Proportion (%)",
@@ -1464,7 +1508,7 @@ interaction_plot_stacked_no_noPlant <- ggplot(interaction_stacked_data_no_noPlan
         axis.title.y = element_text(size = 12),
         axis.text.y = element_text(size = 11),
         strip.background = element_blank(),
-        strip.text = element_text(size = 14.5, face = "bold")) +
+        strip.text = element_text(size = 14.5, face = "bold", color = annotation_text_color)) +
   coord_cartesian(clip = "off")
 
 # Create manual color scale using timepoint_prop_colors
@@ -1522,6 +1566,251 @@ interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
             inherit.aes = FALSE)
 
 print(interaction_plot_stacked_no_noPlant)
+
+ggsave_themed("stacked_interaction_plot_no_noPlant.png", interaction_plot_stacked_no_noPlant, width = 10, height = 6)
+```
+
+# Simple and Total Plant : Microbial Ratios Over Time
+
+These scatterplots show the ratios of organic matter functional groups over the incubation period. Each point represents the mean ratio for a crop at a given timepoint, with error bars showing the standard error. Linear regression lines for each crop are shown with corresponding r² and p-values displayed in each crop's color.
+
+## Data preparation and regression analysis
+
+```{r ratio-plots-data-prep}
+# Calculate total plant : microbial ratio (simple + complex) for each sample
+ftir_data <- ftir_data %>%
+  mutate(
+    total_plant_prop = simple_plant_prop + complex_plant_prop,
+    total_plant_microbial_prop = total_plant_prop / microbial_prop,
+    simple_complex_prop = simple_plant_prop / complex_plant_prop
+  )
+
+# Create summary statistics by crop and timepoint for ratio metrics
+# Convert timepoint to numeric for regression (wk0 = 0, wk10 = 10, etc.)
+ratio_stats <- ftir_data %>%
+  filter(crop %in% c("wheat", "rice", "soy")) %>%  # Exclude noPlant
+  mutate(
+    crop = factor(crop, levels = c("wheat", "rice", "soy")),
+    timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+"))
+  ) %>%
+  group_by(crop, timepoint, timepoint_numeric) %>%
+  summarise(
+    Mean_simple_microbial = mean(simple_microbial_prop, na.rm = TRUE),
+    SE_simple_microbial = sd(simple_microbial_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_total_microbial = mean(total_plant_microbial_prop, na.rm = TRUE),
+    SE_total_microbial = sd(total_plant_microbial_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_simple_complex = mean(simple_complex_prop, na.rm = TRUE),
+    SE_simple_complex = sd(simple_complex_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+
+# Calculate regression statistics for each crop (simple : microbial ratio)
+simple_micr_regression_stats <- data.frame()
+for (crop_name in c("wheat", "rice", "soy")) {
+  crop_data <- ratio_stats %>%
+    filter(crop == crop_name)
+  
+  if (nrow(crop_data) > 1) {
+    model <- lm(Mean_simple_microbial ~ timepoint_numeric, data = crop_data)
+    summary_model <- summary(model)
+    
+    r_squared <- summary_model$r.squared
+    p_value <- summary_model$coefficients[2, 4]
+    intercept <- coef(model)[1]
+    slope <- coef(model)[2]
+    
+    simple_micr_regression_stats <- rbind(simple_micr_regression_stats,
+      data.frame(
+        crop = crop_name,
+        r_squared = r_squared,
+        p_value = p_value,
+        intercept = intercept,
+        slope = slope
+      )
+    )
+  }
+}
+
+# Calculate regression statistics for each crop (total plant : microbial ratio)
+total_micr_regression_stats <- data.frame()
+for (crop_name in c("wheat", "rice", "soy")) {
+  crop_data <- ratio_stats %>%
+    filter(crop == crop_name)
+  
+  if (nrow(crop_data) > 1) {
+    model <- lm(Mean_total_microbial ~ timepoint_numeric, data = crop_data)
+    summary_model <- summary(model)
+    
+    r_squared <- summary_model$r.squared
+    p_value <- summary_model$coefficients[2, 4]
+    intercept <- coef(model)[1]
+    slope <- coef(model)[2]
+    
+    total_micr_regression_stats <- rbind(total_micr_regression_stats,
+      data.frame(
+        crop = crop_name,
+        r_squared = r_squared,
+        p_value = p_value,
+        intercept = intercept,
+        slope = slope
+      )
+    )
+  }
+}
+
+# Calculate regression statistics for each crop (simple plant : complex plant ratio)
+simple_complex_regression_stats <- data.frame()
+for (crop_name in c("wheat", "rice", "soy")) {
+  crop_data <- ratio_stats %>%
+    filter(crop == crop_name)
+  
+  if (nrow(crop_data) > 1) {
+    model <- lm(Mean_simple_complex ~ timepoint_numeric, data = crop_data)
+    summary_model <- summary(model)
+    
+    r_squared <- summary_model$r.squared
+    p_value <- summary_model$coefficients[2, 4]
+    intercept <- coef(model)[1]
+    slope <- coef(model)[2]
+    
+    simple_complex_regression_stats <- rbind(simple_complex_regression_stats,
+      data.frame(
+        crop = crop_name,
+        r_squared = r_squared,
+        p_value = p_value,
+        intercept = intercept,
+        slope = slope
+      )
+    )
+  }
+}
+```
+
+## Ratio scatterplots with regression statistics
+
+```{r ratio-scatterplots}
+# Function to create ratio scatterplot with regression lines and statistics
+create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label,
+                                     regression_stats, crop_colors) {
+  plot <- ggplot(data, aes(x = timepoint_numeric, y = !!sym(y_metric), color = crop)) +
+    geom_point(size = 3, alpha = 0.7) +
+    geom_errorbar(aes(ymin = !!sym(y_metric) - !!sym(y_metric_se),
+                      ymax = !!sym(y_metric) + !!sym(y_metric_se)),
+                  width = 1.5, alpha = 0.6, linewidth = 0.8) +
+    
+    scale_color_manual(values = crop_colors) +
+    labs(title = title,
+         x = "Timepoint (weeks)",
+         y = y_label,
+         color = "Crop") +
+    theme(
+      legend.position = "top",
+      axis.text = element_text(size = 11),
+      axis.title = element_text(size = 12),
+      plot.title = element_text(size = 13, face = "bold"),
+      plot.margin = margin(20, 20, 20, 20)
+    )
+  
+  # Get data range for positioning
+  max_x <- max(data$timepoint_numeric, na.rm = TRUE)
+  min_x <- min(data$timepoint_numeric, na.rm = TRUE)
+  max_y <- max(data[[y_metric]], na.rm = TRUE)
+  min_y <- min(data[[y_metric]], na.rm = TRUE)
+  y_range <- max_y - min_y
+  
+  # Add regression lines and statistics for each crop
+  for (i in seq_len(nrow(regression_stats))) {
+    reg_row <- regression_stats[i, ]
+    crop_name <- reg_row$crop
+    slope <- reg_row$slope
+    intercept <- reg_row$intercept
+    r_sq <- reg_row$r_squared
+    p_val <- reg_row$p_value
+    crop_color <- crop_colors[crop_name]
+    
+    # Add regression line
+    plot <- plot +
+      geom_abline(intercept = intercept, slope = slope,
+                  color = crop_color, linewidth = 1.2, alpha = 0.8, linetype = "solid")
+    
+    # Position R² and p-value labels at top-right with staggered y positions
+    # x position: 85% of the way across
+    label_x <- min_x + (max_x - min_x) * 0.85
+    # y position: staggered vertically near the top (adjust based on crop order)
+    # wheat: highest, rice: middle, soy: lowest
+    crop_order <- match(crop_name, c("wheat", "rice", "soy"))
+    label_y <- max_y - (crop_order - 1) * (y_range * 0.09)
+    
+    # Format p-value and determine if significant
+    p_significant <- p_val < 0.05
+    if (p_val < 0.001) {
+      p_label <- "p < 0.001"
+    } else {
+      p_label <- paste0("p = ", format(round(p_val, 3), nsmall = 3))
+    }
+    
+    # Add star if p < 0.05 and set formatting
+    p_label_with_star <- if (p_significant) paste0(p_label, "*") else p_label
+    label_fontface <- if (p_significant) "bold" else "plain"
+    
+    # Create label with r² and p-value side by side
+    label_text <- paste0("r² = ", format(round(r_sq, 3), nsmall = 3), ", ", p_label_with_star)
+    
+    # Add text annotations in crop color
+    plot <- plot +
+      annotate("text",
+               x = label_x, y = label_y,
+               label = label_text,
+               color = crop_color,
+               size = 3.5,
+               fontface = label_fontface,
+               hjust = 0.5)
+  }
+  
+  return(plot)
+}
+
+# Create Simple Plant : Microbial Ratio scatterplot
+simple_micr_plot <- create_ratio_scatterplot(
+  data = ratio_stats,
+  y_metric = "Mean_simple_microbial",
+  y_metric_se = "SE_simple_microbial",
+  title = "Simple Plant : Microbial Ratio Over Time",
+  y_label = "Simple Plant : Microbial Ratio",
+  regression_stats = simple_micr_regression_stats,
+  crop_colors = crop_colors
+)
+
+print(simple_micr_plot)
+ggsave_themed("simple_plant_microbial_ratio_scatterplot.png", simple_micr_plot, width = 6, height = 4)
+
+# Create Total Plant : Microbial Ratio scatterplot
+total_micr_plot <- create_ratio_scatterplot(
+  data = ratio_stats,
+  y_metric = "Mean_total_microbial",
+  y_metric_se = "SE_total_microbial",
+  title = "Total Plant (Simple + Complex) : Microbial Ratio Over Time",
+  y_label = "Total Plant : Microbial Ratio",
+  regression_stats = total_micr_regression_stats,
+  crop_colors = crop_colors
+)
+
+print(total_micr_plot)
+ggsave_themed("total_plant_microbial_ratio_scatterplot.png", total_micr_plot, width = 6, height = 4)
+
+# Create Simple Plant : Complex Plant Ratio scatterplot
+simple_complex_plot <- create_ratio_scatterplot(
+  data = ratio_stats,
+  y_metric = "Mean_simple_complex",
+  y_metric_se = "SE_simple_complex",
+  title = "Simple Plant : Complex Plant Ratio Over Time",
+  y_label = "Simple Plant : Complex Plant Ratio",
+  regression_stats = simple_complex_regression_stats,
+  crop_colors = crop_colors
+)
+
+print(simple_complex_plot)
+ggsave_themed("simple_complex_ratio_scatterplot.png", simple_complex_plot, width = 6, height = 4)
 ```
 
 
@@ -1612,7 +1901,7 @@ create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
 
     scale_x_reverse(limits = c(3050, 680), expand = c(0.008, 0.008)) +  # Reverse axis and remove padding
     scale_y_discrete(expand = expansion(mult = c(0.01, 0.56))) +  # Less space below, more above
-    theme_classic() +
+    
     theme(axis.text.y = element_text(size = 12),
           legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
@@ -1621,16 +1910,16 @@ create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
     labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
    # spacer
     annotate("text", x = 1900, y = max_y + 0.2, label = " ", 
-             size = 3, hjust = 0.5) +
+             size = 3, hjust = 0.5, color = annotation_text_color) +
     # Add aliphatic annotation
     annotate("text", x = 2626, y = max_y-0.2, label = "aliphatic suberin", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add esters annotation
     annotate("text", x = 1930, y = max_y, label = "suberin esters", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add fingerprint annotation
     annotate("label", x = 1310, y = max_y + 0.1, label = "suberin fingerprint", 
-             size = 3.3, hjust = 0.5, fill = "#ffffff", label.size = NA)
+             size = 3.3, hjust = 0.5, fill = annotation_fill_color, label.size = NA, color = annotation_text_color)
 
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -1697,7 +1986,7 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
       breaks = crop_offsets + 1.111,  # move labels up
       labels = names(crop_offsets)
     ) +
-    theme_classic() +
+    
     theme(axis.text.y = element_text(size = 12),
           legend.position = "none") +
     scale_fill_manual(values = crop_colors) +
@@ -1742,16 +2031,16 @@ create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
 
    # spacer
     annotate("text", x = 1900, y = 11, label = " ", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add aliphatic annotation
     annotate("text", x = 2626, y = text_y*1.19, label = "aliphatic suberin", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add esters annotation
     annotate("text", x = 1920, y = text_y*1.32, label = "suberin esters", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add fingerprint annotation
     annotate("label", x = 1310, y = text_y*1.4, label = "suberin fingerprint", 
-             size = 3.3, hjust = 0.5, fill = "white", label.size = NA)
+             size = 3.3, hjust = 0.5, fill = annotation_fill_color, label.size = NA, color = annotation_text_color)
 
   return(list(plot = line_plot, data = filtered_data))
 }
@@ -1820,7 +2109,7 @@ create_crop_plot <- function(data, crop_name, color_palette) {
                           color = timepoint)) +
     xlim(3100, 600) +
     geom_line() +
-    theme_classic() +
+    
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "root suberin")) +
     labs(x = expression("wavenumber (cm"^-1*")"), 
@@ -1857,12 +2146,12 @@ create_crop_plot <- function(data, crop_name, color_palette) {
 
     # Add aliphatic annotation
     annotate("text", x = 2626, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add esters annotation
     annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
-             size = 3.3, hjust = 0.5) +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add fingerprint annotation
-    annotate("label", x = 1300, y = max(crop_data$normalized_absorbance)+0.04, label = "suberin fingerprint", size = 3.3, hjust = 0.5, fill = "white", label.size = NA)
+    annotate("label", x = 1300, y = max(crop_data$normalized_absorbance)+0.04, label = "suberin fingerprint", size = 3.3, hjust = 0.5, fill = annotation_fill_color, label.size = NA, color = annotation_text_color)
 
   
   return(list(plot = crop_plot, data = crop_data))
@@ -1920,7 +2209,7 @@ max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
 # Create the base plot with functional region annotations
 base_plot_three <- ggplot() +
   xlim(3100, 600) +
-  theme_classic() +
+  
   labs(x = expression("wavenumber (cm"^-1*")"), 
        y = "normalized absorbance") +
   theme(
@@ -1984,10 +2273,10 @@ base_plot_three <- ggplot() +
 
   # Add aliphatic annotation
   annotate("text", x = 2620, y = max_y_three - 0.03, label = "aliphatic suberin", 
-            size = 4.8, hjust = 0.5) +
+            size = 4.8, hjust = 0.5, color = annotation_text_color) +
   # Add esters annotation
   annotate("text", x = 1930, y = max_y_three - 0.01, label = "suberin esters", 
-            size = 4.8, hjust = 0.5) +
+            size = 4.8, hjust = 0.5, color = annotation_text_color) +
   # Add fingerprint annotation
   annotate("label", x = 1290, y = max_y_three, label = "suberin fingerprint", 
             size = 4.8, hjust = 0.5, fill = "white", label.size = NA)
@@ -2110,7 +2399,7 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
                          color = timepoint)) +
     xlim(3100, 600) +
     geom_line(alpha = 0.8) +
-    theme_classic() +
+    
     scale_color_manual(values = color_palette) +
     ggtitle(paste(str_to_title(crop_name), "root suberin")) +
     labs(x = expression("wavenumber (cm"^-1*")"), 
@@ -2151,10 +2440,10 @@ create_crop_line_plot <- function(data, crop_name, color_palette) {
              size = 3.3, hjust = 0.5, color = "#163a6c") +
     # Add esters annotation
     annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
-             size = 3.3, hjust = 0.5, color = "#2b3c1d") +
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add fingerprint annotation
     annotate("text", x = 1296, y = max(crop_data$normalized_absorbance)+0.02, label = "suberin fingerprint", 
-             size = 3.3, hjust = 0.5, color = "#3f2622")
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
   return(list(plot = line_plot, data = crop_data))
 }
 
@@ -2486,7 +2775,7 @@ suber_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_total_suberin - SE_total_suberin", 
                             ymax = "Mean_total_suberin + SE_total_suberin"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Total (relative) Suberin"),
          x = str_to_title(group_col),
@@ -2502,7 +2791,7 @@ suber_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_aliphaticS_prop - SE_aliphaticS_prop", 
                             ymax = "Mean_aliphaticS_prop + SE_aliphaticS_prop"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Aliphatic Suberin/Total Suberin"),
          x = str_to_title(group_col),
@@ -2518,7 +2807,7 @@ suber_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_esterS_prop - SE_esterS_prop", 
                             ymax = "Mean_esterS_prop + SE_esterS_prop"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Esterified Suberin/Total Suberin"),
          x = str_to_title(group_col),
@@ -2534,7 +2823,7 @@ suber_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_fingerprintS_prop - SE_fingerprintS_prop", 
                             ymax = "Mean_fingerprintS_prop + SE_fingerprintS_prop"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Fingerprint Suberin/Total Suberin"),
          x = str_to_title(group_col),
@@ -2550,7 +2839,7 @@ suber_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_fingerprintS_no723_prop - SE_fingerprintS_no723_prop", 
                             ymax = "Mean_fingerprintS_no723_prop + SE_fingerprintS_no723_prop"),
                   width = 0.2) +
-    theme_classic() +
+    
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Fingerprint Suberin/Total Suberin"),
          x = str_to_title(group_col),
@@ -2585,7 +2874,7 @@ suber_interaction_plot <- ggplot(crop_timepoint_suber) +
                     ymax = Mean_total_suberin + SE_total_suberin,
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
-  theme_classic() +
+  
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Total Suberin by Crop and Timepoint",
        x = "Crop Type",
@@ -2605,7 +2894,7 @@ esterS_interaction_plot <- ggplot(crop_timepoint_suber) +
                     ymax = Mean_esterS_prop + SE_esterS_prop,
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
-  theme_classic() +
+  
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Esterified Suberin by Crop and Timepoint",
        x = "Crop Type",
@@ -2625,7 +2914,7 @@ fingpr_interaction_plot <- ggplot(crop_timepoint_suber) +
                     ymax = Mean_fingerprintS_prop + SE_fingerprintS_prop,
                     group = timepoint),
                 position = position_dodge(0.9), width = 0.2) +
-  theme_classic() +
+  
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Fingerprint Suberin by Crop and Timepoint",
        x = "Crop Type",
@@ -2664,7 +2953,7 @@ s_crop_stacked <- ggplot(crop_stacked_suber, aes(x = crop, y = proportion * 100,
   geom_col(position = "stack") +
   scale_fill_manual(values = c("#93deed", "#d2f0f4", "#1ca5cf"),
                     breaks = c("Fingerprint", "Esterified", "Aliphatic")) +
-  theme_classic() +
+  
   labs(x = "Crop Type",
        y = "Suberin Peak Proportion (%)",
        fill = "") +
@@ -2677,7 +2966,7 @@ s_timepoint_stacked <- ggplot(timepoint_stacked_suber, aes(x = timepoint, y = pr
   geom_col(position = "stack") +
   scale_fill_manual(values = c("#e8aa9c", "#f5d8d1", "#c54e30"),
                     breaks = c("Fingerprint", "Esterified", "Aliphatic")) +
-  theme_classic() +
+  
   labs(x = "Timepoint",
        y = "Suberin Peak Proportion (%)",
        fill = "") +
@@ -2742,7 +3031,7 @@ interaction_suber_stacked <- ggplot(interaction_stacked_suber,
     sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
   }) +
   scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
-  theme_classic() +
+  
   labs(title = "",
        x = "",
        y = "Suberin Peak Proportion (%)",
@@ -2838,7 +3127,7 @@ interaction_suber_stacked_no_noPlant <- ggplot(interaction_stacked_suber_no_noPl
     sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
   }) +
   scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
-  theme_classic() +
+  
   labs(title = "",
        x = "",
        y = "Suberin Peak Proportion (%)",
@@ -2849,7 +3138,7 @@ interaction_suber_stacked_no_noPlant <- ggplot(interaction_stacked_suber_no_noPl
         axis.title.y = element_text(size = 12),
         axis.text.y = element_text(size = 11),
         strip.background = element_blank(),
-        strip.text = element_text(size = 14.5, face = "bold")) +
+        strip.text = element_text(size = 14.5, face = "bold", color = annotation_text_color)) +
   coord_cartesian(clip = "off")
 
 # Create manual color scale using timepoint_prop_colors

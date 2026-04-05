@@ -59,6 +59,37 @@ if (box_base == "") stop("BOX_BASE environment variable is not set!")
 # Set paths
 csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/MNova-CSVs")
 outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/NMR_analysis_outputs")
+
+# Define custom themes
+theme_dark_custom <- function() {
+  theme_minimal() +
+  theme(
+    plot.background = element_rect(fill = "black", color = NA),
+    # panel.background = element_rect(fill = "black"),
+    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
+    axis.title = element_text(color = "white", size = 12),
+    axis.text = element_text(color = "white", size = 11),
+    axis.line = element_line(color = "white", linewidth = 0.5),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white", size = 11),
+    legend.title = element_text(color = "white", size = 12)
+  )
+}
+
+
+# Set default theme for all plots (toggle between theme_light_custom() and theme_dark_custom())
+theme_set(theme_minimal())
+theme_suffix <- "-light"  # Change to "-dark" when using theme_dark_custom()
+annotation_text_color <- "black"  # Change to "white" when using theme_dark_custom()
+
+# Wrapper function for ggsave with automatic theme suffix
+ggsave_themed <- function(filename, plot, width = NA, height = NA, dpi = 300, ...) {
+  # Remove existing -light or -dark suffix if present, then add the current theme suffix
+  base_filename <- gsub("-light\\.png$|-dark\\.png$", ".png", filename)
+  themed_filename <- sub("\\.png$", paste0(theme_suffix, ".png"), base_filename)
+  output_path <- file.path(outputs_folder, themed_filename)
+  ggsave(output_path, plot, width = width, height = height, dpi = dpi, ...)
+}
 ```
 
 <style>
@@ -402,7 +433,7 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
     y = "Alkyl/O-Alkyl Ratio",
     title = NULL
   ) +
-  theme_minimal() +
+  
   theme(
     legend.position = "right",
     legend.text = element_text(size = 14, face = "bold"),
@@ -417,8 +448,8 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
 print(p)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "Alkyl_O-Alkyl_ratio_by_crop_timepoint.png"),
-       plot = p, width = 11, height = 7, dpi = 300)
+ggsave_themed(filename = "Alkyl_O-Alkyl_ratio_by_crop_timepoint.png",
+              plot = p, width = 11, height = 7, dpi = 300)
 ###########################################################################################
 
 # Create the RDR plot
@@ -469,7 +500,7 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
     y = "Resistance-to-Decomposition Ratio (RDR)",
     title = NULL
   ) +
-  theme_minimal() +
+  
   theme(
     legend.position = "right",
     legend.text = element_text(size = 14, face = "bold"),
@@ -484,8 +515,8 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
 print(p1)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "RDR_by_crop_timepoint.png"),
-       plot = p1, width = 11, height = 7, dpi = 300)
+ggsave_themed(filename = "RDR_by_crop_timepoint.png",
+              plot = p1, width = 11, height = 7, dpi = 300)
 
 ```
 # Plot RDR vs Alkyl/O-Alkyl Ratio
@@ -554,7 +585,7 @@ p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
     y = "Resistance to Decomposition Ratio (RDR)",
     title = NULL
   ) +
-  theme_minimal() +
+  
   theme(
     legend.position = "right",
     legend.text = element_text(size = 11),
@@ -567,8 +598,8 @@ p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
 print(p_scatter)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "RDR_vs_Alkyl-O-Alkyl_ratio.png"),
-       plot = p_scatter, width = 9, height = 7, dpi = 300)
+ggsave_themed(filename = "RDR_vs_Alkyl-O-Alkyl_ratio.png",
+              plot = p_scatter, width = 11, height = 7, dpi = 300)
 ```
 
 
@@ -658,7 +689,7 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
     y = "Normalized Intensity",
     title = NULL
   ) +
-  theme_minimal() +
+  
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
@@ -696,7 +727,7 @@ p_annotation <- ggplot(bonanomi_regions_faceted) +
   scale_y_continuous(limits = c(0, 0.7), expand = c(0, 0)) +
   facet_grid(. ~ crop) +
   labs(x = "Chemical Shift (ppm)") +
-  theme_minimal() +
+  
   theme(
     axis.title.x = element_text(size = 13, face = "bold", margin = margin(t = 5)),
     axis.text.x = element_text(size = 12, face = "bold"),
@@ -728,8 +759,8 @@ p_combined <- p_spectra / p_annotation / p_image + plot_layout(heights = c(20, 1
 print(p_combined)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_averaged_annotated.png"),
-       plot = p_combined, width = 12, height = 6, dpi = 300)
+ggsave_themed(filename = "NMR_spectra_averaged_annotated.png",
+              plot = p_combined, width = 12, height = 6, dpi = 300)
 ```
 
 # Plot Alkyl & Alkyl-Suberin Region
@@ -762,7 +793,7 @@ p_suber <- ggplot(spectra_stats_suber, aes(x = ppm, y = mean_intensity, color = 
     y = "Intensity",
     title = "Zoomed NMR Spectra: Suberin Region (0-172 ppm)"
   ) +
-  theme_minimal() +
+  
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
@@ -779,8 +810,8 @@ p_suber <- ggplot(spectra_stats_suber, aes(x = ppm, y = mean_intensity, color = 
 print(p_suber)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_suber_region_0-172ppm.png"),
-       plot = p_suber, width = 12, height = 6, dpi = 300)
+ggsave_themed(filename = "NMR_spectra_suber_region_0-172ppm.png",
+              plot = p_suber, width = 11, height = 7, dpi = 300)
 
 
 
@@ -810,7 +841,7 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
     y = "Intensity",
     title = "Zoomed NMR Spectra: Alkyl Region (0-45 ppm)"
   ) +
-  theme_minimal() +
+  
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
@@ -827,8 +858,8 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
 print(p_alkyl)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_alkyl_region_0-45ppm.png"),
-       plot = p_alkyl, width = 12, height = 6, dpi = 300)
+ggsave_themed(filename = "NMR_spectra_alkyl_region_0-45ppm.png",
+              plot = p_alkyl, width = 11, height = 7, dpi = 300)
 
 #############################################################################################
 # Just suberin region (30-33 ppm)
@@ -857,7 +888,7 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
     y = "Intensity",
     title = "Alkyl Suberin Region"
   ) +
-  theme_minimal() +
+  
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold"),
@@ -874,7 +905,7 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
 print(p_aSub)
 
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "NMR_spectra_aSub_21-41ppm.png"),
-       plot = p_aSub, width = 12, height = 6, dpi = 300)
+ggsave_themed(filename = "NMR_spectra_aSub_21-41ppm.png",
+              plot = p_aSub, width = 12, height = 6, dpi = 300)
 ```
 
