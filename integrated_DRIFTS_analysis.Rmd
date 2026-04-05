@@ -985,6 +985,7 @@ combined_overlay_plot_no_noplant <- combined_overlay_plot_no_noplant +
   )
 
 print(combined_overlay_plot_no_noplant)
+ggsave_themed("combined_overlay_no_noplant.png", combined_overlay_plot_no_noplant, width = 13, height = 9, dpi = 300)
 ```
 
 # Comparing regions of interest
@@ -1563,6 +1564,7 @@ interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
             size = 3.8,
             angle = 10,
             fontface = "bold",
+            color = annotation_text_color,
             inherit.aes = FALSE)
 
 print(interaction_plot_stacked_no_noPlant)
