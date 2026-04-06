@@ -923,3 +923,85 @@ ggsave_themed(filename = "NMR_spectra_aSub_21-41ppm.png",
               plot = p_aSub, width = 12, height = 6, dpi = 300)
 ```
 
+# Plot Individual Spectra Overlaid by Timepoint
+
+Overlay all individual spectra for each crop with timepoints distinguished by color.
+
+```{r plot-individual-spectra-overlay, message=FALSE, warning=FALSE, fig.width=12, fig.height=5}
+library(ggplot2)
+library(dplyr)
+
+# Define color scheme for crops and timepoints
+crop_time_colors <- c(
+  "wheat_wk0" = "#d2a9f6",
+  "wheat_wk10" = "#BD7EF6",
+  "wheat_wk40" = "#3f0477",
+  "rice_wk0" = "#ffb45e",
+  "rice_wk10" = "#F08F20",
+  "rice_wk40" = "#B56203",
+  "soy_wk0" = "#FE5CA5",
+  "soy_wk10" = "#DD2578",
+  "soy_wk40" = "#9B0D4D"
+)
+
+# Create the plot with individual spectra colored by crop and timepoint
+p_individual <- ggplot(spectra_filtered, aes(x = ppm, y = intensity, color = paste(crop, timepoint, sep = "_"), group = sample_name)) +
+  geom_line(linewidth = 0.5, alpha = 0.7) +
+  facet_grid(. ~ crop, scales = "free_y") +
+  scale_x_reverse() +
+  scale_color_manual(values = crop_time_colors) +
+  labs(
+    x = NULL,
+    y = "Normalized Intensity",
+    title = NULL
+  ) +
+  
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    panel.grid = element_blank(),
+    axis.title = element_text(size = 13),
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.spacing.x = unit(-0.5, "cm"),
+    plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+  )
+
+# Create annotation bars for each crop (to match facet columns)
+bonanomi_regions_faceted_indiv <- bind_rows(
+  bonanomi_regions %>% mutate(crop = "wheat"),
+  bonanomi_regions %>% mutate(crop = "rice"),
+  bonanomi_regions %>% mutate(crop = "soy")
+)
+
+p_annotation_indiv <- ggplot(bonanomi_regions_faceted_indiv) +
+  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = 0.7, fill = color)) +
+  scale_fill_identity() +
+  scale_x_reverse(limits = c(230, -10)) +
+  scale_y_continuous(limits = c(0, 0.7), expand = c(0, 0)) +
+  facet_grid(. ~ crop) +
+  labs(x = "Chemical Shift (ppm)") +
+  
+  theme(
+    axis.title.x = element_text(size = 13, face = "bold", margin = margin(t = 5)),
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.grid = element_blank(),
+    panel.spacing.x = unit(-0.5, "cm"),
+    strip.text = element_blank(),
+    plot.margin = margin(0, 5, 5, 5)
+  )
+
+# Combine plots vertically
+p_combined_indiv <- p_individual / p_annotation_indiv + plot_layout(heights = c(20, 1))
+
+# Display the plot
+print(p_combined_indiv)
+
+# Save the plot
+ggsave_themed(filename = "NMR_spectra_individual_overlaid_by_timepoint.png",
+              plot = p_combined_indiv, width = 12, height = 5, dpi = 300)
+```
+
