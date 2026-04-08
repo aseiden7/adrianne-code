@@ -159,7 +159,7 @@ crop_isotope_combinations = df_clean[['crop', 'isotope']].drop_duplicates()
 # Use a different approach with a simple list of colors
 #num_combinations = len(crop_isotope_combinations)
 #colors = sns.color_palette('husl', num_combinations)
-colors = ['#FC9D33', '#FE318E', '#9F29FF','#3C57DE','#0CB2AF', '#98C65D']   # orange, pink, purple, blue, teal, green
+colors = ['#FC9D33', '#FE318E','#0CB2AF','#3C57DE', '#98C65D','#9F29FF']   # orange, pink, teal, blue, green, purple
 
 
 # Creating Plot 1: δ13CVPDB (‰) vs sampling_week
@@ -238,10 +238,10 @@ crop_isotope_combinations = df_clean[['crop', 'isotope']].drop_duplicates()
 # Use a different approach with a simple list of colors
 #num_combinations = len(crop_isotope_combinations)
 #colors = sns.color_palette('husl', num_combinations)
-colors = ['#FC9D33', '#FE318E', '#9F29FF','#3C57DE','#0CB2AF', '#98C65D']   # orange, pink, purple, blue, teal, green
+colors = ['#3C57DE', '#98C65D', '#9F29FF','#FC9D33', '#FE318E','#0CB2AF']   # blue, green, purple, orange, pink, teal
 
 
-# Creating Plot 1: δ13CVPDB (‰) vs sampling_week
+# Creating Plot 1: 13C-at% vs sampling_week
 plt.subplot(2, 1, 1);
 
 # Plot each crop & root_isotope combination as a separate series
@@ -268,20 +268,31 @@ plt.legend();
 # Creating Plot 2: Flux (μg CO2-C/g-soil/minute) vs sampling_week
 plt.subplot(2, 1, 2);
 
-# Plot each crop & root_isotope combination as a separate series
-for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
-    crop = row['crop']
-    isotope = int(row['isotope'])  # Convert to integer to remove decimal
+# # Plot each crop & root_isotope combination as a separate series
+# for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
+#     crop = row['crop']
+#     isotope = int(row['isotope'])  # Convert to integer to remove decimal
     
-    # Filter data for this combination
-    subset = df_clean[(df_clean['crop'] == crop) & (df_clean['isotope'] == isotope)]
+#     # Filter data for this combination
+#     subset = df_clean[(df_clean['crop'] == crop) & (df_clean['isotope'] == isotope)]
     
-    # Calculate mean and standard error for each sampling_week
-    grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/g-soil/minute)'].agg(['mean', 'sem']).reset_index()
+#     # Calculate mean and standard error for each sampling_week
+#     grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/g-soil/minute)'].agg(['mean', 'sem']).reset_index()
 
-    # Plot the mean values with predefined color from index
+#     # Plot the mean values with predefined color from index
+#     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
+#                  marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
+
+###CROP ONLY VERSION###
+crops = df_clean['crop'].unique()
+crop_colors = {'noPlant': '#2fb1b9', 'wheat': '#8c4dc3', 'rice': '#FC9D33', 'soy': '#FE318E'}
+
+for crop in crops:
+    subset = df_clean[df_clean['crop'] == crop]  # Remove isotope filter
+    grouped = subset.groupby('sampling_wk')['Flux (μg CO2-C/g-soil/minute)'].agg(['mean', 'sem']).reset_index()
+    color = crop_colors.get(crop, '#000000')
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
-                 marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
+                 marker='o', linestyle='-', label=f'{crop}', color=color, linewidth=2.5, markersize=8);
 
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$');
@@ -301,7 +312,7 @@ plt.show()
 
 ## Cumulative flux
 
-The following two chunks calculate weekly averages of CO₂ flux (μg CO₂-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) for each crop, then print the weekly and total cumulative flux averages for each crop. They then plot cumulative flux over time and save the figure as a PNG file. The second chunk filters out outliers (values beyond 1 standard deviation from the mean for that week), calculates corrected averages, then prints and plots those new values.
+The following two chunks calculate weekly averages of CO₂ flux (μg CO₂-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) for each crop, then integrate these fluxes over time using the trapezoidal rule to calculate cumulative CO₂ respiration. The trapezoidal rule integrates flux (a rate) by calculating the area under the curve between consecutive time points: $\text{Area}_i = \frac{\text{flux}_{i-1} + \text{flux}_i}{2} \times \Delta t$. Uncertainties are propagated through the integration using the formula: $\text{var}(\text{cumulative}) = \sum_{i=1}^{n} \left(\frac{\Delta t}{2}\right)^2 (\text{sem}_{i-1}^2 + \text{sem}_i^2)$. The first chunk includes all data points, while the second chunk filters out outliers (values beyond 1 standard deviation from the mean for that week), recalculates weekly averages, and plots the resulting integrated flux over time. Both chunks print final cumulative values with uncertainty estimates and save the resulting figures as PNG files.
 
 It is important to note that soy and rice jars have both <sup>13</sup>C and <sup>12</sup>C treatments, while noPlant and wheat jars have only <sup>12</sup>C (i.e. half the sample size).
 
@@ -309,24 +320,60 @@ It is important to note that soy and rice jars have both <sup>13</sup>C and <sup
 Includes all data points.
 
 ```{python cumulative-flux-no-filtering}
-# Cumulative CO2 Flux Analysis - Grouped by Crop
+# Cumulative CO2 Flux Analysis - Grouped by Crop (Trapezoidal Rule Integration)
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+
 # Define the path to your Excel file
-# Define the path to your Excel file
-# Relative paths assume you are starting from the working directory
 excel_path = "../CO2 data/Compiled_CO2_data.xlsx"
 
-# Recalculate weekly_averages to include SEM and cumulative SEM
+# Function to calculate cumulative flux using trapezoidal rule
+def trapezoidal_integration(weeks, fluxes, sems):
+    """
+    Calculate cumulative integrated flux using trapezoidal rule.
+    
+    Args:
+        weeks: array of sampling week numbers (time points)
+        fluxes: array of flux values at each time point
+        sems: array of standard errors at each time point
+    
+    Returns:
+        cumulative_flux: array of integrated flux values
+        cumulative_sem: array of error estimates for integrated flux
+    """
+    n = len(weeks)
+    cumulative_flux = np.zeros(n)
+    cumulative_var = np.zeros(n)  # Variance accumulator for error propagation
+    
+    for i in range(1, n):
+        # Calculate time interval (in weeks)
+        delta_t = weeks[i] - weeks[i-1]
+        
+        # Trapezoidal rule: Area = (y_i + y_{i+1})/2 * Δt
+        trap_area = (fluxes[i-1] + fluxes[i]) / 2.0 * delta_t
+        cumulative_flux[i] = cumulative_flux[i-1] + trap_area
+        
+        # Error propagation for trapezoidal integration
+        # var(Area) = (Δt/2)^2 * (sem_{i-1}^2 + sem_i^2)
+        trap_var = ((delta_t / 2.0) ** 2) * (sems[i-1] ** 2 + sems[i] ** 2)
+        cumulative_var[i] = cumulative_var[i-1] + trap_var
+    
+    cumulative_sem = np.sqrt(cumulative_var)
+    
+    return cumulative_flux, cumulative_sem
+
+# Calculate cumulative flux using trapezoidal rule for each crop
 crops = df_clean['crop'].unique()
 weekly_averages = {}
+
 for crop in crops:
     crop_data = df_clean[df_clean['crop'] == crop]
     weeks = sorted(crop_data['sampling_wk'].unique())
     weekly_avg_list = []
     weekly_sem_list = []
     weekly_n_list = []
+    
     for week in weeks:
         week_data = crop_data[crop_data['sampling_wk'] == week]['Flux (μg CO2-C/g-soil/minute)']
         if len(week_data) > 0:
@@ -340,9 +387,14 @@ for crop in crops:
         weekly_avg_list.append(weekly_avg)
         weekly_sem_list.append(weekly_sem)
         weekly_n_list.append(weekly_n)
-    cumulative_flux = np.cumsum(weekly_avg_list)
-    cumulative_sem = np.sqrt(np.cumsum(np.array(weekly_sem_list) ** 2))
-    cumulative_n = np.cumsum(weekly_n_list)
+    
+    # Use trapezoidal rule for integration
+    cumulative_flux, cumulative_sem = trapezoidal_integration(
+        np.array(weeks), 
+        np.array(weekly_avg_list), 
+        np.array(weekly_sem_list)
+    )
+    
     weekly_averages[crop] = {
         'weeks': weeks,
         'weekly_flux': weekly_avg_list,
@@ -350,15 +402,16 @@ for crop in crops:
         'weekly_n': weekly_n_list,
         'cumulative_flux': cumulative_flux,
         'cumulative_sem': cumulative_sem,
-        'cumulative_n': cumulative_n
+        'cumulative_n': np.cumsum(weekly_n_list)
     }
 
 # Print summary of weekly averages in order of suberin content
 crop_order = ['noPlant', 'wheat', 'rice', 'soy']
 print("Weekly Average CO2 Flux (no outlier filtering):")
+print("Cumulative values calculated via trapezoidal rule integration\n")
 for crop in crop_order:
     if crop in weekly_averages:
-        print(f"\n{crop}:")
+        print(f"{crop}:")
         for i, week in enumerate(weekly_averages[crop]['weeks']):
             print(f"  Week {week}: {weekly_averages[crop]['weekly_flux'][i]:.2f} μg CO2-C/g-soil/minute (n={weekly_averages[crop]['weekly_n'][i]})")
 
@@ -382,10 +435,10 @@ plt.xlabel('Sampling Week', fontsize=18, weight='bold', labelpad=15);
 # Create custom ylabel with different formatting - moved closer to plot
 ax.text(-0.08, 0.26, 'Cumulative CO₂ Flux', transform=ax.transAxes, rotation=90, 
         fontsize=18, weight=690, ha='center', va='center')
-ax.text(-0.08, 0.73, '(μg CO₂-C · g-soil⁻¹ · minute⁻¹)', transform=ax.transAxes, rotation=90, 
+ax.text(-0.08, 0.73, '(μg CO₂-C · g-soil⁻¹)', transform=ax.transAxes, rotation=90, 
         fontsize=16, weight=550, ha='center', va='center')
 plt.tick_params(axis='both', which='major', labelsize=14);
-plt.grid(True, linestyle='--', alpha=0.8);
+plt.grid(True, linestyle='--', alpha=0.7);
 plt.legend(prop={'weight': 565, 'size': 16});
 
 # Add some styling
@@ -399,11 +452,13 @@ plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_no_filter-po
 print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_no_filter-poster.png'")
 
 # Display final cumulative values
-print("\nFinal Cumulative CO2 Flux Values:")
+print("\nFinal Cumulative CO2 Flux Values (Trapezoidal Integration):")
 for crop in crop_order:
     if crop in weekly_averages:
         final_cumulative = weekly_averages[crop]['cumulative_flux'][-1]
-        print(f"{crop.capitalize()}: {final_cumulative:.2f} μg CO2-C/g-soil/minute n={weekly_averages[crop]['cumulative_n'][-1]}")
+        final_sem = weekly_averages[crop]['cumulative_sem'][-1]
+        n = weekly_averages[crop]['cumulative_n'][-1]
+        print(f"{crop.capitalize()}: {final_cumulative:.2f} ± {final_sem:.2f} μg CO2-C/g-soil (n={n})")
 
 plt.show()
 ```
@@ -413,14 +468,12 @@ Filters out values beyond 1 standard deviation from the mean for that week, reca
 
 
 ```{python cumulative-flux-filtering}
-# Cumulative CO2 Flux Analysis - Grouped by Crop
+# Cumulative CO2 Flux Analysis - Grouped by Crop (Trapezoidal Rule Integration)
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
 # Define the path to your Excel file
-# Define the path to your Excel file
-# Relative paths assume you are starting from the working directory
 excel_path = "../CO2 data/Compiled_CO2_data.xlsx"
 
 # Function to filter outliers (values beyond 1 standard deviation)
@@ -430,15 +483,52 @@ def filter_outliers(data):
     std = data.std()
     return data[(data >= mean - std) & (data <= mean + std)]
 
-# Recalculate weekly_averages to include SEM and cumulative SEM
+# Function to calculate cumulative flux using trapezoidal rule
+def trapezoidal_integration(weeks, fluxes, sems):
+    """
+    Calculate cumulative integrated flux using trapezoidal rule.
+    
+    Args:
+        weeks: array of sampling week numbers (time points)
+        fluxes: array of flux values at each time point
+        sems: array of standard errors at each time point
+    
+    Returns:
+        cumulative_flux: array of integrated flux values
+        cumulative_sem: array of error estimates for integrated flux
+    """
+    n = len(weeks)
+    cumulative_flux = np.zeros(n)
+    cumulative_var = np.zeros(n)  # Variance accumulator for error propagation
+    
+    for i in range(1, n):
+        # Calculate time interval (in weeks)
+        delta_t = weeks[i] - weeks[i-1]
+        
+        # Trapezoidal rule: Area = (y_i + y_{i+1})/2 * Δt
+        trap_area = (fluxes[i-1] + fluxes[i]) / 2.0 * delta_t
+        cumulative_flux[i] = cumulative_flux[i-1] + trap_area
+        
+        # Error propagation for trapezoidal integration
+        # var(Area) = (Δt/2)^2 * (sem_{i-1}^2 + sem_i^2)
+        trap_var = ((delta_t / 2.0) ** 2) * (sems[i-1] ** 2 + sems[i] ** 2)
+        cumulative_var[i] = cumulative_var[i-1] + trap_var
+    
+    cumulative_sem = np.sqrt(cumulative_var)
+    
+    return cumulative_flux, cumulative_sem
+
+# Calculate cumulative flux using trapezoidal rule for each crop
 crops = df_clean['crop'].unique()
 weekly_averages = {}
+
 for crop in crops:
     crop_data = df_clean[df_clean['crop'] == crop]
     weeks = sorted(crop_data['sampling_wk'].unique())
     weekly_avg_list = []
     weekly_sem_list = []
     weekly_n_list = []
+    
     for week in weeks:
         week_data = crop_data[crop_data['sampling_wk'] == week]['Flux (μg CO2-C/g-soil/minute)']
         filtered_data = filter_outliers(week_data)
@@ -452,9 +542,14 @@ for crop in crops:
         weekly_avg_list.append(weekly_avg)
         weekly_sem_list.append(weekly_sem)
         weekly_n_list.append(n_filtered)
-    cumulative_flux = np.cumsum(weekly_avg_list)
-    cumulative_sem = np.sqrt(np.cumsum(np.array(weekly_sem_list) ** 2))
-    cumulative_n = np.cumsum(weekly_n_list)
+    
+    # Use trapezoidal rule for integration
+    cumulative_flux, cumulative_sem = trapezoidal_integration(
+        np.array(weeks), 
+        np.array(weekly_avg_list), 
+        np.array(weekly_sem_list)
+    )
+    
     weekly_averages[crop] = {
         'weeks': weeks,
         'weekly_flux': weekly_avg_list,
@@ -462,15 +557,16 @@ for crop in crops:
         'weekly_n': weekly_n_list,
         'cumulative_flux': cumulative_flux,
         'cumulative_sem': cumulative_sem,
-        'cumulative_n': cumulative_n
+        'cumulative_n': np.cumsum(weekly_n_list)
     }
 
 # Print summary of weekly averages in order of suberin content
 crop_order = ['noPlant', 'wheat', 'rice', 'soy']
 print("Weekly Average CO2 Flux (after outlier filtering):")
+print("Cumulative values calculated via trapezoidal rule integration\n")
 for crop in crop_order:
     if crop in weekly_averages:
-        print(f"\n{crop}:")
+        print(f"{crop}:")
         for i, week in enumerate(weekly_averages[crop]['weeks']):
             avg = weekly_averages[crop]['weekly_flux'][i]
             n = weekly_averages[crop]['weekly_n'][i]
@@ -481,7 +577,7 @@ fig, ax = plt.subplots(figsize=(12, 8))
 
 # Define colors for noPlant, wheat, rice, soy
 crop_order = ['noPlant', 'wheat', 'rice', 'soy']
-colors = ['#9F29FF', '#98C65D', '#FC9D33', '#FE318E']  # purple, green, orange, pink
+colors = ['#2fb1b9', '#8c4dc3', '#FC9D33', '#FE318E']  # aqua, purple, orange, pink
 
 # Plot cumulative flux for each crop WITH error bars
 for i, crop in enumerate(crop_order):
@@ -493,8 +589,8 @@ for i, crop in enumerate(crop_order):
                     markersize=8, label=f'{crop}', color=colors[i], capsize=4);
 
 plt.xlabel('Sampling Week', fontsize=12);
-plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1})}$', fontsize=12);
-plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (outliers removed)', fontsize=14, pad=20);
+plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1})}$', fontsize=12);
+plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (outliers removed, trapezoidal integration)', fontsize=14, pad=20);
 plt.grid(True, linestyle='--', alpha=0.7);
 plt.legend(fontsize=11);
 
@@ -508,11 +604,13 @@ plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_filtered.png
 print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_filtered.png'")
 
 # Display final cumulative values
-print("\nFinal Cumulative CO2 Flux Values (outliers removed):")
+print("\nFinal Cumulative CO2 Flux Values (Trapezoidal Integration):")
 for crop in crop_order:
     if crop in weekly_averages:
         final_cumulative = weekly_averages[crop]['cumulative_flux'][-1]
-        print(f"{crop.capitalize()}: {final_cumulative:.2f} μg CO2-C/g-soil/minute (n={weekly_averages[crop]['cumulative_n'][-1]})")
+        final_sem = weekly_averages[crop]['cumulative_sem'][-1]
+        n = weekly_averages[crop]['cumulative_n'][-1]
+        print(f"{crop.capitalize()}: {final_cumulative:.2f} ± {final_sem:.2f} μg CO2-C/g-soil (n={n})")
 
 plt.show()
 ```
@@ -790,14 +888,49 @@ print("\nPlot saved to 'pots_co2_flux_by_crop.png'")
 plt.show()
 ```
 
-```{python cumulative-pot-flux, include=FALSE, echo=FALSE}
-# Cumulative CO2 Flux Analysis for Pots - Grouped by Crop
+```{python cumulative-pot-flux, include=TRUE, echo=FALSE}
+# Cumulative CO2 Flux Analysis for Pots - Grouped by Crop (Trapezoidal Rule Integration)
 # Function to filter outliers (values beyond 1 standard deviation)
 def filter_outliers_pots(data):
     """Remove values beyond 1 standard deviation from the mean"""
     mean = data.mean()
     std = data.std()
     return data[(data >= mean - std) & (data <= mean + std)]
+
+# Function to calculate cumulative flux using trapezoidal rule
+def trapezoidal_integration_pots(weeks, fluxes, sems):
+    """
+    Calculate cumulative integrated flux using trapezoidal rule.
+    
+    Args:
+        weeks: array of sampling week numbers (time points)
+        fluxes: array of flux values at each time point
+        sems: array of standard errors at each time point
+    
+    Returns:
+        cumulative_flux: array of integrated flux values
+        cumulative_sem: array of error estimates for integrated flux
+    """
+    n = len(weeks)
+    cumulative_flux = np.zeros(n)
+    cumulative_var = np.zeros(n)  # Variance accumulator for error propagation
+    
+    for i in range(1, n):
+        # Calculate time interval (in weeks)
+        delta_t = weeks[i] - weeks[i-1]
+        
+        # Trapezoidal rule: Area = (y_i + y_{i+1})/2 * Δt
+        trap_area = (fluxes[i-1] + fluxes[i]) / 2.0 * delta_t
+        cumulative_flux[i] = cumulative_flux[i-1] + trap_area
+        
+        # Error propagation for trapezoidal integration
+        # var(Area) = (Δt/2)^2 * (sem_{i-1}^2 + sem_i^2)
+        trap_var = ((delta_t / 2.0) ** 2) * (sems[i-1] ** 2 + sems[i] ** 2)
+        cumulative_var[i] = cumulative_var[i-1] + trap_var
+    
+    cumulative_sem = np.sqrt(cumulative_var)
+    
+    return cumulative_flux, cumulative_sem
 
 # Calculate weekly averages after filtering outliers for each crop (pots data)
 crops_pots = df1_clean['crop'].unique()
@@ -808,20 +941,38 @@ for crop in crops_pots:
     weeks = sorted(crop_data['sampling_wk'].unique())
     
     weekly_avg_list = []
+    weekly_sem_list = []
+    weekly_n_list = []
+    
     for week in weeks:
         week_data = crop_data[crop_data['sampling_wk'] == week]['Flux (μg CO2-C/cm[V/A]/minute)']
         # Filter outliers within 1 standard deviation
         filtered_data = filter_outliers_pots(week_data)
-        if len(filtered_data) > 0:
+        n_filtered = len(filtered_data)
+        if n_filtered > 0:
             weekly_avg = filtered_data.mean()
+            weekly_sem = filtered_data.sem()
         else:
             weekly_avg = week_data.mean()  # Fallback to original mean if all data filtered
+            weekly_sem = week_data.sem()
         weekly_avg_list.append(weekly_avg)
+        weekly_sem_list.append(weekly_sem)
+        weekly_n_list.append(n_filtered)
+    
+    # Use trapezoidal rule for integration
+    cumulative_flux, cumulative_sem = trapezoidal_integration_pots(
+        np.array(weeks), 
+        np.array(weekly_avg_list), 
+        np.array(weekly_sem_list)
+    )
     
     weekly_averages_pots[crop] = {
         'weeks': weeks,
         'weekly_flux': weekly_avg_list,
-        'cumulative_flux': np.cumsum(weekly_avg_list)
+        'weekly_sem': weekly_sem_list,
+        'cumulative_flux': cumulative_flux,
+        'cumulative_sem': cumulative_sem,
+        'cumulative_n': np.cumsum(weekly_n_list)
     }
 
 # Create cumulative flux visualization for pots
@@ -830,19 +981,20 @@ fig5, ax = plt.subplots(figsize=(12, 8))
 # Define colors for crops (matching previous plots)
 crop_colors = {'noPlant': '#2fb1b9', 'wheat': '#8c4dc3', 'rice': '#FC9D33', 'soy': '#FE318E'}  # aqua, purple, orange, pink
 
-# Plot cumulative flux for each crop
+# Plot cumulative flux for each crop with error bars
 for crop in crops_pots:
     if crop in weekly_averages_pots:
         weeks = weekly_averages_pots[crop]['weeks']
         cumulative = weekly_averages_pots[crop]['cumulative_flux']
+        cumulative_sem = weekly_averages_pots[crop]['cumulative_sem']
         color = crop_colors.get(crop, '#000000')
         
-        plt.plot(weeks, cumulative, marker='o', linestyle='-', linewidth=2.5, 
-                markersize=8, label=f'{crop}', color=color);
+        plt.errorbar(weeks, cumulative, yerr=cumulative_sem, marker='o', linestyle='-', linewidth=2.5, 
+                markersize=8, label=f'{crop}', color=color, capsize=4);
 
 plt.xlabel('Sampling Week', fontsize=12);
 plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1})}$', fontsize=12);
-plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (Pots)', fontsize=14, pad=20);
+plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (Pots, trapezoidal integration)', fontsize=14, pad=20);
 plt.grid(True, linestyle='--', alpha=0.7);
 plt.legend(fontsize=11);
 
@@ -856,11 +1008,13 @@ plt.savefig(os.path.join(plots_folder, 'pots_cumul_co2_flux_by_crop.png'), dpi=3
 print(f"\nCumulative flux plot saved to 'pots_cumul_co2_flux_by_crop.png'")
 
 # Display final cumulative values
-print("\nFinal Cumulative CO2 Flux Values (Pots):")
+print("\nFinal Cumulative CO2 Flux Values (Pots, Trapezoidal Integration):")
 for crop in crops_pots:
     if crop in weekly_averages_pots:
         final_cumulative = weekly_averages_pots[crop]['cumulative_flux'][-1]
-        print(f"{crop.capitalize()}: {final_cumulative:.2f} μg CO2-C/cm[V/A]/minute")
+        final_sem = weekly_averages_pots[crop]['cumulative_sem'][-1]
+        n = weekly_averages_pots[crop]['cumulative_n'][-1]
+        print(f"{crop.capitalize()}: {final_cumulative:.2f} ± {final_sem:.2f} μg CO2-C/cm[V/A]/minute (n={n})")
 
 plt.show()
 ```
