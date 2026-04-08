@@ -183,7 +183,7 @@ for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰)');
 plt.title(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰) vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Creating Plot 2: Flux (μg CO2-C/g-soil/minute) vs sampling_week
@@ -262,7 +262,7 @@ for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{at-\% \,^{13}C}$');
 plt.title(r'$\mathrm{at-\% \,^{13}C}$ vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Creating Plot 2: Flux (μg CO2-C/g-soil/minute) vs sampling_week
@@ -591,7 +591,7 @@ for i, crop in enumerate(crop_order):
 plt.xlabel('Sampling Week', fontsize=12);
 plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1})}$', fontsize=12);
 plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (outliers removed, trapezoidal integration)', fontsize=14, pad=20);
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend(fontsize=11);
 
 # Add some styling
@@ -719,7 +719,7 @@ for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰)');
 plt.title(r'$\mathrm{δ^{13}C_{VPDB}}$ (‰) vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Creating Plot 2: Flux (μg CO2-C/cm[V/A]/minute) vs sampling_wk
@@ -743,7 +743,7 @@ for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$');
 plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Adjust layout and save figure
@@ -798,7 +798,7 @@ for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{at-\% \, 13C}$ (‰)');
 plt.title(r'$\mathrm{at-\% \, 13C}$ (‰) vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Creating Plot 2: Flux (μg CO2-C/cm[V/A]/minute) vs sampling_wk
@@ -822,7 +822,7 @@ for i, (_, row) in enumerate(crop_isotope_combinations1.iterrows()):
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$');
 plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Adjust layout and save figure
@@ -871,7 +871,7 @@ for crop in crops:
 plt.xlabel('Sampling Week', fontsize=12);
 plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$', fontsize=12);
 plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week by Crop', fontsize=14, pad=20);
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend(fontsize=11);
 
 # Add some styling
@@ -995,7 +995,7 @@ for crop in crops_pots:
 plt.xlabel('Sampling Week', fontsize=12);
 plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1})}$', fontsize=12);
 plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (Pots, trapezoidal integration)', fontsize=14, pad=20);
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend(fontsize=11);
 
 # Add some styling
