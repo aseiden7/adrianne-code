@@ -433,9 +433,9 @@ for i, crop in enumerate(crop_order):
 
 plt.xlabel('Sampling Week', fontsize=18, weight='bold', labelpad=15);
 # Create custom ylabel with different formatting - moved closer to plot
-ax.text(-0.08, 0.26, 'Cumulative CO₂ Flux', transform=ax.transAxes, rotation=90, 
+ax.text(-0.08, 0.32, 'Cumulative CO₂ Flux', transform=ax.transAxes, rotation=90, 
         fontsize=18, weight=690, ha='center', va='center')
-ax.text(-0.08, 0.73, '(μg CO₂-C · g-soil⁻¹)', transform=ax.transAxes, rotation=90, 
+ax.text(-0.08, 0.71, '(μg CO₂-C · g-soil⁻¹)', transform=ax.transAxes, rotation=90, 
         fontsize=16, weight=550, ha='center', va='center')
 plt.tick_params(axis='both', which='major', labelsize=14);
 plt.grid(True, linestyle='--', alpha=0.7);
@@ -448,8 +448,8 @@ plt.tight_layout()
 
 # Save the figure
 plots_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Plots/")
-plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_no_filter-poster.png'), dpi=300, bbox_inches='tight')
-print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_no_filter-poster.png'")
+plt.savefig(os.path.join(plots_folder, 'jars_cumul_co2_flux_by_crop_no_filter-dark.png'), dpi=300, bbox_inches='tight')
+print(f"\nCumulative flux plot saved to 'jars_cumul_co2_flux_by_crop_no_filter-dark.png'")
 
 # Display final cumulative values
 print("\nFinal Cumulative CO2 Flux Values (Trapezoidal Integration):")
