@@ -1019,4 +1019,123 @@ for crop in crops_pots:
 plt.show()
 ```
 
+# Statistical Methods in Salk_CO2.Rmd
 
+This R Markdown document employs a range of descriptive and exploratory statistical methods to analyze CO₂ flux and isotope data. Here's a comprehensive overview:
+
+## **Data Preparation and Cleaning**
+
+The analysis begins with systematic data validation:   
+
+- **Missing data removal**: Rows with NaN values in key columns (δ¹³C~VPDB~, at-% ¹³C, CO₂ concentration, flux) are excluded  
+  
+- **Type conversion**: The isotope variable is converted to integer format to maintain consistency across grouping operations  
+  
+- **Validation**: Data completeness is checked across crop, isotope, and sampling week dimensions  
+
+## **Descriptive Statistics**
+
+### Summary Statistics Tables
+The document generates grouped summary statistics using:  
+
+- **Mean**: Central tendency for each measurement  
+  
+- **Standard Deviation (std)**: Measure of within-group variability  
+  
+- **Minimum and Maximum**: Range of observed values  
+  
+- **Count (n)**: Sample size for each group  
+  
+- **Grouping dimensions**: crop × isotope × sampling week  
+
+## **Uncertainty Quantification**
+
+### Standard Error of the Mean (SEM)
+Throughout all plotting sections, error bars represent the **SEM**:
+
+$$\text{SEM} = \frac{\sigma}{\sqrt{n}}$$
+
+This represents the standard deviation of the sampling distribution of the mean, indicating precision of the weekly average estimates.
+
+## **Trapezoidal Rule Numerical Integration**
+
+This is the primary calculation method for cumulative flux analysis:
+
+### Basic Formula
+For consecutive time points, the trapezoidal approximation calculates:
+
+$$\text{Area}_i = \frac{\text{flux}_{i-1} + \text{flux}_i}{2} \times \Delta t$$
+
+where $\Delta t$ is the time interval (in weeks) between consecutive measurements.
+
+### Cumulative Integration
+The cumulative flux at time point $n$ is:
+
+$$\text{Cumulative Flux}_n = \sum_{i=1}^{n} \text{Area}_i$$
+
+**Key advantage**: This method respects flux as a rate measurement and properly integrates over variable or irregular sampling intervals.
+
+## **Error Propagation Through Integration**
+
+Uncertainties are systematically propagated through the trapezoidal integration:
+
+$$\text{var}(\text{Cumulative Flux}_n) = \sum_{i=1}^{n} \left(\frac{\Delta t}{2}\right)^2 \times (\text{sem}_{i-1}^2 + \text{sem}_i^2)$$
+
+The cumulative standard error is then:
+
+$$\text{SEM}_{\text{cumulative}} = \sqrt{\text{var}(\text{Cumulative Flux}_n)}$$
+
+This reflects how uncertainties **compound** as more measurements are integrated, assuming independence between weekly measurements.
+
+## **Outlier Filtering Method**
+
+An optional **1-standard-deviation filter** is applied in the outlier removal analysis:
+
+For each week, values outside the range $[\bar{x} - \sigma, \bar{x} + \sigma]$ are excluded from recalculation of weekly statistics. This provides two versions of results:   
+
+- **Unfiltered**: All observations included  
+  
+- **Filtered**: Extreme values removed to reduce influence of potential measurement errors  
+
+## **Data Grouping Strategies**
+
+### Crop + Isotope Combinations
+Used in detailed isotope plots (VPDB and at-% analyses):  
+- Separates ¹³C-labeled and ¹²C-labeled treatments  
+- Enables crop-specific and isotope-specific comparisons  
+
+### Crop Only
+Used in simplified flux visualizations:  
+- Combines all isotope treatments within each crop  
+- Provides aggregate flux perspective  
+- Accounts for different sample sizes between treatments  
+
+## **Summary of Analytical Approach**
+
+The analysis is primarily **descriptive and exploratory** rather than inferential:
+
+**Included:**  
+
+ ✓ Temporal flux integration via trapezoidal rule  
+
+ ✓ Systematic uncertainty quantification (SEM, error propagation)  
+
+ ✓ Data quality control (outlier detection, missing data handling)  
+
+ ✓ Time series visualization with error bands  
+
+
+
+**Not included:**  
+
+ ✗ Hypothesis testing (no p-values, t-tests, ANOVA)  
+
+ ✗ Confidence intervals (beyond error bars)  
+
+ ✗ Comparative statistical models or regression  
+
+ ✗ Assumptions testing (normality, homogeneity)  
+
+
+
+The analysis focuses on **characterizing temporal patterns in CO₂ flux and isotope composition across crops and treatments** while transparently representing measurement uncertainty.
