@@ -159,7 +159,7 @@ crop_isotope_combinations = df_clean[['crop', 'isotope']].drop_duplicates()
 # Use a different approach with a simple list of colors
 #num_combinations = len(crop_isotope_combinations)
 #colors = sns.color_palette('husl', num_combinations)
-colors = ['#FC9D33', '#FE318E','#0CB2AF','#3C57DE', '#98C65D','#9F29FF']   # orange, pink, teal, blue, green, purple
+colors = ['#3C57DE', '#98C65D', '#0CB2AF','#FC9D33', '#FE318E','#9F29FF']   # blue, green, teal, orange, pink, purple
 
 
 # Creating Plot 1: δ13CVPDB (‰) vs sampling_week
@@ -238,7 +238,7 @@ crop_isotope_combinations = df_clean[['crop', 'isotope']].drop_duplicates()
 # Use a different approach with a simple list of colors
 #num_combinations = len(crop_isotope_combinations)
 #colors = sns.color_palette('husl', num_combinations)
-colors = ['#3C57DE', '#98C65D', '#9F29FF','#FC9D33', '#FE318E','#0CB2AF']   # blue, green, purple, orange, pink, teal
+colors = ['#3C57DE', '#98C65D', '#0CB2AF','#FC9D33', '#FE318E','#9F29FF']   # blue, green, teal, orange, pink, purple
 
 
 # Creating Plot 1: 13C-at% vs sampling_week
