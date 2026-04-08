@@ -207,7 +207,7 @@ for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$');
 plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Adjust layout and save figure
@@ -297,7 +297,7 @@ for crop in crops:
 plt.xlabel('Sampling Week');
 plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$');
 plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week');
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
 # Adjust layout and save figure
@@ -438,7 +438,7 @@ ax.text(-0.08, 0.32, 'Cumulative CO₂ Flux', transform=ax.transAxes, rotation=9
 ax.text(-0.08, 0.71, '(μg CO₂-C · g-soil⁻¹)', transform=ax.transAxes, rotation=90, 
         fontsize=16, weight=550, ha='center', va='center')
 plt.tick_params(axis='both', which='major', labelsize=14);
-plt.grid(True, linestyle='--', alpha=0.7);
+plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend(prop={'weight': 565, 'size': 16});
 
 # Add some styling
