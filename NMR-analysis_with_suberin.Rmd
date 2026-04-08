@@ -49,6 +49,41 @@ if (box_base == "") stop("BOX_BASE environment variable is not set!")
 # Set paths
 csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/MNova-CSVs")
 outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/NMR_analysis_outputs")
+
+# Define custom themes
+theme_dark_custom <- function() {
+  theme_minimal() +
+  theme(
+    plot.background = element_rect(fill = "black", color = NA),
+    # panel.background = element_rect(fill = "black"),
+    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
+    axis.title = element_text(color = "white", size = 12),
+    axis.text = element_text(color = "white", size = 11),
+    axis.line = element_line(color = "#e6e6e6", linewidth = 0.36),
+    panel.grid.major.y = element_line(color = "#565656", linewidth = 0.3),
+    panel.grid.minor.y = element_line(color = "#3e3e3e", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white", size = 11),
+    legend.title = element_text(color = "white", size = 12)
+  )
+}
+
+
+# Set default theme for all plots (toggle between theme_light_custom() and theme_dark_custom())
+theme_set(theme_dark_custom())
+theme_suffix <- "-dark"  # Change to "-dark" when using theme_dark_custom()
+annotation_text_color <- ifelse(theme_suffix == "-dark", "white", "black")  # Change to "white" when using theme_dark_custom()
+
+# Wrapper function for ggsave with automatic theme suffix
+ggsave_themed <- function(filename, plot, width = NA, height = NA, dpi = 300, ...) {
+  # Remove existing -light or -dark suffix if present, then add the current theme suffix
+  base_filename <- gsub("-light\\.png$|-dark\\.png$", ".png", filename)
+  themed_filename <- sub("\\.png$", paste0(theme_suffix, ".png"), base_filename)
+  output_path <- file.path(outputs_folder, themed_filename)
+  ggsave(output_path, plot, width = width, height = height, dpi = dpi, ...)
+}
 ```
 
 <style>
@@ -168,12 +203,11 @@ knitr::kable(integral_table,
   library(SOMnmR)
 
 # Source modified region_calc function that adds Suberin region
-code_folder <- "c:/Users/adria/adrianne-code"
+code_folder <- "/Users/adrianneseiden/Documents/adrianne-code"
 # # Debug: Print the full path and check if file exists
 # print(paste("Attempting to source:", file.path(code_folder, "region_calc_suberin.R")))
 # print(paste("File exists:", file.exists(file.path(code_folder, "region_calc_suberin.R"))))
 source(file.path(code_folder, "region_calc_suberin.R"))
-#source("c:/Users/adria/adrianne-code/region_calc_suberin.R")
 
 # load data
 ## set working directory
@@ -262,7 +296,7 @@ write.csv(Integrall, file.path(outputs_folder, "NMR_SSB_corrected_integrals_Bona
   library(SOMnmR)
 
 # Source the modified plot function using full path
-code_folder <- "c:/Users/adria/adrianne-code"
+code_folder <- "/Users/adrianneseiden/Documents/adrianne-code"
 source(file.path(code_folder, "plot_NMR_edit.R"))
 
 # Set working directory to outputs folder for plot saving
@@ -348,10 +382,10 @@ p <- ggplot(Integrall_time, aes(x = week, y = Suberin, color = crop)) +
   labs(
     title = NULL,
     x = "Time (weeks)",
-    y = "Relative Suberin Content",
+    y = "Relative Suberin Content (\u2211 25–38 ppm)",
     color = ""
   ) +
-  theme_minimal() +
+  theme_dark_custom() +
   theme(
     axis.title = element_text(size = 14.5, face = "bold"),
     axis.text = element_text(size = 14.5, face = "bold"),
@@ -362,19 +396,15 @@ p <- ggplot(Integrall_time, aes(x = week, y = Suberin, color = crop)) +
   )
 print(p)
 # Save the plot
-ggsave(filename = file.path(outputs_folder, "suberin_22-40_by_crop_timepoint.png"),
-       plot = p, width = 11, height = 7, dpi = 300)
-# Print summary statistics
-cat("\nSuberin content summary by crop and timepoint:\n")
-Integrall_time %>%
-  group_by(crop, timepoint) %>%
-  summarise(
-    n = n(),
-    mean_suberin = round(mean(Suberin, na.rm = TRUE), 3),
-    sd_suberin = round(sd(Suberin, na.rm = TRUE), 3),
-    .groups = "drop"
-  ) %>%
-  knitr::kable() %>%
-  kableExtra::kable_styling()
+ggsave_themed(filename = "suberin_25-38_by_crop_timepoint.png",
+              plot = p, width = 11, height = 7, dpi = 300)
+# summarise(
+#     n = n(),
+#     mean_suberin = round(mean(Suberin, na.rm = TRUE), 3),
+#     sd_suberin = round(sd(Suberin, na.rm = TRUE), 3),
+#     .groups = "drop"
+#   ) %>%
+#   knitr::kable() %>%
+#   kableExtra::kable_styling()
 ```
 

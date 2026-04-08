@@ -61,8 +61,8 @@ region_calc_suberin <- function(batch_nmr = NULL, file = NULL, NMRmeth = NULL, F
       
       # Find indices for 22-40 ppm region (main Suberin region)
       # Use trapezoidal integration like int_nmr does
-      suberin_min <- which(abs(spec_data$ppm - 22) == min(abs(spec_data$ppm - 22)))
-      suberin_max <- which(abs(spec_data$ppm - 40) == min(abs(spec_data$ppm - 40)))
+      suberin_min <- which(abs(spec_data$ppm - 25) == min(abs(spec_data$ppm - 25)))
+      suberin_max <- which(abs(spec_data$ppm - 38) == min(abs(spec_data$ppm - 38)))
       
       # Extract ppm and intensity for the region
       suberin_ppm <- spec_data$ppm[suberin_min:suberin_max]
