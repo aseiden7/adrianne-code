@@ -736,6 +736,10 @@ p_suber <- ggplot(spectra_stats_suber, aes(x = ppm, y = mean_intensity, color = 
     strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
     # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0), color = annotation_text_color),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),
@@ -770,6 +774,8 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
   # Add vertical reference lines
   geom_vline(xintercept = 33, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
   geom_vline(xintercept = 30, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
+  geom_vline(xintercept = 25, linetype = "solid", color = annotation_line_color, linewidth = 0.55) +
+  geom_vline(xintercept = 38, linetype = "solid", color = annotation_line_color, linewidth = 0.55) +
   facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
@@ -782,12 +788,16 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
   
   theme(
     legend.position = "none",
-    strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    strip.text = element_text(size = 16, face = "bold", color = annotation_text_color),
     # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0), color = annotation_text_color),
-    axis.title = element_text(size = 13),
-    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 14),
+    axis.text.x = element_text(size = 13, face = "bold"),
     axis.text.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
     panel.spacing.x = unit(0, "cm"),
     panel.spacing.y = unit(-3.3, "cm"),
     panel.grid = element_blank()
@@ -816,8 +826,13 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
   # Add vertical reference lines
-  geom_vline(xintercept = 33, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
-  geom_vline(xintercept = 30, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
+  geom_vline(xintercept = 33, linetype = "dashed", color = annotation_line_color, linewidth = 0.7) +
+  geom_vline(xintercept = 30, linetype = "dashed", color = annotation_line_color, linewidth = 0.7) +
+  # suberin integration region bounds
+  geom_vline(xintercept = 25, linetype = "solid", color = annotation_line_color, linewidth = 0.45, 
+  alpha = 0.7) +
+  geom_vline(xintercept = 38, linetype = "solid", color = annotation_line_color, linewidth = 0.45, 
+  alpha = 0.7) +
   facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
@@ -830,11 +845,15 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   
   theme(
     legend.position = "none",
-    strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    strip.text = element_text(size = 16, face = "bold", color = annotation_text_color),
     # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 40, r = 1, b = -60, l = 0), color = annotation_text_color),
-    axis.title = element_text(size = 13),
-    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 14),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.text.x = element_text(size = 13, face = "bold"),
     axis.text.y = element_blank(),
     panel.spacing.x = unit(0, "cm"),
     panel.spacing.y = unit(-2.4, "cm"),
@@ -874,9 +893,12 @@ p_individual <- ggplot(spectra_filtered, aes(x = ppm, y = intensity, color = pas
   
   theme(
     legend.position = "none",
-    strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    strip.text = element_text(size = 16, face = "bold", color = annotation_text_color),
     # strip.background = element_rect(fill = "#1a1a1a"),
-    panel.grid = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
     axis.title = element_text(size = 13),
     axis.text.x = element_blank(),
     axis.text.y = element_blank(),

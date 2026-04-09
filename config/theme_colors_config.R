@@ -73,6 +73,7 @@ annotation_line_color <- ifelse(theme_suffix == "-dark", "#707070", "#555555")
 # Fill color for annotations based on theme
 # Use "black" when theme_suffix == "-dark", "white" when theme_suffix == "-light"
 annotation_fill_color <- ifelse(theme_suffix == "-dark", "black", "white")
+# shading_color <- ifelse(theme_suffix == "-dark", "#555555", "#bababa")
 
 
 # COLOR PALETTES ============================================================
@@ -99,60 +100,113 @@ crop_colors <- c(
 #
 # Note: Includes both 3-point (wk0, wk10, wk40) and 5-point (wk0, wk10, wk20, wk30, wk40) timepoints
 # Analyses using only wk0/wk10/wk40 will ignore the intermediate timepoints
-crop_timepoint_colors <- list(
-  wheat = c(
-    "wk0" = "#C381FD",    # Light purple
-    "wk10" = "#AB50FB",   # Medium purple
-    "wk20" = "#941FF9",   # Medium-dark purple
-    "wk30" = "#7307D2",   # Dark purple
-    "wk40" = "#510594"    # Very dark purple
-  ),
-  rice = c(
-    "wk0" = "#FEB057",    # Light orange
-    "wk10" = "#F6962A",   # Medium orange
-    "wk29" = "#F18204",   # Medium-dark orange
-    "wk40" = "#B56203"    # Dark brown
-  ),
-  soy = c(
-    "wk0" = "#FE67AB",    # Light pink
-    "wk10" = "#FD358F",   # Medium pink/magenta
-    "wk20" = "#FB0473",   # Dark pink
-    "wk30" = "#C8045C",   # Dark magenta
-    "wk40" = "#950445"    # Very dark magenta
-  ),
-  noPlant = c(
-    "wk30" = "#27B4C1",   # teal
-    "wk40" = "#177982"    # dark teal (noPlant only has wk30 and wk40 timepoints)
-  )
+
+# ===== Light Theme Colors =====
+crop_colors_light <- c(
+  "noPlant" = "#27B4C1",
+  "wheat"   = "#8C4DC3",
+  "rice"    = "#FC9D33",
+  "soy"     = "#FF3385"
 )
 
-# ===== Full Crop-Timepoint Color Map =====
-# Named vector with all crop-timepoint combinations for direct lookup
-# Used when filtering to specific timepoints (e.g., NMR analysis with wk0/wk10/wk40 only)
-color_map <- c(
-  # Soy: light to dark magenta
+color_map_light <- c(
   "soy_wk0" = "#FE67AB",
   "soy_wk10" = "#FD358F",
   "soy_wk40" = "#950445",
-  # Rice: light to dark orange
   "rice_wk0" = "#FEB057",
   "rice_wk10" = "#F6962A",
-  "rice_wk40" = "#B56203",
-  # Wheat: light to dark purple
+  "rice_wk40" = "#AF5F04",
   "wheat_wk0" = "#C381FD",
   "wheat_wk10" = "#AB50FB",
   "wheat_wk40" = "#510594"
 )
 
-# Alternative simplified crop colors for quick reference
-crop_color_simple <- c(
-  "soy" = "#FE318E",
-  "rice" = "#FC9D33",
-  "wheat" = "#884EBB"
+# ===== Dark Theme Colors =====
+crop_colors_dark <- c(
+  "noPlant" = "#44CBD7",
+  "wheat"   = "#AB79D8",
+  "rice"    = "#FDB768",
+  "soy"     = "#FF66A3"
 )
 
-# Alias for compatibility with existing .Rmd files
-crop_color <- crop_color_simple
+color_map_dark <- c(
+  "soy_wk0" = "#FE9AC7",
+  "soy_wk10" = "#FC368F",
+  "soy_wk40" = "#C7055C",
+  "rice_wk0" = "#FECF9A",
+  "rice_wk10" = "#FD9768",
+  "rice_wk40" = "#E37A03",
+  "wheat_wk0" = "#DBB4FE",
+  "wheat_wk10" = "#C381FD",
+  "wheat_wk40" = "#7307D2"
+)
+
+# ===== Dynamic Color Selection =====
+# Select colors based on current theme
+crop_colors <- if (theme_suffix == "-dark") crop_colors_dark else crop_colors_light
+color_map <- if (theme_suffix == "-dark") color_map_dark else color_map_light
+
+# For backward compatibility
+crop_color <- c(
+  "soy" = crop_colors[["soy"]],
+  "rice" = crop_colors[["rice"]],
+  "wheat" = crop_colors[["wheat"]]
+)
+
+# crop_timepoint_colors <- list(
+#   wheat = c(
+#     "wk0" = "#C381FD",    # Light purple
+#     "wk10" = "#AB50FB",   # Medium purple
+#     "wk20" = "#941FF9",   # Medium-dark purple
+#     "wk30" = "#7307D2",   # Dark purple
+#     "wk40" = "#510594"    # Very dark purple
+#   ),
+#   rice = c(
+#     "wk0" = "#FEB057",    # Light orange
+#     "wk10" = "#F6962A",   # Medium orange
+#     "wk29" = "#F18204",   # Medium-dark orange
+#     "wk40" = "#B56203"    # Dark brown
+#   ),
+#   soy = c(
+#     "wk0" = "#FE67AB",    # Light pink
+#     "wk10" = "#FD358F",   # Medium pink/magenta
+#     "wk20" = "#FB0473",   # Dark pink
+#     "wk30" = "#C8045C",   # Dark magenta
+#     "wk40" = "#950445"    # Very dark magenta
+#   ),
+#   noPlant = c(
+#     "wk30" = "#27B4C1",   # teal
+#     "wk40" = "#177982"    # dark teal (noPlant only has wk30 and wk40 timepoints)
+#   )
+# )
+
+# # ===== Full Crop-Timepoint Color Map =====
+# # Named vector with all crop-timepoint combinations for direct lookup
+# # Used when filtering to specific timepoints (e.g., NMR analysis with wk0/wk10/wk40 only)
+# color_map <- c(
+#   # Soy: light to dark magenta
+#   "soy_wk0" = "#FE67AB",
+#   "soy_wk10" = "#FD358F",
+#   "soy_wk40" = "#950445",
+#   # Rice: light to dark orange
+#   "rice_wk0" = "#FEB057",
+#   "rice_wk10" = "#F6962A",
+#   "rice_wk40" = "#B56203",
+#   # Wheat: light to dark purple
+#   "wheat_wk0" = "#C381FD",
+#   "wheat_wk10" = "#AB50FB",
+#   "wheat_wk40" = "#510594"
+# )
+
+# # Alternative simplified crop colors for quick reference
+# crop_color_simple <- c(
+#   "soy" = "#FE318E",
+#   "rice" = "#FC9D33",
+#   "wheat" = "#884EBB"
+# )
+
+# # Alias for compatibility with existing .Rmd files
+# crop_color <- crop_color_simple
 
 
 # HELPER FUNCTIONS ==========================================================
