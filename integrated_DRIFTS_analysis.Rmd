@@ -1757,13 +1757,15 @@ ratio_stats <- ftir_data %>%
   )
 
 # Calculate regression statistics for each crop (simple : microbial ratio)
+# Using all individual data points, not just the 3 averaged points
 simple_micr_regression_stats <- data.frame()
 for (crop_name in c("wheat", "rice", "soy")) {
-  crop_data <- ratio_stats %>%
-    filter(crop == crop_name)
+  crop_data <- ftir_data %>%
+    filter(crop == crop_name) %>%
+    mutate(timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+")))
   
   if (nrow(crop_data) > 1) {
-    model <- lm(Mean_simple_microbial ~ timepoint_numeric, data = crop_data)
+    model <- lm(simple_microbial_prop ~ timepoint_numeric, data = crop_data)
     summary_model <- summary(model)
     
     r_squared <- summary_model$r.squared
@@ -1784,13 +1786,15 @@ for (crop_name in c("wheat", "rice", "soy")) {
 }
 
 # Calculate regression statistics for each crop (total plant : microbial ratio)
+# Using all individual data points, not just the 3 averaged points
 total_micr_regression_stats <- data.frame()
 for (crop_name in c("wheat", "rice", "soy")) {
-  crop_data <- ratio_stats %>%
-    filter(crop == crop_name)
+  crop_data <- ftir_data %>%
+    filter(crop == crop_name) %>%
+    mutate(timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+")))
   
   if (nrow(crop_data) > 1) {
-    model <- lm(Mean_total_microbial ~ timepoint_numeric, data = crop_data)
+    model <- lm(total_plant_microbial_prop ~ timepoint_numeric, data = crop_data)
     summary_model <- summary(model)
     
     r_squared <- summary_model$r.squared
@@ -1811,13 +1815,15 @@ for (crop_name in c("wheat", "rice", "soy")) {
 }
 
 # Calculate regression statistics for each crop (simple plant : complex plant ratio)
+# Using all individual data points, not just the 3 averaged points
 simple_complex_regression_stats <- data.frame()
 for (crop_name in c("wheat", "rice", "soy")) {
-  crop_data <- ratio_stats %>%
-    filter(crop == crop_name)
+  crop_data <- ftir_data %>%
+    filter(crop == crop_name) %>%
+    mutate(timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+")))
   
   if (nrow(crop_data) > 1) {
-    model <- lm(Mean_simple_complex ~ timepoint_numeric, data = crop_data)
+    model <- lm(simple_complex_prop ~ timepoint_numeric, data = crop_data)
     summary_model <- summary(model)
     
     r_squared <- summary_model$r.squared
