@@ -3387,3 +3387,50 @@ dpt_data_roots %>%
   ) %>%
   head()
 ```
+
+## Statistical Methods
+
+### 1. **Data Normalization**
+Spectral absorbance data from FTIR DPT files undergoes two-step normalization for each sample:
+- **Baseline correction**: The minimum absorbance value is subtracted from all data points to remove background noise
+- **Max normalization**: Values are divided by the maximum absorbance (after baseline correction) to standardize absorbance on a 0–1 scale, making spectra comparable across samples with different overall intensities
+
+### 2. **Spectral Integration for Functional Groups**
+Functional group proportions are calculated using integrated peak areas from specific spectral regions (based on Mainka et al. 2022):
+- Peak areas are calculated using the **trapezoidal rule** (via the `pracma::trapz()` function) across four spectral windows:
+  - **Simple plant (aliphatic)**: 2839–2870 cm⁻¹ + 2898–2976 cm⁻¹
+  - **Complex plant (aromatic)**: 1500–1550 cm⁻¹
+  - **Microbial**: 1580–1660 cm⁻¹
+  
+- **Proportion calculation**: Each functional group's proportion is calculated as:
+  $$\text{Proportion} = \frac{\text{Peak Area}_{\text{functional group}}}{\text{Total Peak Area}_{\text{all groups}}}$$
+
+- **Ratio metrics** are derived from these proportions (e.g., Simple:Microbial ratio, Total Plant:Microbial ratio)
+
+### 3. **Descriptive Statistics by Group**
+Summary statistics are calculated by crop and timepoint:
+- **Mean** and **Standard Error (SE)** for each functional group proportion
+  $$SE = \frac{SD}{\sqrt{n}}$$
+  where SD is the standard deviation and n is the sample size for each group
+
+### 4. **Linear Regression Analysis (Ratio Scatterplots)**
+Time-series trends are analyzed using **simple linear regression** for each crop, fitting all individual data points (not just group averages):
+- **Model**: `y ~ timepoint_numeric` where y is a ratio metric (e.g., Simple:Microbial)
+- **Statistics reported**:
+  - **R²** (coefficient of determination): Explains the proportion of variance in the ratio accounted for by timepoint
+  - **Slope**: The change in ratio per week, fitted to all individual replicate measurements
+  - **P-value**: Statistical significance test (α = 0.05); values < 0.05 marked with asterisk
+
+This approach uses all available replicate data for regression rather than averaged values, providing more robust statistical inference.
+
+### 5. **Data Visualization**
+- **Ridge plots**: Show the full range of spectral data (min to max across replicates) using transparent ribbons
+- **Box plots & stacked bar plots**: Display proportions by crop and timepoint with error bars (±1 SE)
+- **Ratio scatterplots**: Display averaged ratios with error bars, overlaid with fitted regression lines and statistics
+
+### 6. **Data Aggregation Levels**
+- Timepoint-level summaries (across all crops)
+- Crop-level summaries (across all timepoints)
+- Crop × Timepoint summaries (group means and SEs)
+
+All statistical calculations are implemented in R using `dplyr` for data manipulation, `ggplot2` for visualization, and base R functions for statistical modeling.
