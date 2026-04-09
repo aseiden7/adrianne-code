@@ -53,8 +53,8 @@ outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adr
 # Source centralized theme and color configuration
 source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
 
-# Ensure theme is set and variables are initialized
-theme_set(theme_dark_custom())
+# # Ensure theme is set and variables are initialized
+# theme_set(theme_dark_custom())
 ```
 
 <style>
@@ -308,7 +308,7 @@ Integrall_time <- Integrall %>%
   filter(!is.na(crop) & !is.na(week) & crop != "noPlant")
 
 # Define crop colors
-crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#884EBB")
+# crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#884EBB")
 
 # Calculate R-squared and p-values for each crop
 stats_by_crop <- Integrall_time %>%
@@ -316,12 +316,13 @@ stats_by_crop <- Integrall_time %>%
   summarise(
     model = list(lm(Suberin ~ week)),
     r_squared = summary(model[[1]])$r.squared,
+    slope = coef(model[[1]])[2],
     p_value = summary(model[[1]])$coefficients[2, 4],
     .groups = "drop"
   ) %>%
   mutate(
-    label = sprintf("R² = %.3f, p = %.3f%s", 
-                    r_squared, p_value, 
+    label = sprintf("R² = %.3f, slope = %.3f, p = %.3f%s", 
+                    r_squared, slope, p_value, 
                     ifelse(p_value < 0.05, " *", "")),
     crop_label = paste0(toupper(substring(crop, 1, 1)), substring(crop, 2))
   )
@@ -356,7 +357,7 @@ p <- ggplot(Integrall_time, aes(x = week, y = Suberin, color = crop)) +
     y = "Relative Suberin Content (\u2211 25–38 ppm)",
     color = ""
   ) +
-  theme_dark_custom() +
+  # theme_dark_custom() +
   theme(
     axis.title = element_text(size = 14.5, face = "bold"),
     axis.text = element_text(size = 14.5, face = "bold"),
@@ -378,4 +379,52 @@ ggsave_themed(filename = "suberin_25-38_by_crop_timepoint.png",
 #   knitr::kable() %>%
 #   kableExtra::kable_styling()
 ```
+
+## Statistical Methods in NMR Data Analysis
+
+### 1. **Spectral Integration**
+The document uses the `SOMnmR` package to integrate ¹³C CP/MAS NMR spectra. The "Bonanomi" integration method divides the spectrum into 7 chemical shift regions:
+- **Alkyl**: 0–45 ppm
+- **N-Alkyl/methoxy**: 46–60 ppm
+- **O-Alkyl**: 61–90 ppm
+- **Di-O-Alkyl**: 91–110 ppm
+- **Aromatic**: 111–140 ppm
+- **Phenolic**: 141–160 ppm
+- **Carboxyl**: 161–190 ppm
+- **Suberin** (custom addition): 25–38 ppm
+
+Peak areas are calculated by integrating (summing) the absorbance values within each spectral window.
+
+### 2. **Spinning Sideband (SSB) Correction**
+The `region_calc_suberin` function applies a correction algorithm to account for spinning sidebands—artifact peaks that appear around the main NMR signals due to sample rotation during measurement. This correction is essential for accurate quantification of true chemical composition.
+
+### 3. **Linear Regression Analysis (Suberin Over Time)**
+Time-series trends in suberin content are analyzed using **simple linear regression** for each crop:
+- **Model**: `Suberin ~ week`
+- **Data**: All individual sample measurements (not averaged by timepoint)
+- **Statistics reported**:
+  - **R²** (coefficient of determination): Proportion of variance in suberin content explained by time
+  - **Slope**: Change in relative suberin content per week
+  - **P-value**: Statistical significance test (α = 0.05); values < 0.05 marked with "*"
+
+This approach uses all available replicate measurements, providing robust statistical inference for temporal trends.
+
+### 4. **Summary Statistics**
+Although not displayed in the final plot, the document generates:
+- **Mean** suberin content for each crop-timepoint combination
+- Displayed on plots as cross symbols (shape = 4) for reference
+
+### 5. **Data Processing & Preparation**
+- **Name parsing**: Sample identities (crop type and timepoint) are extracted from filenames using pattern matching (e.g., "wheat", "rice", "soy"; "wk0", "wk10", "wk40")
+- **Filtering**: Data for "noPlant" control samples are excluded from the time-series analysis
+- **Numeric conversion**: All integration values are converted to numeric format and standardized
+
+### 6. **Data Visualization**
+The suberin plot combines:
+- **Individual datapoints** (jittered for visibility)
+- **Mean indicators** (cross symbols at group averages)
+- **Fitted regression lines** (dashed lines per crop)
+- **Regression statistics** in the legend (R², slope, p-value per crop)
+
+This multi-layered visualization shows both raw variation and aggregate trends, with statistical support for temporal patterns in suberin accumulation across different crop types.
 
