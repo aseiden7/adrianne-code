@@ -1639,7 +1639,8 @@ interaction_plot_stacked_no_noPlant <- ggplot(interaction_stacked_data_no_noPlan
                                        y = proportion * 100, 
                                        fill = fill_group)) +
   geom_col(position = "stack") +
-  facet_grid(. ~ crop, scales = "free_x", space = "free_x") +
+  facet_grid(. ~ crop, scales = "free_x", space = "free_x",
+             labeller = labeller(crop = c("wheat" = "Wheat", "rice" = "Rice", "soy" = "Soy"))) +
   scale_x_discrete(labels = function(x) {
     # Extract just the timepoint part (after the dot)
     sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
@@ -1656,7 +1657,7 @@ interaction_plot_stacked_no_noPlant <- ggplot(interaction_stacked_data_no_noPlan
         axis.title.y = element_text(size = 12),
         axis.text.y = element_text(size = 11),
         strip.background = element_blank(),
-        strip.text = element_text(size = 14.5, face = "bold", color = annotation_text_color)) +
+        strip.text = element_text(size = 14, face = "bold", color = annotation_text_color)) +
   coord_cartesian(clip = "off")
 
 # Create manual color scale using timepoint_prop_colors
@@ -1699,8 +1700,8 @@ interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
                 y = label_y, 
                 label = pct_label,
                 color = label_color),
-            size = 3.2,
-            fontface = "plain",
+            size = 3.5,
+            fontface = "bold",
             inherit.aes = FALSE) +
   scale_color_identity() +  # Use the actual color values from label_color
   # Add func_type labels on the right side
