@@ -767,12 +767,7 @@ print(combined_overlay_plot)
 This version excludes noPlant and uses the original grouping method where line thickness represents the range of data for each timepoint.
 
 ```{r combined-stacked-overlay-no-noplant, fig.height=9, fig.width=13}
-# Define crop-specific color palettes (exclude noPlant)
-# crop_timepoint_colors_three <- list(
-#   wheat = c("wk0" = "#d2a9f6", "wk10" = "#bd7ef6", "wk40" = "#3f0477"),
-#   rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
-#   soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
-# )
+
 crop_timepoint_colors_three <- color_map_three_sep
 
 # Prepare data with three crops only (ordered from bottom to top: wheat, rice, soy)
@@ -931,6 +926,192 @@ combined_overlay_plot_no_noplant <- combined_overlay_plot_no_noplant +
 
 print(combined_overlay_plot_no_noplant)
 ggsave_themed("combined_overlay_no_noplant.png", combined_overlay_plot_no_noplant, width = 13, height = 9, dpi = 300)
+```
+## Showing average and range
+same as the above chunk, but showing the average spectra for each crop-timepoint combination with an opaque line (alpha = 1, width = 0.88) and a shaded ribbon representing the range of the data for each crop-timepoint (alpha = 0.58).
+
+```{r combined-stacked-overlay-no-noplant-range, fig.height=9, fig.width=13}
+
+crop_timepoint_colors_three <- color_map_three_sep
+
+# Prepare data with three crops only (ordered from bottom to top: wheat, rice, soy)
+crops_ordered_three <- c("soy", "rice", "wheat")  # Reversed for plotting so soy appears at top
+three_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered_three) %>%
+  mutate(crop = factor(crop, levels = crops_ordered_three)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount_three <- 0.7  # Space between each crop's spectra
+crop_offsets_three <- setNames(seq(0, length(crops_ordered_three) - 1) * offset_amount_three, crops_ordered_three)
+
+# Add offset to absorbance values based on crop
+three_crops_data <- three_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets_three[as.character(crop)])
+
+# Determine max y position for annotations
+max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
+
+# Create the base plot with functional region annotations
+base_plot_range <- ggplot() +
+  xlim(3777, 422) +
+  
+  labs(x = expression("Wavenumber (cm"^-1*")"), 
+       y = "Normalized absorbance") +
+  theme(
+    axis.text.y = element_blank(),
+    # axis.ticks.y = element_blank(),
+    axis.title.y = element_text(size = 15, face = "bold"),
+    axis.text.x = element_text(size = 15, face = "bold"),
+    axis.title.x = element_text(size = 16, face = "bold"),
+    legend.position = "right",
+    legend.justification = c(0, 0.07),  # (x, y) position; 0,0 is bottom-right
+    legend.box = "vertical",
+    legend.spacing.y = unit(2.8, "cm"),
+    legend.title = element_text(size = 15, face = "bold"),
+    legend.text = element_text(size = 14.5),
+    plot.margin = margin(7, 14, 7, 7, "pt"),  # (top, right, bottom, left)
+    panel.grid.major.x = element_blank()
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets_three + 0.003, # y-tick positions
+    labels = NULL,
+    expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
+  ) +
+  scale_x_reverse(
+    limits = c(3770, 415),
+    breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
+    expand = c(0.002, 0.003)  # Remove padding on x-axis
+  ) +
+  # Add vertical lines for functional regions
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.46) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.46) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+  # Add shaded regions with annotations
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("text", x = 2650, y = max_y_three - 0.05, label = "Simple Plant", 
+           size = 4.8, hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#a8cbad") +
+  annotate("text", x = 1800, y = max_y_three, label = "Microbial", 
+           size = 4.8, hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#beb5d5") +
+  annotate("text", x = 1300, y = max_y_three, label = "Complex Plant", 
+           size = 4.8, hjust = 0.5, color = annotation_text_color)
+
+# Add layers for each crop with average and range
+combined_overlay_range_plot <- base_plot_range
+
+for (crop in crops_ordered_three) {
+  crop_data <- three_crops_data %>% filter(crop == !!crop)
+  
+  for (tp in names(crop_timepoint_colors_three[[crop]])) {
+    tp_data <- crop_data %>% filter(timepoint == tp)
+    
+    # Calculate average and range for this crop+timepoint combination
+    summary_data <- tp_data %>%
+      group_by(wavenumber) %>%
+      summarise(
+        mean_absorbance = mean(offset_absorbance, na.rm = TRUE),
+        min_absorbance = min(offset_absorbance, na.rm = TRUE),
+        max_absorbance = max(offset_absorbance, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    # Add range ribbon (semi-transparent)
+    combined_overlay_range_plot <- combined_overlay_range_plot +
+      geom_ribbon(data = summary_data,
+                  aes(x = wavenumber, ymin = min_absorbance, ymax = max_absorbance),
+                  fill = crop_timepoint_colors_three[[crop]][tp],
+                  alpha = 0.58,
+                  color = NA,
+                  show.legend = FALSE)
+    
+    # Add average line (opaque)
+    combined_overlay_range_plot <- combined_overlay_range_plot +
+      geom_line(data = summary_data,
+                aes(x = wavenumber, y = mean_absorbance),
+                color = crop_timepoint_colors_three[[crop]][tp],
+                linewidth = 0.88,
+                alpha = 1,
+                show.legend = FALSE)
+  }
+}
+
+# Create dummy data for manual legends - one for each crop
+dummy_wheat <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  wheat_tp = names(crop_timepoint_colors_three$wheat)
+)
+
+dummy_rice <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  rice_tp = names(crop_timepoint_colors_three$rice)
+)
+
+dummy_soy <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  soy_tp = names(crop_timepoint_colors_three$soy)
+)
+
+# Add invisible layers with separate aesthetics for each crop
+combined_overlay_range_plot <- combined_overlay_range_plot +
+  # Wheat legend
+  geom_line(data = dummy_wheat,
+            aes(x = x, y = y, color = wheat_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Wheat",
+    values = crop_timepoint_colors_three$wheat,
+    breaks = names(crop_timepoint_colors_three$wheat),
+    labels = names(crop_timepoint_colors_three$wheat),
+    guide = guide_legend(
+      override.aes = list(linewidth = 3, alpha = 1),
+      order = 1
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Rice legend
+  geom_line(data = dummy_rice,
+            aes(x = x, y = y, color = rice_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Rice",
+    values = crop_timepoint_colors_three$rice,
+    breaks = names(crop_timepoint_colors_three$rice),
+    labels = names(crop_timepoint_colors_three$rice),
+    guide = guide_legend(
+      override.aes = list(linewidth = 3, alpha = 1),
+      order = 2
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Soy legend
+  geom_line(data = dummy_soy,
+            aes(x = x, y = y, color = soy_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Soy",
+    values = crop_timepoint_colors_three$soy,
+    breaks = names(crop_timepoint_colors_three$soy),
+    labels = names(crop_timepoint_colors_three$soy),
+    guide = guide_legend(
+      override.aes = list(linewidth = 3, alpha = 1),
+      order = 3
+    )
+  )
+
+print(combined_overlay_range_plot)
+ggsave_themed("combined_overlay_range_no_noplant.png", combined_overlay_range_plot, width = 13, height = 9, dpi = 300)
 ```
 
 # Comparing regions of interest

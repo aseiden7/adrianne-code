@@ -136,10 +136,10 @@ color_map_light_three_sep <- list(
 
 # ===== Dark Theme Colors =====
 crop_colors_dark <- c(
-  "noPlant" = "#44CBD7",
-  "wheat"   = "#AB79D8",
-  "rice"    = "#FDB768",
-  "soy"     = "#FF66A3"
+  "noPlant" = "#3DC5D2",
+  "wheat"   = "#A36ED3",
+  "rice"    = "#FDB15B",
+  "soy"     = "#FF599C"
 )
 
 color_map_dark <- c(
