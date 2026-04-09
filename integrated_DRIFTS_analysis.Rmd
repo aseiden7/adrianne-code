@@ -1911,8 +1911,8 @@ create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label
     p_label_with_star <- if (p_significant) paste0(p_label, "*") else p_label
     label_fontface <- if (p_significant) "bold" else "plain"
     
-    # Create label with r² and p-value side by side
-    label_text <- paste0("r² = ", format(round(r_sq, 3), nsmall = 3), ", ", p_label_with_star)
+    # Create label with r², slope, and p-value
+    label_text <- paste0("r² = ", format(round(r_sq, 3), nsmall = 3), ", slope = ", format(round(slope, 3), nsmall = 3), ", ", p_label_with_star)
     
     # Add text annotations in crop color
     plot <- plot +
