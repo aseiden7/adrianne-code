@@ -351,16 +351,19 @@ lm_stats <- plot_data %>%
   summarise(
     model = list(lm(Alkyl_O.Alkyl_Ratio ~ timepoint_num)),
     r_squared = summary(model[[1]])$r.squared,
+    slope = coef(model[[1]])[2],
     p_value = summary(model[[1]])$coefficients[2, 4],
     .groups = 'drop'
   ) %>%
   mutate(
-    label = sprintf("R² = %.3f, p = %.3f", r_squared, p_value),
-    x = 44,  # Position for text (outside plot area)
+    label = sprintf("R² = %.3f, slope = %.3f, p = %.3f%s", 
+                    r_squared, slope, p_value,
+                    ifelse(p_value < 0.05, " *", "")),
+    x = 27,  # Position for text
     y = case_when(
-      crop == "soy" ~ 0.3,
-      crop == "rice" ~ 0.289,
-      crop == "wheat" ~ 0.278
+      crop == "soy" ~ 0.092,
+      crop == "rice" ~ 0.08,
+      crop == "wheat" ~ 0.069
     )
   )
 
@@ -370,12 +373,12 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
   geom_point(data = plot_means, aes(x = timepoint_num, y = mean_ratio, color = crop),
              shape = 4, size = 5.2, stroke = 2, show.legend = FALSE) +
   # Add a dummy point for legend only
-  geom_point(aes(shape = "Mean"), x = NA, y = NA, color = "black", size = 5.2, stroke = 2) +
+  geom_point(aes(shape = "Mean"), x = NA, y = NA, color = annotation_text_color, size = 5.2, stroke = 2) +
   geom_smooth(aes(group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
   geom_text(data = lm_stats, aes(x = x, y = y, label = label, color = crop),
-            size = 3, fontface = "bold", hjust = 0, show.legend = FALSE) +
+            size = 4.4, fontface = "bold", hjust = 0, vjust = 0.5, show.legend = FALSE) +
   coord_cartesian(clip = "off") +
   scale_x_continuous(breaks = c(0, 10, 40)) +
   scale_fill_manual(values = crop_color, name = NULL, guide = "none") +
@@ -391,7 +394,7 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
   
   theme(
     legend.position = "right",
-    legend.text = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 14.5, face = "bold"),
     axis.title = element_text(size = 14.5, face = "bold"),
     axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
@@ -421,12 +424,15 @@ rdr_lm_stats <- plot_data %>%
   summarise(
     model = list(lm(RDR ~ timepoint_num)),
     r_squared = summary(model[[1]])$r.squared,
+    slope = coef(model[[1]])[2],
     p_value = summary(model[[1]])$coefficients[2, 4],
     .groups = 'drop'
   ) %>%
   mutate(
-    label = sprintf("R² = %.3f, p = %.3f", r_squared, p_value),
-    x = 44,  # Position for text (outside plot area)
+    label = sprintf("R² = %.3f, slope = %.3f, p = %.3f%s", 
+                    r_squared, slope, p_value,
+                    ifelse(p_value < 0.05, " *", "")),
+    x = 3,  # Position for text (far left)
     y = case_when(
       crop == "soy" ~ 0.72,
       crop == "rice" ~ 0.70,
@@ -439,12 +445,12 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
     geom_point(data = rdr_means, aes(x = timepoint_num, y = mean_rdr, color = crop),
              shape = 4, size = 5.2, stroke = 2, show.legend = FALSE) +
   # Add a dummy point for legend only
-  geom_point(aes(shape = "Mean"), x = NA, y = NA, color = "black", size = 5.2, stroke = 2) +
+  geom_point(aes(shape = "Mean"), x = NA, y = NA, color = annotation_text_color, size = 5.2, stroke = 2) +
   geom_smooth(aes(group = crop, color = crop), 
               method = "lm", se = FALSE, linetype = "dashed", 
               linewidth = 0.7) +
   geom_text(data = rdr_lm_stats, aes(x = x, y = y, label = label, color = crop),
-            size = 3, fontface = "bold", hjust = 0, show.legend = FALSE) +
+            size = 4.4, fontface = "bold", hjust = 0, vjust = 0.5, show.legend = FALSE) +
   coord_cartesian(clip = "off") +
   scale_x_continuous(breaks = c(0, 10, 40)) +
   scale_fill_manual(values = crop_color, name = NULL, guide = "none") +
@@ -460,7 +466,7 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
   
   theme(
     legend.position = "right",
-    legend.text = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 14.5, face = "bold"),
     axis.title = element_text(size = 14.5, face = "bold"),
     axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
@@ -496,12 +502,15 @@ scatter_lm_stats <- scatter_data %>%
   summarise(
     model = list(lm(RDR ~ Alkyl_O.Alkyl_Ratio)),
     r_squared = summary(model[[1]])$r.squared,
+    slope = coef(model[[1]])[2],
     p_value = summary(model[[1]])$coefficients[2, 4],
     .groups = 'drop'
   ) %>%
   mutate(
-    label = sprintf("R² = %.3f, p = %.3f", r_squared, p_value),
-    x = max(scatter_data$Alkyl_O.Alkyl_Ratio, na.rm = TRUE) * 1.02,
+    label = sprintf("R² = %.3f, slope = %.3f, p = %.3f%s", 
+                    r_squared, slope, p_value,
+                    ifelse(p_value < 0.05, " *", "")),
+    x = min(scatter_data$Alkyl_O.Alkyl_Ratio, na.rm = TRUE) * 1.02,
     y = case_when(
       crop == "soy" ~ 0.75,
       crop == "rice" ~ 0.73,
@@ -516,7 +525,7 @@ p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
             method = "lm", se = FALSE, linetype = "dashed", 
             linewidth = 0.7, show.legend = FALSE) +
   geom_text(data = scatter_lm_stats, aes(x = x, y = y, label = label, color = crop),
-            size = 3, fontface = "bold", hjust = 0, show.legend = FALSE) +
+            size = 4.4, fontface = "bold", hjust = 0, vjust = 0.5, show.legend = FALSE) +
   coord_cartesian(clip = "off") +
   scale_color_manual(values = c(color_map, crop_color), 
                      breaks = names(color_map),
@@ -532,9 +541,9 @@ p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
   
   theme(
     legend.position = "right",
-    legend.text = element_text(size = 11),
-    axis.title = element_text(size = 13, face = "bold"),
-    axis.text = element_text(size = 12),
+    legend.text = element_text(size = 14),
+    axis.title = element_text(size = 14.5, face = "bold"),
+    axis.text = element_text(size = 14),
     plot.margin = margin(5, 30, 5, 5),
     #  panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
     # panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
@@ -914,3 +923,70 @@ ggsave_themed(filename = "NMR_spectra_individual_overlaid_by_timepoint.png",
               plot = p_individual, width = 12, height = 5, dpi = 300)
 ```
 
+## Statistical Methods in NMR Data Analysis
+
+### 1. **Spectral Integration Using the Bonanomi Method**
+The document uses the `SOMnmR` package to integrate ¹³C CP/MAS NMR spectra. The "Bonanomi" integration method divides the spectrum into 7 chemical shift regions based on [Bonanomi et al. (2011)](https://doi.org/10.1111/j.1469-8137.2011.03765.x):
+
+- **Alkyl**: 0–45 ppm
+- **N-Alkyl/methoxy**: 46–60 ppm
+- **O-Alkyl**: 61–90 ppm
+- **Di-O-Alkyl**: 91–110 ppm
+- **Aromatic**: 111–140 ppm
+- **Phenolic**: 141–160 ppm
+- **Carboxyl**: 161–190 ppm
+
+Integration is performed by calculating the area under the curve (AUC) within each spectral window for each sample.
+
+### 2. **Spinning Sideband (SSB) Correction**
+The `region_calc()` function applies a correction algorithm to account for spinning sidebands—artifact peaks that appear around main NMR signals due to sample rotation at the magic angle. This correction is essential for accurate quantification of true compound concentrations and prevents overestimation of peak intensities.
+
+### 3. **Derived Compositional Metrics**
+
+**Alkyl/O-Alkyl Ratio (A/O-A):**
+$$\text{A/O-A} = \frac{\text{Alkyl (0-45 ppm)}}{\text{O-Alkyl (61-90 ppm)}}$$
+
+This ratio indicates the relative proportion of aliphatic to oxygenated organic carbon, increasing with decomposition and aromatization.
+
+**Resistance-to-Decomposition Ratio (RDR):**
+$$\text{RDR} = \frac{\text{Alkyl + Aromatic + Phenolic}}{\text{O-Alkyl + Carboxyl}}$$
+
+RDR quantifies the balance between recalcitrant (resistant) carbon forms and labile (readily decomposable) forms, adapted from previous methods (Phung et al., in review).
+
+### 4. **Linear Regression Analysis**
+
+Time-series trends are analyzed using **simple linear regression** for each crop:
+
+- **A/O-A model**: `Alkyl_O.Alkyl_Ratio ~ timepoint_numeric`
+- **RDR model**: `RDR ~ timepoint_numeric`
+- **Scatter model**: `RDR ~ Alkyl_O.Alkyl_Ratio`
+
+**Statistics reported:**
+- **R²** (coefficient of determination): Proportion of variance explained by the predictor
+- **Slope**: Rate of change per week (for time models) or change in RDR per unit A/O-A ratio
+- **P-value**: Statistical significance test (α = 0.05); p < 0.05 marked with "*"
+
+Each model is fit to **all individual sample measurements** (not averaged values), providing robust inference across multiple replicates.
+
+### 5. **Summary Statistics**
+
+Mean and standard deviation are calculated for:
+- A/O-A ratios by crop and timepoint
+- RDR by crop and timepoint
+- Integration results by functional group
+
+### 6. **Data Visualization & Uncertainty**
+
+The averaged spectral plots (by crop-timepoint) display three uncertainty bands:
+- **Solid line**: Mean spectrum across replicates
+- **Medium transparency ribbon (α = 0.44)**: ±1 standard deviation around the mean
+- **High transparency ribbon (α = 0.19)**: Full range (min to max) of spectra
+
+This layered visualization shows both central tendency and variability in spectral characteristics.
+
+### 7. **Sample Metadata Extraction**
+
+Crop type and timepoint information are extracted from sample filenames using pattern matching (e.g., detecting "wheat", "rice", "soy"; "wk0", "wk10", "wk40"). Control samples ("noPlant") are filtered from time-series analyses to focus on plant-influenced decomposition patterns.
+
+### Summary
+The analysis combines NMR spectral integration with SSB correction to generate chemically meaningful metrics (A/O-A and RDR), then applies regression modeling to quantify temporal and cross-metric relationships. All regression statistics are calculated from raw sample data rather than group averages, ensuring maximum statistical power while accounting for within-group replication.
