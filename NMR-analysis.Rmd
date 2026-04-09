@@ -396,8 +396,8 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
     axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
-         panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
-    panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
+    # panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
+    # panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
     plot.margin = margin(5, 30, 5, 5)
   )
 
@@ -465,8 +465,8 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
     axis.text = element_text(size = 14.5, face = "bold"),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
-    panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
-    panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
+    # panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
+    # panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
     plot.margin = margin(5, 30, 5, 5)
   )
 
@@ -536,10 +536,10 @@ p_scatter <- ggplot(scatter_data, aes(x = Alkyl_O.Alkyl_Ratio, y = RDR)) +
     axis.title = element_text(size = 13, face = "bold"),
     axis.text = element_text(size = 12),
     plot.margin = margin(5, 30, 5, 5),
-     panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
-    panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
-    panel.grid.major.x = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
-    panel.grid.minor.x = element_line(color = "#303030", size = 0.15, linetype = "solid")
+    #  panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
+    # panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
+    # panel.grid.major.x = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
+    # panel.grid.minor.x = element_line(color = "#303030", size = 0.15, linetype = "solid")
   )
 
 # Display the plot
@@ -621,6 +621,7 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 130, r = 1, b = 0, l = 0), color = annotation_text_color),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
@@ -630,7 +631,7 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
     panel.spacing.x = unit(-0.75, "cm"),
     panel.spacing.y = unit(-3.3, "cm"),
     panel.grid = element_blank(),
-    plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
+    plot.margin = margin(t = 5, r = 5, b = 1, l = 5)
   )
 
 # Create annotation bar as a separate plot
@@ -640,7 +641,7 @@ bonanomi_regions <- data.frame(
   region = c("Alkyl", "N-Alkyl/\nmethoxy", "O-Alkyl", "Di-O-\nAlkyl", "Aromatic", "Phenolic", "Carboxyl"),
   xmin = c(0, 46, 61, 91, 111, 141, 161),
   xmax = c(45, 60, 90, 110, 140, 160, 190),
-  color = rainbow(7, start = 0.1, end = 0.9)
+  color = c("#ffadad", "#ffd6a5", "#fdffb6", "#caffbf", "#9bf6ff", "#a0c4ff", "#bdb2ff")
 )
 
 # Create annotation bars for each crop (to match facet columns)
@@ -711,9 +712,9 @@ p_suber <- ggplot(spectra_stats_suber, aes(x = ppm, y = mean_intensity, color = 
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
   # Add vertical reference lines
-  geom_vline(xintercept = 172, linetype = "dotted", color = "#555555", linewidth = 0.65) +
-  geom_vline(xintercept = 33, linetype = "dotted", color = "#555555", linewidth = 0.65) +
-  geom_vline(xintercept = 30, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  geom_vline(xintercept = 172, linetype = "dotted", color = annotation_line_color, linewidth = 0.65) +
+  geom_vline(xintercept = 33, linetype = "dotted", color = annotation_line_color, linewidth = 0.65) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = annotation_line_color, linewidth = 0.65) +
   facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
@@ -727,6 +728,7 @@ p_suber <- ggplot(spectra_stats_suber, aes(x = ppm, y = mean_intensity, color = 
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0), color = annotation_text_color),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
@@ -760,8 +762,8 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
   # Add vertical reference lines
-  geom_vline(xintercept = 33, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
-  geom_vline(xintercept = 30, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
+  geom_vline(xintercept = 33, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
   facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
@@ -775,6 +777,7 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0), color = annotation_text_color),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
@@ -807,8 +810,8 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
   # Add vertical reference lines
-  geom_vline(xintercept = 33, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
-  geom_vline(xintercept = 30, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
+  geom_vline(xintercept = 33, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = annotation_line_color, linewidth = 0.7) +
   facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
@@ -822,6 +825,7 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 40, r = 1, b = -60, l = 0), color = annotation_text_color),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
@@ -848,17 +852,7 @@ library(ggplot2)
 library(dplyr)
 
 # Define color scheme for crops and timepoints
-crop_time_colors <- c(
-  "wheat_wk0" = "#d2a9f6",
-  "wheat_wk10" = "#BD7EF6",
-  "wheat_wk40" = "#3f0477",
-  "rice_wk0" = "#ffb45e",
-  "rice_wk10" = "#F08F20",
-  "rice_wk40" = "#B56203",
-  "soy_wk0" = "#FE5CA5",
-  "soy_wk10" = "#DD2578",
-  "soy_wk40" = "#9B0D4D"
-)
+crop_time_colors <- color_map
 
 # Create the plot with individual spectra colored by crop and timepoint
 p_individual <- ggplot(spectra_filtered, aes(x = ppm, y = intensity, color = paste(crop, timepoint, sep = "_"), group = sample_name)) +
@@ -875,6 +869,7 @@ p_individual <- ggplot(spectra_filtered, aes(x = ppm, y = intensity, color = pas
   theme(
     legend.position = "none",
     strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    # strip.background = element_rect(fill = "#1a1a1a"),
     panel.grid = element_blank(),
     axis.title = element_text(size = 13),
     axis.text.x = element_blank(),

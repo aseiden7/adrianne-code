@@ -16,40 +16,45 @@
 
 # Option 1: DARK THEME using theme_classic() [RECOMMENDED - Currently Active]
 # Provides better control over panel backgrounds and clean axes
-theme_dark_custom <- function() {
-  theme_classic() +
-  theme(
-    plot.background = element_rect(fill = "black", color = "#0a0a0a"),
-    panel.background = element_blank(),
-    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
-    axis.title = element_text(color = "white", size = 12),
-    axis.text = element_text(color = "white", size = 11),
-    axis.line = element_line(color = "white", linewidth = 0.5),
-    legend.background = element_rect(fill = "black", color = NA),
-    legend.text = element_text(color = "white", size = 11),
-    legend.title = element_text(color = "white", size = 12)
-  )
-}
-
-# Option 2: Dark Theme using theme_minimal() [Alternative - Minimalist axes]
-# Commented out - uncomment below and comment out Option 1 to use
 # theme_dark_custom <- function() {
-#   theme_minimal() +
+#   theme_classic() +
 #   theme(
-#     plot.background = element_rect(fill = "black", color = NA),
+#     plot.background = element_rect(fill = "black", color = "#0a0a0a"),
+#     panel.background = element_blank(),
 #     plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
 #     axis.title = element_text(color = "white", size = 12),
 #     axis.text = element_text(color = "white", size = 11),
-#     axis.line = element_line(color = "#ebebeb", linewidth = 0.5),
-#     panel.grid.major.y = element_blank(),
-#     panel.grid.minor.y = element_blank(),
-#     panel.grid.major.x = element_blank(),
-#     panel.grid.minor.x = element_blank(),
-#     legend.background = element_rect(fill = "black"),
+#     axis.line = element_line(color = "white", linewidth = 0.5),
+#     legend.background = element_rect(fill = "black", color = NA),
 #     legend.text = element_text(color = "white", size = 11),
 #     legend.title = element_text(color = "white", size = 12)
+#     strip.background = element_rect(fill = "#1a1a1a"),
+#     strip.text = element_text(color = "white", size = 11, face = "bold")
 #   )
 # }
+
+# Option 2: Dark Theme using theme_minimal() [Alternative - Minimalist axes]
+# Commented out - uncomment below and comment out Option 1 to use
+theme_dark_custom <- function() {
+  theme_minimal() +
+  theme(
+    plot.background = element_rect(fill = "black", color = NA),
+    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
+    axis.title = element_text(color = "white", size = 12),
+    axis.text = element_text(color = "white", size = 11),
+    axis.line = element_line(color = "#ebebeb", linewidth = 0.5),
+    panel.grid.major.y = element_line(color = "#333333", linewidth = 0.25, linetype = "dashed"),
+    panel.grid.minor.y = element_line(color = "#272727", linewidth = 0.15, linetype = "dashed"),
+    panel.grid.major.x = element_line(color = "#333333", linewidth = 0.25, linetype = "dashed"),
+    panel.grid.minor.x = element_line(color = "#272727", linewidth = 0.15, linetype = "dashed"),
+    legend.background = element_rect(fill = "black"),
+    legend.text = element_text(color = "white", size = 11),
+    legend.title = element_text(color = "white", size = 12),
+    # strip.background = element_rect(fill = "121212"),
+    strip.background = element_blank(),
+    strip.text = element_text(color = "white", size = 11, face = "bold")
+  )
+}
 
 # LIGHT THEME [Optional - for switching between themes]
 theme_light_custom <- function() {
@@ -63,7 +68,7 @@ theme_light_custom <- function() {
     axis.line = element_line(color = "black", linewidth = 0.5),
     legend.background = element_rect(fill = "white", color = "black"),
     legend.text = element_text(color = "black", size = 11),
-    legend.title = element_text(color = "black", size = 12)
+    legend.title = element_text(color = "black", size = 12),
   )
 }
 
@@ -79,7 +84,7 @@ theme_suffix <- "-dark"
 # Text color for annotations based on theme
 # Use "white" when theme_suffix == "-dark", "black" when theme_suffix == "-light"
 annotation_text_color <- ifelse(theme_suffix == "-dark", "white", "black")
-
+annotation_line_color <- ifelse(theme_suffix == "-dark", "#707070", "#555555")
 # Fill color for annotations based on theme
 # Use "black" when theme_suffix == "-dark", "white" when theme_suffix == "-light"
 annotation_fill_color <- ifelse(theme_suffix == "-dark", "black", "white")
