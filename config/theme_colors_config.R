@@ -121,6 +121,19 @@ color_map_light <- c(
   "wheat_wk40" = "#510594"
 )
 
+color_map_light_all_sep <- list(
+  soy = c("wk0" = "#FE67AB", "wk10" = "#FD358F", "wk40" = "#950445"),
+  rice = c("wk0" = "#FEB057", "wk10" = "#F6962A", "wk40" = "#AF5F04"),
+  wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594"),
+  noPlant = c("wk30" = "#27B4C1", "wk40" = "#177982")
+)
+
+color_map_light_three_sep <- list(
+  soy = c("wk0" = "#FE67AB", "wk10" = "#FD358F", "wk40" = "#950445"),
+  rice = c("wk0" = "#FEB057", "wk10" = "#F6962A", "wk40" = "#AF5F04"),
+  wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594")
+)
+
 # ===== Dark Theme Colors =====
 crop_colors_dark <- c(
   "noPlant" = "#44CBD7",
@@ -140,11 +153,24 @@ color_map_dark <- c(
   "wheat_wk10" = "#C381FD",
   "wheat_wk40" = "#7307D2"
 )
+color_map_dark_three_sep <- list(
+  wheat = c("wk0" = "#DBB4FE", "wk10" = "#C381FD", "wk40" = "#7307D2"),
+  rice = c("wk0" = "#FECF9A", "wk10" = "#FD9768", "wk40" = "#E37A03"),
+  soy = c("wk0" = "#FE9AC7", "wk10" = "#FC368F", "wk40" = "#C7055C")
+)
+color_map_dark_all_sep <- list(
+  wheat = c("wk0" = "#DBB4FE", "wk10" = "#C381FD", "wk40" = "#7307D2"),
+  rice = c("wk0" = "#FECF9A", "wk10" = "#FD9768", "wk40" = "#E37A03"),
+  soy = c("wk0" = "#FE9AC7", "wk10" = "#FC368F", "wk40" = "#C7055C"),
+  noPlant = c("wk30" = "#43CCD8", "wk40" = "#27B4C1")
+)
 
 # ===== Dynamic Color Selection =====
 # Select colors based on current theme
 crop_colors <- if (theme_suffix == "-dark") crop_colors_dark else crop_colors_light
 color_map <- if (theme_suffix == "-dark") color_map_dark else color_map_light
+color_map_all_sep <- if (theme_suffix == "-dark") color_map_dark_all_sep else color_map_light_all_sep
+color_map_three_sep <- if (theme_suffix == "-dark") color_map_dark_three_sep else color_map_light_three_sep
 
 # For backward compatibility
 crop_color <- c(
