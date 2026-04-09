@@ -623,14 +623,16 @@ p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop
     strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
     # strip.background = element_rect(fill = "#1a1a1a"),
     strip.text.y = element_text(margin = margin(t = 130, r = 1, b = 0, l = 0), color = annotation_text_color),
+    # panel.grid = element_blank(),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
     axis.title = element_text(size = 13),
     axis.text.x = element_blank(),  # Remove x-axis text from main plot
     axis.text.y = element_blank(),
     panel.spacing.x = unit(-0.75, "cm"),
     panel.spacing.y = unit(-3.3, "cm"),
-    panel.grid = element_blank(),
     plot.margin = margin(t = 5, r = 5, b = 1, l = 5)
   )
 
@@ -666,8 +668,13 @@ p_annotation <- ggplot(bonanomi_regions_faceted) +
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
     panel.grid = element_blank(),
+        panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
     panel.spacing.x = unit(-0.75, "cm"),
     strip.text = element_blank(),
+    axis.line = element_blank(),
     plot.margin = margin(0, 5, 5, 5)
   )
 

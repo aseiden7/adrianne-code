@@ -43,10 +43,10 @@ theme_dark_custom <- function() {
     axis.title = element_text(color = "white", size = 12),
     axis.text = element_text(color = "white", size = 11),
     axis.line = element_line(color = "#ebebeb", linewidth = 0.5),
-    panel.grid.major.y = element_line(color = "#333333", linewidth = 0.25, linetype = "dashed"),
-    panel.grid.minor.y = element_line(color = "#272727", linewidth = 0.15, linetype = "dashed"),
-    panel.grid.major.x = element_line(color = "#333333", linewidth = 0.25, linetype = "dashed"),
-    panel.grid.minor.x = element_line(color = "#272727", linewidth = 0.15, linetype = "dashed"),
+    panel.grid.major.y = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
+    panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
+    panel.grid.major.x = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
+    panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
     legend.background = element_rect(fill = "black"),
     legend.text = element_text(color = "white", size = 11),
     legend.title = element_text(color = "white", size = 12),
@@ -56,21 +56,6 @@ theme_dark_custom <- function() {
   )
 }
 
-# LIGHT THEME [Optional - for switching between themes]
-theme_light_custom <- function() {
-  theme_classic() +
-  theme(
-    plot.background = element_rect(fill = "white", color = NA),
-    panel.background = element_rect(fill = "white", color = "black"),
-    plot.title = element_text(color = "black", size = 13, face = "bold", margin = margin(b = 10)),
-    axis.title = element_text(color = "black", size = 12),
-    axis.text = element_text(color = "black", size = 11),
-    axis.line = element_line(color = "black", linewidth = 0.5),
-    legend.background = element_rect(fill = "white", color = "black"),
-    legend.text = element_text(color = "black", size = 11),
-    legend.title = element_text(color = "black", size = 12),
-  )
-}
 
 # THEME SETTINGS ============================================================
 # Control which theme is active and associated text colors
