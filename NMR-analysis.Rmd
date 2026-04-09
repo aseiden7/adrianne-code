@@ -667,8 +667,7 @@ p_annotation <- ggplot(bonanomi_regions_faceted) +
     axis.title.y = element_blank(),
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
-    panel.grid = element_blank(),
-        panel.grid.major.y = element_blank(),
+    panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
@@ -677,9 +676,9 @@ p_annotation <- ggplot(bonanomi_regions_faceted) +
     axis.line = element_blank(),
     plot.margin = margin(0, 5, 5, 5)
   )
-
+# ggsave(filename = "NMR_annotation_strip.png", plot = p_annotation, width = 49, height = 1.15, dpi = 500)
 # Load the NMR annotations image and create a plot for it
-nmr_img <- readPNG("NMR-annotations.png")
+nmr_img <- readPNG("NMR_annotation_strip.png")
 img_dim <- dim(nmr_img)
 img_aspect_ratio <- img_dim[1] / img_dim[2]  # height / width
 
@@ -885,41 +884,11 @@ p_individual <- ggplot(spectra_filtered, aes(x = ppm, y = intensity, color = pas
     plot.margin = margin(t = 5, r = 5, b = 0, l = 5)
   )
 
-# Create annotation bars for each crop (to match facet columns)
-bonanomi_regions_faceted_indiv <- bind_rows(
-  bonanomi_regions %>% mutate(crop = "wheat"),
-  bonanomi_regions %>% mutate(crop = "rice"),
-  bonanomi_regions %>% mutate(crop = "soy")
-)
-
-p_annotation_indiv <- ggplot(bonanomi_regions_faceted_indiv) +
-  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = 0.7, fill = color)) +
-  scale_fill_identity() +
-  scale_x_reverse(limits = c(230, -10)) +
-  scale_y_continuous(limits = c(0, 0.7), expand = c(0, 0)) +
-  facet_grid(. ~ crop) +
-  labs(x = "Chemical Shift (ppm)") +
-  
-  theme(
-    axis.title.x = element_text(size = 13, face = "bold", margin = margin(t = 5)),
-    axis.text.x = element_text(size = 12, face = "bold"),
-    axis.title.y = element_blank(),
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank(),
-    panel.grid = element_blank(),
-    panel.spacing.x = unit(-0.5, "cm"),
-    strip.text = element_blank(),
-    plot.margin = margin(0, 5, 5, 5)
-  )
-
-# Combine plots vertically
-p_combined_indiv <- p_individual / p_annotation_indiv + plot_layout(heights = c(20, 1))
-
 # Display the plot
-print(p_combined_indiv)
+print(p_individual)
 
 # Save the plot
 ggsave_themed(filename = "NMR_spectra_individual_overlaid_by_timepoint.png",
-              plot = p_combined_indiv, width = 12, height = 5, dpi = 300)
+              plot = p_individual, width = 12, height = 5, dpi = 300)
 ```
 
