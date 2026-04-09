@@ -35,6 +35,13 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(purrr)
+library(ggplot2)
+
+# Source centralized theme and color configuration
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
+
+# Ensure theme is set and variables are initialized
+theme_set(theme_dark_custom())
 
 ```
 
@@ -42,13 +49,6 @@ library(purrr)
 
 ```{r load-data}
 library(ggplot2)
-
-crop_colors <- c(
-  "noPlant" = "#2fb1b9",
-  "wheat"   = "#8c4dc3",
-  "rice"    = "#FC9D33",
-  "soy"     = "#FE318E"
-)
 
 read_flux_csv <- function(path, week_label) {
   df <- read.csv(path, check.names = FALSE, fileEncoding = "UTF-8-BOM")

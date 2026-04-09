@@ -76,53 +76,11 @@ for (pkg in required_packages) {
   }
 }
 
-# Define custom themes
-theme_dark_custom <- function() {
-  theme_classic() +
-  theme(
-    plot.background = element_rect(fill = "black", color = "#0a0a0a"),
-    panel.background = element_rect(fill = "#0a0a0a", color = NA),
-    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
-    axis.title = element_text(color = "white", size = 12),
-    axis.text = element_text(color = "white", size = 11),
-    axis.line = element_line(color = "white", linewidth = 0.5),
-    legend.background = element_rect(fill = "black"),
-    legend.text = element_text(color = "white", size = 11),
-    legend.title = element_text(color = "white", size = 12)
-  )
-}
+# Source centralized theme and color configuration
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
 
-theme_light_custom <- function() {
-  theme_classic() +
-  theme(
-    plot.background = element_rect(fill = "white", color = NA),
-    panel.background = element_rect(fill = "white", color = "black"),
-    plot.title = element_text(color = "black", size = 13, face = "bold", margin = margin(b = 10)),
-    axis.title = element_text(color = "black", size = 12),
-    axis.text = element_text(color = "black", size = 11),
-    axis.line = element_line(color = "black", linewidth = 0.5),
-    legend.background = element_rect(fill = "white", color = "black"),
-    legend.text = element_text(color = "black", size = 11),
-    legend.title = element_text(color = "black", size = 12)
-  )
-}
-
-# Set default theme for all plots (toggle between theme_light_custom() and theme_dark_custom())
+# Ensure theme is set and variables are initialized
 theme_set(theme_dark_custom())
-theme_suffix <- "-dark"  # Change to "-light" when using theme_light_custom()
-annotation_text_color <- ifelse(theme_suffix == "-dark", "white", "black")  # Change to "black" when using theme_light_custom()
-annotation_fill_color <- ifelse(theme_suffix == "-dark", "black", "white")  # Set annotation fill color based on theme
-# Wrapper function for ggsave with automatic theme suffix
-ggsave_themed <- function(filename, plot, width = NA, height = NA, dpi = 300, ...) {
-  # Remove existing -light or -dark suffix if present, then add the current theme suffix
-  base_filename <- gsub("-light\\.png$|-dark\\.png$", ".png", filename)
-  themed_filename <- sub("\\.png$", paste0(theme_suffix, ".png"), base_filename)
-  output_path <- file.path(outputs_folder, themed_filename)
-  ggsave(output_path, plot, width = width, height = height, dpi = dpi, ...)
-}
-
-# Define exact color palettes from original files
-crop_colors <- c('wheat' = '#7B41A9', 'rice' = '#FC9D33', 'soy' = '#FE318E', 'noPlant' = '#98C65D')
 timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
 type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
 ```

@@ -60,40 +60,12 @@ if (box_base == "") stop("BOX_BASE environment variable is not set!")
 csv_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/MNova-CSVs")
 outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_NMR/NMR_analysis_outputs")
 
-# Define custom themes
-theme_dark_custom <- function() {
-  theme_minimal() +
-  theme(
-    plot.background = element_rect(fill = "black", color = NA),
-    # panel.background = element_rect(fill = "black"),
-    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
-    axis.title = element_text(color = "white", size = 12),
-    axis.text = element_text(color = "white", size = 11),
-    axis.line = element_line(color = "#ebebeb", linewidth = 0.5),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank(),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    legend.background = element_rect(fill = "black"),
-    legend.text = element_text(color = "white", size = 11),
-    legend.title = element_text(color = "white", size = 12)
-  )
-}
+# Source centralized theme and color configuration
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
 
-
-# Set default theme for all plots (toggle between theme_light_custom() and theme_dark_custom())
+# Ensure theme is set and variables are initialized
 theme_set(theme_dark_custom())
-theme_suffix <- "-dark"  # Change to "-dark" when using theme_dark_custom()
-annotation_text_color <- ifelse(theme_suffix == "-dark", "white", "black")  # Change to "white" when using theme_dark_custom()
-
-# Wrapper function for ggsave with automatic theme suffix
-ggsave_themed <- function(filename, plot, width = NA, height = NA, dpi = 300, ...) {
-  # Remove existing -light or -dark suffix if present, then add the current theme suffix
-  base_filename <- gsub("-light\\.png$|-dark\\.png$", ".png", filename)
-  themed_filename <- sub("\\.png$", paste0(theme_suffix, ".png"), base_filename)
-  output_path <- file.path(outputs_folder, themed_filename)
-  ggsave(output_path, plot, width = width, height = height, dpi = dpi, ...)
-}
+# theme_suffix and annotation_text_color/annotation_fill_color are set in config file above
 ```
 
 <style>
@@ -359,13 +331,6 @@ Create stacked violin/box plots showing RDR across timepoints for each crop type
 ```{r plot-ratios, message=FALSE, warning=FALSE, fig.width=11, fig.height=7}
 library(ggplot2)
 
-# Define color scheme
-crop_timepoint_colors <- list(
-  wheat = c("wk0" ="#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#3f0477"),
-  rice = c("wk0" = "#ffad4f", "wk10" = "#F08F20", "wk40" = "#B56203"),
-  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
-)
-
 # Filter out noPlant and prepare data
 plot_data <- ratios_df %>%
   filter(crop %in% c("wheat", "rice", "soy")) %>%
@@ -374,20 +339,6 @@ plot_data <- ratios_df %>%
     timepoint_num = as.numeric(gsub("wk", "", timepoint)),
     crop_time = paste(crop, timepoint, sep = "_")
   )
-
-# Create named color vector for all crop-timepoint combinations
-color_map <- c(
-  "soy_wk0" = "#FE5CA5",
-  "soy_wk10" = "#DD2578",
-  "soy_wk40" = "#9B0D4D",
-  "rice_wk0" = "#ffad4f",
-  "rice_wk10" = "#F08F20",
-  "rice_wk40" = "#B56203",
-  "wheat_wk0" = "#d2a9f6",
-  "wheat_wk10" = "#BD7EF6",
-  "wheat_wk40" = "#3f0477"
-)
-crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#884EBB")
 
 # Calculate means for each crop-timepoint combination
 plot_means <- plot_data %>%
@@ -534,21 +485,6 @@ Plot the relationship between Resistance to Decomposition Ratio (RDR) and Alkyl/
 ```{r plot-rdr-vs-alkyl, message=FALSE, warning=FALSE, fig.width=9, fig.height=7}
 library(ggplot2)
 
-# Create named color vector for all crop-timepoint combinations
-color_map <- c(
-  "soy_wk0" = "#FE5CA5",
-  "soy_wk10" = "#DD2578",
-  "soy_wk40" = "#9B0D4D",
-  "rice_wk0" = "#ffad4f",
-  "rice_wk10" = "#F08F20",
-  "rice_wk40" = "#B56203",
-  "wheat_wk0" = "#d2a9f6",
-  "wheat_wk10" = "#BD7EF6",
-  "wheat_wk40" = "#3f0477"
-)
-
-crop_color <- c("soy" = "#FE318E", "rice" = "#FC9D33", "wheat" = "#8c4dc3")
-
 # Prepare data with crop_time variable
 scatter_data <- plot_data %>%
   mutate(crop_time = paste(crop, "wk", timepoint_num, sep = "_"),
@@ -624,13 +560,6 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-# Define color scheme
-crop_timepoint_colors <- list(
-  wheat = c("wk0" = "#D8B1FB", "wk10" = "#BD7EF6", "wk40" = "#3f0477"),
-  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
-  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
-)
-
 # Extract all spectra into a data frame
 spectra_list <- lapply(seq_along(spec), function(i) {
   df <- spec[[i]]$data$raw.spec
@@ -670,19 +599,6 @@ spectra_stats <- spectra_filtered %>%
     lower_sd = mean_intensity - sd_intensity,
     crop_time = paste(crop, timepoint, sep = "_")
   )
-
-# Create color mapping
-color_map <- c(
-  "soy_wk0" = "#FE5CA5",
-  "soy_wk10" = "#DD2578",
-  "soy_wk40" = "#9B0D4D",
-  "rice_wk0" = "#ffb45e",
-  "rice_wk10" = "#F08F20",
-  "rice_wk40" = "#B56203",
-  "wheat_wk0" = "#d2a9f6",
-  "wheat_wk10" = "#BD7EF6",
-  "wheat_wk40" = "#3f0477"
-)
 
 # Create the main plot without annotation
 p_spectra <- ggplot(spectra_stats, aes(x = ppm, y = mean_intensity, color = crop_time, fill = crop_time)) +
@@ -724,7 +640,7 @@ bonanomi_regions <- data.frame(
   region = c("Alkyl", "N-Alkyl/\nmethoxy", "O-Alkyl", "Di-O-\nAlkyl", "Aromatic", "Phenolic", "Carboxyl"),
   xmin = c(0, 46, 61, 91, 111, 141, 161),
   xmax = c(45, 60, 90, 110, 140, 160, 190),
-  color = c("#555553", "#aab49d", "#5d5d5b", "#bbc7b3", "#73746d", "#c0cdbc", "#909583")
+  color = rainbow(7, start = 0.1, end = 0.9)
 )
 
 # Create annotation bars for each crop (to match facet columns)
@@ -810,8 +726,8 @@ p_suber <- ggplot(spectra_stats_suber, aes(x = ppm, y = mean_intensity, color = 
   
   theme(
     legend.position = "none",
-    strip.text = element_text(size = 14, face = "bold"),
-    strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0)),
+    strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0), color = annotation_text_color),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),
@@ -844,8 +760,8 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
   # Add vertical reference lines
-  geom_vline(xintercept = 33, linetype = "dotted", color = "#555555", linewidth = 0.65) +
-  geom_vline(xintercept = 30, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  geom_vline(xintercept = 33, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
   facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
@@ -858,8 +774,8 @@ p_alkyl <- ggplot(spectra_stats_alkyl, aes(x = ppm, y = mean_intensity, color = 
   
   theme(
     legend.position = "none",
-    strip.text = element_text(size = 14, face = "bold"),
-    strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0)),
+    strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    strip.text.y = element_text(margin = margin(t = 120, r = 1, b = 0, l = 0), color = annotation_text_color),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),
@@ -891,8 +807,8 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   # Mean line (solid)
   geom_line(linewidth = 0.8) +
   # Add vertical reference lines
-  geom_vline(xintercept = 33, linetype = "dotted", color = "#555555", linewidth = 0.65) +
-  geom_vline(xintercept = 30, linetype = "dotted", color = "#555555", linewidth = 0.65) +
+  geom_vline(xintercept = 33, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
+  geom_vline(xintercept = 30, linetype = "dotted", color = "#5e5e5e", linewidth = 0.7) +
   facet_grid(timepoint ~ crop, scales = "free_y") +
   scale_x_reverse() +
   scale_color_manual(values = color_map) +
@@ -905,8 +821,8 @@ p_aSub <- ggplot(spectra_stats_aSub, aes(x = ppm, y = mean_intensity, color = cr
   
   theme(
     legend.position = "none",
-    strip.text = element_text(size = 14, face = "bold"),
-    strip.text.y = element_text(margin = margin(t = 40, r = 1, b = -60, l = 0)),
+    strip.text = element_text(size = 14, face = "bold", color = annotation_text_color),
+    strip.text.y = element_text(margin = margin(t = 40, r = 1, b = -60, l = 0), color = annotation_text_color),
     axis.title = element_text(size = 13),
     axis.text.x = element_text(size = 12, face = "bold"),
     axis.text.y = element_blank(),

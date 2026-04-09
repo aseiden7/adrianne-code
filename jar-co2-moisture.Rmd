@@ -35,6 +35,13 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(purrr)
+library(ggplot2)
+
+# Source centralized theme and color configuration
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
+
+# Ensure theme is set and variables are initialized
+theme_set(theme_dark_custom())
 ```
 
 ## Load Data
@@ -343,13 +350,6 @@ plot_data %>%
   select(jar_num, sampling_date, GWC) %>%
   arrange(jar_num, sampling_date) %>%
   print(n = 20)
-
-crop_colors <- c(
-  "noPlant" = "#2fb1b9",
-  "wheat"   = "#8c4dc3",
-  "rice"    = "#FC9D33",
-  "soy"     = "#FE318E"
-)
 
 # Create plot - with 24 jars, facet by crop for clarity
 ggplot(plot_data, aes(x = sampling_date, y = GWC, color = crop, group = jar_num)) +
