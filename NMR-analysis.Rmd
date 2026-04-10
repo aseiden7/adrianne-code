@@ -401,7 +401,7 @@ p <- ggplot(plot_data, aes(x = timepoint_num, y = Alkyl_O.Alkyl_Ratio, fill = cr
     panel.grid.minor.x = element_blank(),
     # panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
     # panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
-    plot.margin = margin(5, 25, 5, 5), # top, right, bottom, left
+    plot.margin = margin(8, 25, 8, 10), # top, right, bottom, left
     legend.margin = margin(0, 0, 0, -3)  # Removes margin around legend (top, right, bottom, left)
   )
 
@@ -474,7 +474,7 @@ p1 <- ggplot(plot_data, aes(x = timepoint_num, y = RDR, fill = crop, color = cro
     panel.grid.minor.x = element_blank(),
     # panel.grid.major.y = element_line(color = "#4a4a4a", size = 0.25, linetype = "solid"),
     # panel.grid.minor.y = element_line(color = "#303030", size = 0.15, linetype = "solid"),
-    plot.margin = margin(5, 25, 5, 5), # top, right, bottom, left
+    plot.margin = margin(8, 22, 8, 8), # top, right, bottom, left
     legend.margin = margin(0, 0, 0, -3)  # Removes margin around legend (top, right, bottom, left)
   )
 
