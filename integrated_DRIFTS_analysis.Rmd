@@ -80,7 +80,7 @@ for (pkg in required_packages) {
 source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
 
 # Ensure theme is set and variables are initialized
-theme_set(theme_dark_custom())
+# theme_set(theme_dark_custom())
 timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
 type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
 ```

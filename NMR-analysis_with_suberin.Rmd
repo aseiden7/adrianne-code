@@ -53,8 +53,6 @@ outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adr
 # Source centralized theme and color configuration
 source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
 
-# # Ensure theme is set and variables are initialized
-# theme_set(theme_dark_custom())
 ```
 
 <style>

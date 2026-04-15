@@ -38,7 +38,7 @@
 theme_dark_custom <- function() {
   theme_minimal() +
   theme(
-    plot.background = element_rect(fill = "black", color = NA, alpha = 0.8),
+    plot.background = element_rect(fill = rgb(0, 0, 0, 0.7), color = NA),
     plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
     axis.title = element_text(color = "white", size = 12),
     axis.text = element_text(color = "white", size = 11),
@@ -47,7 +47,7 @@ theme_dark_custom <- function() {
     panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
     panel.grid.major.x = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
     panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
-    legend.background = element_rect(fill = "black", color = NA, alpha = 0.8),
+    legend.background = element_rect(fill = rgb(0, 0, 0, 0.7), color = NA),
     legend.text = element_text(color = "white", size = 11),
     legend.title = element_text(color = "white", size = 12),
     # strip.background = element_rect(fill = "121212"),
@@ -61,10 +61,12 @@ theme_dark_custom <- function() {
 # Control which theme is active and associated text colors
 
 # Set default theme for all plots
-theme_set(theme_dark_custom())
+# theme_set(theme_dark_custom())
+theme_set(theme_minimal())
 
 # Theme suffix for file naming: "-dark" or "-light"
-theme_suffix <- "-dark"
+# theme_suffix <- "-dark"
+theme_suffix <- "-light"
 
 # Text color for annotations based on theme
 # Use "white" when theme_suffix == "-dark", "black" when theme_suffix == "-light"
