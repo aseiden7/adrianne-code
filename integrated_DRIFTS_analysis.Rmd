@@ -985,14 +985,14 @@ base_plot_range <- ggplot() +
     expand = c(0.002, 0.003)  # Remove padding on x-axis
   ) +
   # Add vertical lines for functional regions
-  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.46, color = annotation_text_color) +
-  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.46, color = annotation_text_color) +
-  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23, color = annotation_text_color) +
-  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23, color = annotation_text_color) +
-  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23, color = annotation_text_color) +
-  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23, color = annotation_text_color) +
-  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23, color = annotation_text_color) +
-  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = annotation_text_color) +
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.46, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.46, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
   # Add shaded regions with annotations
   annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
            alpha = 0.3, fill = "#e3c8b1") +
