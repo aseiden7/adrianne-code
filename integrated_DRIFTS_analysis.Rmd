@@ -1847,9 +1847,9 @@ for (crop_name in c("wheat", "rice", "soy")) {
 ## Ratio scatterplots with regression statistics
 
 ```{r ratio-scatterplots}
+
 # Function to create ratio scatterplot with regression lines and statistics
-create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label,
-                                     regression_stats, crop_colors) {
+create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label, regression_stats, crop_colors) {
   plot <- ggplot(data, aes(x = timepoint_numeric, y = !!sym(y_metric), color = crop)) +
     geom_point(size = 3, alpha = 0.98) +
     geom_errorbar(aes(ymin = !!sym(y_metric) - !!sym(y_metric_se),
@@ -1862,11 +1862,13 @@ create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label
          y = y_label,
          color = "Crop") +
     theme(
-      legend.position = "top",
-      axis.text = element_text(size = 11),
-      axis.title = element_text(size = 12),
-      plot.title = element_text(size = 13, face = "bold"),
-      plot.margin = margin(20, 20, 20, 20)
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(size = 11.5, face = "bold"),
+      axis.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 13, face = "bold"),
+      plot.title = element_blank(),
+      plot.margin = margin(17, 17, 7, 17)
     )
   
   # Get data range for positioning
@@ -1875,6 +1877,16 @@ create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label
   max_y <- max(data[[y_metric]], na.rm = TRUE)
   min_y <- min(data[[y_metric]], na.rm = TRUE)
   y_range <- max_y - min_y
+  
+  # Create data frame to store all labels
+  labels_df <- data.frame(
+    label_x = numeric(),
+    label_y = numeric(),
+    label_text = character(),
+    crop_color = character(),
+    label_fontface = character(),
+    stringsAsFactors = FALSE
+  )
   
   # Add regression lines and statistics for each crop
   for (i in seq_len(nrow(regression_stats))) {
@@ -1892,12 +1904,9 @@ create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label
                   color = crop_color, linewidth = 1.2, alpha = 0.8, linetype = "solid")
     
     # Position R² and p-value labels at top-right with staggered y positions
-    # x position: 85% of the way across
-    label_x <- min_x + (max_x - min_x) * 0.85
-    # y position: staggered vertically near the top (adjust based on crop order)
-    # wheat: highest, rice: middle, soy: lowest
+    label_x <- min_x + (max_x - min_x) * 0.99
     crop_order <- match(crop_name, c("wheat", "rice", "soy"))
-    label_y <- max_y - (crop_order - 1) * (y_range * 0.09)
+    label_y <- max_y - (crop_order - 1.27) * (y_range * 0.09)
     
     # Format p-value and determine if significant
     p_significant <- p_val < 0.05
@@ -1914,16 +1923,28 @@ create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label
     # Create label with r², slope, and p-value
     label_text <- paste0("r² = ", format(round(r_sq, 3), nsmall = 3), ", slope = ", format(round(slope, 3), nsmall = 3), ", ", p_label_with_star)
     
-    # Add text annotations in crop color
-    plot <- plot +
-      annotate("text",
-               x = label_x, y = label_y,
-               label = label_text,
-               color = crop_color,
-               size = 3.5,
-               fontface = label_fontface,
-               hjust = 0.5)
+    # Add to labels data frame
+    labels_df <- rbind(labels_df, data.frame(
+      label_x = label_x,
+      label_y = label_y,
+      label_text = label_text,
+      crop_color = crop_color,
+      label_fontface = label_fontface,
+      stringsAsFactors = FALSE
+    ))
   }
+  
+  # Add all labels at once after the loop
+  plot <- plot +
+    geom_label(data = labels_df,
+               aes(x = label_x, y = label_y, label = label_text, color = I(crop_color), fontface = I(label_fontface)),
+               fill = annotation_fill_color,
+               alpha = 0.77,
+               label.size = 0,
+               label.color = NA,
+               hjust = 1, # Align text to the right
+               inherit.aes = FALSE,
+               show.legend = FALSE)
   
   return(plot)
 }
@@ -1933,42 +1954,42 @@ simple_micr_plot <- create_ratio_scatterplot(
   data = ratio_stats,
   y_metric = "Mean_simple_microbial",
   y_metric_se = "SE_simple_microbial",
-  title = "Simple Plant : Microbial Ratio Over Time",
+  title = "",
   y_label = "Simple Plant : Microbial Ratio",
   regression_stats = simple_micr_regression_stats,
   crop_colors = crop_colors
 )
 
 print(simple_micr_plot)
-ggsave_themed("simple_plant_microbial_ratio_scatterplot.png", simple_micr_plot, width = 6, height = 4)
+ggsave_themed("simple_plant_microbial_ratio_scatterplot.png", simple_micr_plot)
 
 # Create Total Plant : Microbial Ratio scatterplot
 total_micr_plot <- create_ratio_scatterplot(
   data = ratio_stats,
   y_metric = "Mean_total_microbial",
   y_metric_se = "SE_total_microbial",
-  title = "Total Plant (Simple + Complex) : Microbial Ratio Over Time",
+  title = "",
   y_label = "Total Plant : Microbial Ratio",
   regression_stats = total_micr_regression_stats,
   crop_colors = crop_colors
 )
 
 print(total_micr_plot)
-ggsave_themed("total_plant_microbial_ratio_scatterplot.png", total_micr_plot, width = 6, height = 4)
+ggsave_themed("total_plant_microbial_ratio_scatterplot.png", total_micr_plot)
 
 # Create Simple Plant : Complex Plant Ratio scatterplot
 simple_complex_plot <- create_ratio_scatterplot(
   data = ratio_stats,
   y_metric = "Mean_simple_complex",
   y_metric_se = "SE_simple_complex",
-  title = "Simple Plant : Complex Plant Ratio Over Time",
+  title = "",
   y_label = "Simple Plant : Complex Plant Ratio",
   regression_stats = simple_complex_regression_stats,
   crop_colors = crop_colors
 )
 
 print(simple_complex_plot)
-ggsave_themed("simple_complex_ratio_scatterplot.png", simple_complex_plot, width = 6, height = 4)
+ggsave_themed("simple_complex_ratio_scatterplot.png", simple_complex_plot)
 ```
 
 
