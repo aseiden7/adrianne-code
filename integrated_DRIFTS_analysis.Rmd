@@ -994,19 +994,19 @@ base_plot_range <- ggplot() +
   geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
   # Add shaded regions with annotations
   annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
-           alpha = 0.12, fill = "#e3c8b1") +
+           alpha = 0.3, fill = "#e3c8b1") +
   annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
-           alpha = 0.12, fill = "#e3c8b1") +
+           alpha = 0.3, fill = "#e3c8b1") +
   annotate("text", x = 2650, y = max_y_three - 0.05, label = "Simple Plant", 
-           size = 4.8, hjust = 0.5, color = annotation_text_color) +
+           size = 4.9, face = "bold", hjust = 0.5, color = annotation_text_color) +
   annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
-           alpha = 0.12, fill = "#a8cbad") +
+           alpha = 0.3, fill = "#a8cbad") +
   annotate("text", x = 1800, y = max_y_three, label = "Microbial", 
-           size = 4.8, hjust = 0.5, color = annotation_text_color) +
+           size = 4.9, face = "bold", hjust = 0.5, color = annotation_text_color) +
   annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
-           alpha = 0.12, fill = "#beb5d5") +
+           alpha = 0.3, fill = "#beb5d5") +
   annotate("text", x = 1300, y = max_y_three, label = "Complex Plant", 
-           size = 4.8, hjust = 0.5, color = annotation_text_color)
+           size = 4.9, face = "bold", hjust = 0.5, color = annotation_text_color)
 
 # Add layers for each crop with average and range
 combined_overlay_range_plot <- base_plot_range
