@@ -2099,7 +2099,7 @@ create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add fingerprint annotation
     annotate("label", x = 1310, y = max_y + 0.1, label = "suberin fingerprint", 
-             size = 3.3, hjust = 0.5, fill = annotation_fill_color, label.size = NA, color = annotation_text_color)
+             size = 3.3, hjust = 0.5, fill = annotation_text_color, label.size = NA, color = annotation_fill_color)
 
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -2420,36 +2420,36 @@ base_plot_three <- ggplot() +
         # Suberin peak annotations
     # Aliphatic suberin region (3000-2850 cm-1)
     annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
-             alpha = 0.06, fill = "#5076ab") +
+             alpha = 0.12, fill = "#5076ab") +
     # Specific aliphatic peaks
     # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
     annotate("rect", xmin = 2918, xmax = 2928, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#5076ab") +
+             alpha = 0.54, fill = "#5076ab") +
     # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
     annotate("rect", xmin = 2848, xmax = 2858, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#5076ab") +
+             alpha = 0.54, fill = "#5076ab") +
 
     # Suberin esters (1735-1742 cm-1)
     annotate("rect", xmin = 1728, xmax = 1749, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#4d653a") +
+             alpha = 0.54, fill = "#4d653a") +
     # geom_vline(xintercept = 1706, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#4d653a") + # free acid C=O stretch Garcia et al. 2015
 
     # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-19 cm-1)
     annotate("rect", xmin = 1454, xmax = 1472, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#5f3e38") +
+             alpha = 0.54, fill = "#5f3e38") +
     annotate("rect", xmin = 1355, xmax = 1375, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#5f3e38") +
+             alpha = 0.54, fill = "#5f3e38") +
     annotate("rect", xmin = 1233, xmax = 1253, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#5f3e38") +
+             alpha = 0.54, fill = "#5f3e38") +
     annotate("rect", xmin = 1153, xmax = 1183, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#5f3e38") +
+             alpha = 0.54, fill = "#5f3e38") +
     # annotate("rect", xmin = 1169, xmax = 1184, ymin = -Inf, ymax = Inf, 
     #          alpha = 0.3, fill = "#5f3e38") +
     # annotate("rect", xmin = 1152, xmax = 1163, ymin = -Inf, ymax = Inf, 
     #          alpha = 0.3, fill = "#5f3e38") +
     annotate("rect", xmin = 714, xmax = 728, ymin = -Inf, ymax = Inf, 
-             alpha = 0.27, fill = "#5f3e38") +
+             alpha = 0.54, fill = "#5f3e38") +
 
   # Add aliphatic annotation
   annotate("text", x = 2620, y = max_y_three - 0.03, label = "aliphatic suberin", 
@@ -2459,7 +2459,7 @@ base_plot_three <- ggplot() +
             size = 4.8, hjust = 0.5, color = annotation_text_color) +
   # Add fingerprint annotation
   annotate("label", x = 1290, y = max_y_three, label = "suberin fingerprint", 
-            size = 4.8, hjust = 0.5, fill = "white", label.size = NA)
+            size = 4.8, color = annotation_text_color, hjust = 0.5, fill = annotation_fill_color, label.size = NA)
  
 # Add all crop layers without automatic legends, explicitly coloring each line
 combined_overlay_plot_suberin <- base_plot_three
@@ -2543,6 +2543,7 @@ combined_overlay_plot_suberin <- combined_overlay_plot_suberin +
   )
 
 print(combined_overlay_plot_suberin)
+ggsave_themed("combined_overlay_plot_suberin.png", combined_overlay_plot_suberin)
 ```
 
 ### Line Plots

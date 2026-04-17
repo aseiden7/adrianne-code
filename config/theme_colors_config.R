@@ -38,7 +38,7 @@
 theme_dark_custom <- function() {
   theme_minimal() +
   theme(
-    plot.background = element_rect(fill = "#00000080", color = NA),
+    plot.background = element_rect(fill = "#000000", color = NA),
     plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
     axis.title = element_text(color = "white", size = 12),
     axis.text = element_text(color = "white", size = 11),
@@ -47,7 +47,7 @@ theme_dark_custom <- function() {
     panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
     panel.grid.major.x = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
     panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
-    legend.background = element_rect(fill = "#00000020", color = NA),
+    legend.background = element_rect(fill = "#000000", color = NA),
     legend.text = element_text(color = "white", size = 11),
     legend.title = element_text(color = "white", size = 12),
     # strip.background = element_rect(fill = "121212"),
