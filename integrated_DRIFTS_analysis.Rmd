@@ -1735,7 +1735,8 @@ ftir_data <- ftir_data %>%
   mutate(
     total_plant_prop = simple_plant_prop + complex_plant_prop,
     total_plant_microbial_prop = total_plant_prop / microbial_prop,
-    simple_complex_prop = simple_plant_prop / complex_plant_prop
+    simple_complex_prop = simple_plant_prop / complex_plant_prop,
+    complex_simple_prop = complex_plant_prop / simple_plant_prop
   )
 
 # Create summary statistics by crop and timepoint for ratio metrics
@@ -1754,6 +1755,8 @@ ratio_stats <- ftir_data %>%
     SE_total_microbial = sd(total_plant_microbial_prop, na.rm = TRUE) / sqrt(n()),
     Mean_simple_complex = mean(simple_complex_prop, na.rm = TRUE),
     SE_simple_complex = sd(simple_complex_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_complex_simple = mean(complex_simple_prop, na.rm = TRUE),
+    SE_complex_simple = sd(complex_simple_prop, na.rm = TRUE) / sqrt(n()),
     .groups = 'drop'
   )
 
@@ -1833,6 +1836,35 @@ for (crop_name in c("wheat", "rice", "soy")) {
     slope <- coef(model)[2]
     
     simple_complex_regression_stats <- rbind(simple_complex_regression_stats,
+      data.frame(
+        crop = crop_name,
+        r_squared = r_squared,
+        p_value = p_value,
+        intercept = intercept,
+        slope = slope
+      )
+    )
+  }
+}
+
+# Calculate regression statistics for each crop (complex plant : simple plant ratio)
+# Using all individual data points, not just the 3 averaged points
+complex_simple_regression_stats <- data.frame()
+for (crop_name in c("wheat", "rice", "soy")) {
+  crop_data <- ftir_data %>%
+    filter(crop == crop_name) %>%
+    mutate(timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+")))
+  
+  if (nrow(crop_data) > 1) {
+    model <- lm(complex_simple_prop ~ timepoint_numeric, data = crop_data)
+    summary_model <- summary(model)
+    
+    r_squared <- summary_model$r.squared
+    p_value <- summary_model$coefficients[2, 4]
+    intercept <- coef(model)[1]
+    slope <- coef(model)[2]
+    
+    complex_simple_regression_stats <- rbind(complex_simple_regression_stats,
       data.frame(
         crop = crop_name,
         r_squared = r_squared,
@@ -1989,8 +2021,21 @@ simple_complex_plot <- create_ratio_scatterplot(
   crop_colors = crop_colors
 )
 
+# Create Complex Plant : Simple Plant Ratio scatterplot
+complex_simple_plot <- create_ratio_scatterplot(
+  data = ratio_stats,
+  y_metric = "Mean_complex_simple",
+  y_metric_se = "SE_complex_simple",
+  title = "",
+  y_label = "Complex Plant : Simple Plant Ratio",
+  regression_stats = complex_simple_regression_stats,
+  crop_colors = crop_colors
+)
+
 print(simple_complex_plot)
 ggsave_themed("simple_complex_ratio_scatterplot.png", simple_complex_plot)
+print(complex_simple_plot)
+ggsave_themed("complex_simple_ratio_scatterplot.png", complex_simple_plot)
 ```
 
 
