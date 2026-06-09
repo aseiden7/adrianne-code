@@ -1,0 +1,3471 @@
+---
+title: "DRIFTS Experiment: SNV instead of max normalization"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+# Set Box path
+box_base <- Sys.getenv("BOX_BASE")
+if (box_base == "") stop("BOX_BASE environment variable is not set!")
+
+# Set paths
+dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
+integrated_ftir_data <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/leila_code_output_csv")
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/integrated_analysis_outputs")
+
+# Create output directory if it doesn't exist
+if (!dir.exists(outputs_folder)) {
+  dir.create(outputs_folder, recursive = TRUE)
+}
+
+# Helper function to find the most recent processed integration data file
+find_most_recent_processed_file <- function(data_dir) {
+  pattern <- "processed_int_data_.*\\.csv$"
+  files <- list.files(data_dir, pattern = pattern, full.names = TRUE)
+  
+  if (length(files) == 0) {
+    return(NULL)
+  }
+  
+  # Extract dates from filenames and find the most recent
+  dates <- stringr::str_extract(basename(files), "\\d{4}-\\d{2}-\\d{2}")
+  most_recent_idx <- which.max(as.Date(dates))
+  
+  cat("Found", length(files), "processed integration files\n")
+  cat("Using most recent file:", basename(files[most_recent_idx]), "\n")
+  
+  return(files[most_recent_idx])
+}
+
+# Load libraries
+library(ggplot2)
+library(ggridges)
+library(readr)
+library(stringr)
+library(viridis)
+library(dplyr)
+library(cowplot)
+library(grid)
+library(ggsignif)
+library(tidyr)
+
+# Install and load required packages for integration if needed
+required_packages <- c("pracma", "nc")
+for (pkg in required_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    cat("Installing package:", pkg, "\n")
+    install.packages(pkg)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# Source centralized theme and color configuration
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
+
+# Ensure theme is set and variables are initialized
+# theme_set(theme_dark_custom())
+timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
+type_colors <- c("root" = "#8B4513", "soil" = "#DEB887")
+```
+
+# Overview
+
+This document integrates analysis of DRIFTS DPT files from OPUSprocessing.Rmd and Leila_code_modified.Rmd.
+
+1. **OPUSprocessing.Rmd "Reading DPT files" section** - Ridge plots showing spectral data by crop at different timepoints
+2. **Leila_code_modified.Rmd** - Bar plots showing functional group proportions 
+
+# Preparing data for analysis
+
+## Importing DPT data
+This code is modified from code by Stephany Soledad Chacon, "Box> Salk Institute Project> Salk Data> FTIR_Intact_decomposition_pots> FTIR_analysis.Rmd". Using data in the DPT format, we can extrapolate sample attributes from the file names, then normalize and visualize spectra across replicates, crops, and timepoints. The width of the line bounding the spectra represents the range of the data.
+```{r import-dpt-data}
+# Check if folder exists and list files
+if (!dir.exists(dpt_folder)) {
+  stop("Directory does not exist: ", dpt_folder)
+}
+
+# List and sort files
+cat("Files found in directory:\n")
+print(list.files(dpt_folder))
+DPTfiles <- sort(list.files(dpt_folder, pattern = ".dpt"))
+cat("Number of .dpt files:", length(DPTfiles), "\n")
+
+# Read files individually and combine
+dpt_data_list <- list()
+
+for (i in seq_along(DPTfiles)) {
+  file_path <- file.path(dpt_folder, DPTfiles[i])
+  
+  # Read as lines and parse manually (DPT files are space-delimited)
+  lines <- readLines(file_path, warn = FALSE)
+  lines <- lines[lines != ""]  # Remove empty lines
+  
+  # Split each line by whitespace
+  split_lines <- strsplit(lines, "\\s+")
+  
+  # Convert to data frame
+  temp_data <- tryCatch({
+    data.frame(
+      wavenumber = as.numeric(sapply(split_lines, `[`, 1)),
+      absorbance = as.numeric(sapply(split_lines, `[`, 2)),
+      stringsAsFactors = FALSE
+    )
+  }, error = function(e) NULL)
+  
+  if (!is.null(temp_data)) {
+    # Add filename column
+    temp_data$filename <- DPTfiles[i]
+    
+    # Store in list
+    dpt_data_list[[i]] <- temp_data
+  }
+}
+
+# Remove NULL entries (failed reads)
+dpt_data_list <- dpt_data_list[!sapply(dpt_data_list, is.null)]
+
+# Combine all data
+dpt_data <- bind_rows(dpt_data_list)
+
+# Remove any rows with NA values
+dpt_data <- dpt_data[complete.cases(dpt_data), ]
+
+# Extract metadata from filenames
+dpt_data <- dpt_data %>%
+  mutate(
+    crop = case_when(
+      str_detect(filename, "noPlant") ~ "noPlant",
+      str_detect(filename, "wheat") ~ "wheat", 
+      str_detect(filename, "rice") ~ "rice",
+      str_detect(filename, "soy") ~ "soy",
+      TRUE ~ NA_character_
+    ),
+    timepoint = str_extract(filename, "wk\\d+"),
+    sample_type = case_when(
+      str_detect(filename, "root") ~ "root",
+      str_detect(filename, "soil") ~ "soil", 
+      TRUE ~ NA_character_
+    ),
+    # Extract ID (pot number) from filename
+    ID = case_when(
+      str_detect(filename, "pot[0-9]+") ~ str_extract(filename, "pot[0-9]+") %>% 
+                                          str_remove("pot") %>% 
+                                          str_pad(width = 3, pad = "0"),
+      # Alternative pattern for files without 'pot' prefix
+      str_detect(filename, "DRIFTS_[0-9]+") ~ str_extract(filename, "DRIFTS_[0-9]+") %>%
+                                              str_remove("DRIFTS_") %>%
+                                              str_pad(width = 3, pad = "0"),
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(sample_type)) %>%  # Remove files without clear sample type
+  filter(!str_detect(filename, "KBr")) %>%  # Remove KBr files
+  # Filter out anomalous spectra
+  filter(!filename %in% c("DRIFTS_pot103_13Crice_wk0_root_recNMR_250725.0.dpt",
+                          "DRIFTS_pot103_13Crice_wk0_root_vial1_250725.0.dpt", 
+                          "DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt",
+                          "DRIFTS_pot047_13Crice_wk0_root_250725.0.dpt",
+                          "DRIFTS_pot086_12Csoy_wk0_root_250919.0.dpt",
+                          "DRIFTS_pot056_12Csoy_wk10_root_250919.0.dpt",
+                          "DRIFTS_pot030_13Csoy_wk10_root_250725.0.dpt"))
+# save as csv for record-keeping
+write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE)
+
+# Filter for root samples only
+dpt_data_roots <- dpt_data %>% 
+  filter(sample_type == "root") %>%
+  filter(!is.na(crop))
+
+cat("Root samples by crop:\n")
+print(table(dpt_data_roots$crop))
+cat("Root samples by timepoint:\n") 
+print(table(dpt_data_roots$timepoint))
+```
+
+## Normalizing data
+This code is modified to only use baseline correction (subtracting the minimum) and skip normalization to the maximum absorbance value.
+```{r normalize-data}
+# Normalize absorbance data by sample (same approach as OPUSprocessing.Rmd)
+dpt_data_roots <- dpt_data_roots %>%
+  group_by(filename) %>%
+  mutate(
+    # Baseline correction - subtract minimum
+    baseline_corrected = absorbance - min(absorbance, na.rm = TRUE),
+    # Apply SNV (Standard Normal Variate) normalization
+    mean_abs = mean(baseline_corrected, na.rm = TRUE),
+    sd_abs = sd(baseline_corrected, na.rm = TRUE),
+    normalized_absorbance = (baseline_corrected - mean_abs) / sd_abs
+  ) %>%
+  select(-mean_abs, -sd_abs) %>%
+  ungroup()
+```
+
+
+# Plotting DRIFTS spectra
+## Plotting by timepoint
+### Ridge plots
+These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.
+Integration regions according to Mainka et al. (2022):
+
+Mainka, M., Summerauer, L., Wasner, D., Garland, G., Griepentrog, M., Berhe, A. A., & Doetterl, S. (2022). Soil geochemistry as a driver of soil organic matter composition: Insights from a soil chronosequence. Biogeosciences, 19(6), 1675–1689. https://doi.org/10.5194/bg-19-1675-2022
+
+
+<table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Simple plant (aliphatic):</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Microbial:</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1660 - 1580 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Complex plant (aromatic):</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1550 - 1500 cm<sup>-1</sup></td>
+</tr>
+</table>
+
+```{r time-type-plots, results='asis'}
+# Generic function to create ridge plots for any timepoint
+create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
+  # Filter data for specific timepoint
+  filtered_data <- data %>%
+    filter(timepoint == timepoint_week) %>%
+    mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
+  
+  # Create title if not provided
+  if (is.null(title)) {
+    week_num <- str_extract(timepoint_week, "\\d+")
+    title <- paste("Roots at week", week_num)
+  }
+  
+  # Determine y-position for annotations based on data
+  max_y <- max(filtered_data$normalized_absorbance)*(length(unique(filtered_data$crop))+3)
+  
+  # Create the plot
+  ridge_plot <- filtered_data %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = crop,
+                         height = normalized_absorbance,
+                         group = crop,
+                         fill = crop,
+                         color = crop)) +
+    geom_density_ridges(stat = "identity",
+                        scale = 4.5,
+                        alpha = 0.25) +
+    geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.23) +
+    geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.23) +
+    geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+    xlim(3777, 422) +
+    scale_y_discrete(expand = expansion(mult = c(0.0, 0.56))) +  # Less space below, more above
+    
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
+    scale_fill_manual(values = crop_colors) +
+    scale_color_manual(values = crop_colors) +
+    ggtitle(title) +
+    labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
+    # Add simple plant region annotation
+    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#e3c8b1") +
+    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#e3c8b1") +
+    annotate("text", x = 2560, y = max_y, label = "Simple Plant", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add microbial region annotation
+    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#a8cbad") +
+    annotate("text", x = 1870, y = max_y + 0.11, label = "Microbial", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add complex plant region annotation
+    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#beb5d5") +
+    annotate("text", x = 1190, y = max_y + 0.11, label = "Complex Plant", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
+  
+  return(list(plot = ridge_plot, data = filtered_data))
+}
+
+# Generic function to create sample count tables
+create_sample_count_table <- function(filtered_data, timepoint_week) {
+  week_num <- str_extract(timepoint_week, "\\d+")
+  col_name <- paste("Week", week_num, "samples")
+  
+  counts <- filtered_data %>%
+    select(filename, crop) %>%
+    distinct() %>%
+    count(crop) %>%
+    arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
+    mutate(!!col_name := paste(n, "&nbsp;&nbsp;", crop)) %>%
+    select(all_of(col_name))
+  
+  return(counts)
+}
+
+# Create plots and tables for each timepoint
+timepoints <- sort(unique(dpt_data_roots$timepoint))
+
+for (tp in timepoints) {
+  # Create plot and get filtered data
+  result <- create_timepoint_ridge_plot(dpt_data_roots, tp)
+  
+  # Print the plot
+  print(result$plot)
+  
+  # Create and print sample count table with results='asis'
+  counts_table <- create_sample_count_table(result$data, tp)
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+### Line plots
+```{r line-time-type-plots, results='asis'}
+# Generic function to create line plots for any timepoint
+create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
+  # Filter data for specific timepoint
+  filtered_data <- data %>%
+    filter(timepoint == timepoint_week) %>%
+    mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
+  
+  # Create title if not provided
+  if (is.null(title)) {
+    week_num <- str_extract(timepoint_week, "\\d+")
+    title <- paste("Roots at week", week_num)
+  }
+  
+  # Create the plot - offset lines vertically by crop like ridge plots
+  # Only include crops that are actually present in the filtered data
+  all_crop_levels <- c("noPlant", "wheat", "rice", "soy")
+  present_crops <- intersect(all_crop_levels, unique(filtered_data$crop))
+  len <- length(present_crops)
+  # Scale the data to match ridge plot proportions
+  max_abs <- max(filtered_data$normalized_absorbance, na.rm = TRUE)
+  # Determine y-position for annotations based on data
+  text_y <- len * 3 + 1.75
+  # Create offsets only for crops that are present
+  crop_offsets <- setNames(seq(0, (len-1) * 3, 3), present_crops)
+
+  # Add offset to data
+  filtered_data_offset <- filtered_data %>%
+    mutate(crop_offset = crop_offsets[as.character(crop)],
+           normalized_absorbance_offset = (normalized_absorbance*4.444 + crop_offset))
+  line_plot <- filtered_data_offset %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = normalized_absorbance_offset,
+                         group = filename,
+                         color = crop)) +
+    xlim(3777, 422) +
+    geom_line(alpha = 0.7) +
+    scale_y_continuous(
+      breaks = crop_offsets,
+      labels = names(crop_offsets) # Reduce top space from 0.56 to 0.15
+    ) +
+    
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
+    scale_fill_manual(values = crop_colors) +
+    scale_color_manual(values = crop_colors) +
+    ggtitle(title) +
+    labs(x = expression("Wavenumber (cm"^-1*")"), 
+         y = "", 
+         color = "Crop") +
+    # Keep your existing vertical lines and annotations
+    geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.23) +
+    geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.23) +
+    geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+    # Add region annotations - positioned to match ridge plot style
+    # spacer
+    annotate("text", x = 1900, y = 10.201, 
+             label = " ", size = 3, hjust = 0.5, color = annotation_text_color) +
+    # Add simple plant region annotation
+    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#e3c8b1") +
+    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#e3c8b1") +
+    annotate("text", x = 2560, y = text_y, 
+             label = "Simple Plant", size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add microbial region annotation
+    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#a8cbad") +
+    annotate("text", x = 1870, y = text_y, 
+             label = "Microbial", size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add complex plant region annotation
+    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#beb5d5") +
+    annotate("text", x = 1200, y = text_y, 
+             label = "Complex Plant", size = 3.3, hjust = 0.5, color = annotation_text_color)
+
+  return(list(plot = line_plot, data = filtered_data))
+}
+
+# Generic function to create sample count tables
+create_sample_count_table <- function(filtered_data, timepoint_week) {
+  week_num <- str_extract(timepoint_week, "\\d+")
+  col_name <- paste("Week", week_num, "samples")
+  
+  counts <- filtered_data %>%
+    select(filename, crop) %>%
+    distinct() %>%
+    count(crop) %>%
+    arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
+    mutate(!!col_name := paste(n, "&nbsp;&nbsp;", crop)) %>%
+    select(all_of(col_name))
+  
+  return(counts)
+}
+
+# Create plots and tables for each timepoint
+timepoints <- sort(unique(dpt_data_roots$timepoint))
+
+for (tp in timepoints) {
+  # Create plot and get filtered data
+  result <- create_timepoint_line_plot(dpt_data_roots, tp)
+  
+  # Print the plot
+  print(result$plot)
+  
+  # Create and print sample count table with results='asis'
+  counts_table <- create_sample_count_table(result$data, tp)
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+## Plotting by crop
+These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.  
+
+<table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Simple plant (aliphatic):</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Microbial:</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1660 - 1580 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Complex plant (aromatic):</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1550 - 1500 cm<sup>-1</sup></td>
+</tr>
+</table>
+
+### Ridge plots
+```{r crop-plots, results='asis'}
+# Define crop-specific color palettes
+crop_timepoint_colors <- list(
+  wheat = c("wk0" = "#d2a9f6", "wk10" = "#bd7ef6", "wk20" = "#9355CC",
+            "wk30" = "#692DA1", "wk40" = "#3f0477"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk29" = "#F18204",
+           "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk20" = "#F4016E",
+          "wk30" = "#B70153", "wk40" = "#7A0137")
+)
+
+# Generic function to create crop-specific DRIFTS plots
+create_crop_plot <- function(data, crop_name, color_palette) {
+  # Filter data for specific crop
+  crop_data <- data %>%
+    group_by(timepoint) %>%
+    filter(crop == crop_name)
+  
+  # Ensure absorbance is numeric
+  crop_data$normalized_absorbance <- as.numeric(crop_data$normalized_absorbance)
+  
+  # Create the plot
+  crop_plot <- ggplot(crop_data,
+                      aes(x = wavenumber,
+                          y = normalized_absorbance,
+                          color = timepoint)) +
+    xlim(3777, 422) +
+    geom_line() +
+    
+    scale_color_manual(values = color_palette) +
+    ggtitle(paste(str_to_title(crop_name), "Roots DRIFTS")) +
+    labs(x = expression("wavenumber (cm"^-1*")"), 
+         y = "normalized absorbance") +
+    geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+    geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+    geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+    # Add simple plant region annotation
+    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#e3c8b1") +
+    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#e3c8b1") +
+    annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add microbial region annotation
+    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#a8cbad") +
+    annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add complex plant region annotation
+    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#beb5d5") +
+    annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
+  
+  return(list(plot = crop_plot, data = crop_data))
+}
+
+# Generic function to create crop ID tables
+create_crop_id_table <- function(crop_data, crop_name) {
+  combinations <- crop_data %>%
+    select(ID, timepoint) %>%
+    distinct() %>%
+    arrange(ID, timepoint) %>%
+    group_by(timepoint) %>%
+    summarise(pot_ids = {
+      ids <- paste(ID, sep = "")
+      # Group every 3 items and join with line breaks
+      grouped <- split(ids, ceiling(seq_along(ids)/5))
+      lines <- sapply(grouped, function(x) paste(x, collapse = ",&ensp;"))
+      paste(lines, collapse = "<br>")
+    }, .groups = 'drop') %>%
+    pivot_wider(names_from = timepoint, values_from = pot_ids)
+  
+  return(combinations)
+}
+
+# Generate plots and tables for each crop
+crops <- c("wheat", "rice", "soy")
+
+for (crop in crops) {
+  # Create plot and get data
+  result <- create_crop_plot(dpt_data_roots, crop, crop_timepoint_colors[[crop]])
+  
+  # Print the plot
+  print(result$plot)
+  cat("<br>")  # Add space between plot and table
+  
+  # Create and print ID combinations table
+  id_table <- create_crop_id_table(result$data, crop)
+  cat(paste0("<h4>", str_to_title(crop), " pot root samples</h4>"))
+  cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+### Line plots
+```{r line-crop-plots, results='asis', include=FALSE}
+# Generic function to create line plots for any crop with suberin annotations
+# Define crop-specific color palettes
+crop_timepoint_colors <- color_map_all_sep
+
+create_crop_line_plot <- function(data, crop_name, color_palette) {
+ # Filter data for specific crop
+  crop_data <- data %>%
+    group_by(timepoint) %>%
+    filter(crop == crop_name)
+  
+  # Ensure absorbance is numeric
+  crop_data$normalized_absorbance <- as.numeric(crop_data$normalized_absorbance)
+  
+  # Create the plot
+  # Scale the data to match ridge plot proportions
+  max_abs <- max(crop_data$normalized_absorbance, na.rm = TRUE)
+  line_plot <- crop_data %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = normalized_absorbance,
+                         group = filename,
+                         color = timepoint)) +
+    xlim(3777, 422) +
+    geom_line(alpha = 0.8) +
+    
+    scale_color_manual(values = color_palette) +
+    ggtitle(paste(str_to_title(crop_name), "roots DRIFTS")) +
+    labs(x = expression("wavenumber (cm"^-1*")"), 
+         y = "normalized absorbance") +
+    # annotations
+    geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+    geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+    geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+    geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+    # Add simple plant region annotation
+    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#e3c8b1") +
+    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#e3c8b1") +
+    annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add microbial region annotation
+    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#a8cbad") +
+    annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add complex plant region annotation
+    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#beb5d5") +
+    annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
+
+  return(list(plot = line_plot, data = crop_data))
+}
+
+# Generate plots and tables for each crop
+crops <- c("noPlant", "wheat", "rice", "soy")
+
+for (crop in crops) {
+  # Create plot and get data
+  result <- create_crop_line_plot(dpt_data_roots, crop, crop_timepoint_colors[[crop]])
+  
+  # Print the plot
+  print(result$plot)
+  cat("<br>")  # Add space between plot and table
+  
+  # Create and print ID combinations table
+  id_table <- create_crop_id_table(result$data, crop)
+  cat(paste0("<h4>", str_to_title(crop), " pot root samples</h4>"))
+  cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+# Combined stacked overlay plot
+These chunks create a single visualization showing all crops and timepoints by stacking the overlay plots vertically with a shared y-axis. Each crop has its own color palette and legend.
+
+<!-- ## Stacked line plot with all crops
+To include noPlant samples in the combined stacked overlay plot, I needed to plot by filename rather than by crop-timepoint combination, since noPlant samples exist only at certain timepoints (wk30 and wk40). As a result each spectra is plotted individually rather than averaged by crop-timepoint. -->
+
+```{r combined-stacked-overlay, fig.height=10, fig.width=13, include=FALSE}
+# Define crop-specific color palettes (include noPlant)
+crop_timepoint_colors_all <- color_map_all_sep
+
+
+# Prepare data with all crops (ordered from bottom to top: noPlant, wheat, rice, soy)
+crops_ordered <- c("soy", "rice", "wheat", "noPlant")  # Reversed for plotting so soy appears at top
+all_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered) %>%
+  mutate(crop = factor(crop, levels = crops_ordered)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount <- 0.6  # Space between each crop's spectra
+crop_offsets <- setNames(seq(0, length(crops_ordered) - 1) * offset_amount, crops_ordered)
+
+# Add offset to absorbance values based on crop
+all_crops_data <- all_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets[as.character(crop)])
+
+# Determine max y position for annotations
+max_y <- max(all_crops_data$offset_absorbance, na.rm = TRUE) + 0.2
+
+# Create the base plot with functional region annotations
+base_plot <- ggplot() +
+  xlim(3777, 422) +
+  
+  labs(x = expression("wavenumber (cm"^-1*")"), 
+       y = "",
+       title = "DRIFTS Spectra: All Crops and Timepoints") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.text.y = element_text(size = 11),
+    axis.ticks.y = element_blank(),
+    legend.position = "right",
+    legend.box = "vertical",
+    legend.spacing.y = unit(0.5, "cm"),
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 9)
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets + offset_amount/2,
+    labels = c("soy", "rice", "wheat", "noPlant"),
+    expand = expansion(mult = c(0.02, 0.1))
+  ) +
+  # Add vertical lines for functional regions
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.3) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+  # Add shaded regions with annotations
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("text", x = 2550, y = max_y, label = "Simple Plant", 
+           size = 3.3, hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#a8cbad") +
+  annotate("text", x = 1850, y = max_y, label = "Microbial", 
+           size = 3.3, hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#beb5d5") +
+  annotate("text", x = 1200, y = max_y, label = "Complex Plant", 
+           size = 3.3, hjust = 0.5, color = annotation_text_color)
+
+# Install ggnewscale if needed for multiple color scales
+if (!require(ggnewscale, quietly = TRUE)) {
+  install.packages("ggnewscale")
+  library(ggnewscale)
+}
+
+# Add each crop as a separate layer with its own color scale
+combined_overlay_plot <- base_plot
+
+for (crop in rev(crops_ordered)) {  # Add in reverse order so legends appear in correct order
+  crop_data <- all_crops_data %>% filter(crop == !!crop)
+  
+  combined_overlay_plot <- combined_overlay_plot +
+    geom_line(data = crop_data,
+              aes(x = wavenumber,
+                  y = offset_absorbance,
+                  color = timepoint,
+                  group = interaction(filename, timepoint)),
+              show.legend = TRUE) +
+    scale_color_manual(
+      name = str_to_title(crop),
+      values = crop_timepoint_colors_all[[crop]],
+      guide = guide_legend(override.aes = list(linewidth = 2))
+    ) +
+    new_scale_color()  # Reset color scale for next crop
+}
+
+print(combined_overlay_plot)
+```
+
+## Combined stacked overlay plot (without noPlant)
+This version excludes noPlant and uses the original grouping method where line thickness represents the range of data for each timepoint.
+
+```{r combined-stacked-overlay-no-noplant, fig.height=9, fig.width=13}
+
+crop_timepoint_colors_three <- color_map_three_sep
+
+# Prepare data with three crops only (ordered from bottom to top: wheat, rice, soy)
+crops_ordered_three <- c("soy", "rice", "wheat")  # Reversed for plotting so soy appears at top
+three_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered_three) %>%
+  mutate(crop = factor(crop, levels = crops_ordered_three)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount_three <- 0.7  # Space between each crop's spectra
+crop_offsets_three <- setNames(seq(0, length(crops_ordered_three) - 1) * offset_amount_three, crops_ordered_three)
+
+# Add offset to absorbance values based on crop
+three_crops_data <- three_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets_three[as.character(crop)])
+
+# Determine max y position for annotations
+max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
+
+# Create the base plot with functional region annotations
+base_plot_three <- ggplot() +
+  xlim(3777, 422) +
+  
+  labs(x = expression("wavenumber (cm"^-1*")"), 
+       y = "normalized absorbance") +
+  theme(
+    axis.text.y = element_blank(),
+    # axis.ticks.y = element_blank(),
+    axis.title.y = element_text(size = 14.5),
+    axis.text.x = element_text(size = 14.5, face = "bold"),
+    axis.title.x = element_text(size = 15.5),
+    legend.position = "right",
+    legend.justification = c(0, 0.07),  # (x, y) position; 0,0 is bottom-right
+    legend.box = "vertical",
+    legend.spacing.y = unit(2.8, "cm"),
+    legend.title = element_text(size = 15, face = "bold"),
+    legend.text = element_text(size = 14.5),
+    plot.margin = margin(7, 14, 7, 7, "pt")  # (top, right, bottom, left)
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets_three + 0.003, # y-tick positions
+    labels = NULL,
+    expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
+  ) +
+  scale_x_reverse(
+    limits = c(3770, 415),
+    breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
+    expand = c(0.002, 0.003)  # Remove padding on x-axis
+  ) +
+  # Add vertical lines for functional regions
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.46) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.46) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
+  # Add shaded regions with annotations
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#e3c8b1") +
+  annotate("text", x = 2650, y = max_y_three - 0.05, label = "Simple Plant", 
+           size = 4.8, hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#a8cbad") +
+  annotate("text", x = 1800, y = max_y_three, label = "Microbial", 
+           size = 4.8, hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.12, fill = "#beb5d5") +
+  annotate("text", x = 1300, y = max_y_three, label = "Complex Plant", 
+           size = 4.8, hjust = 0.5, color = annotation_text_color)
+
+# Add all crop layers without automatic legends, explicitly coloring each line
+combined_overlay_plot_no_noplant <- base_plot_three
+
+for (crop in crops_ordered_three) {
+  crop_data <- three_crops_data %>% filter(crop == !!crop)
+  
+  for (tp in names(crop_timepoint_colors_three[[crop]])) {
+    tp_data <- crop_data %>% filter(timepoint == tp)
+    
+    combined_overlay_plot_no_noplant <- combined_overlay_plot_no_noplant +
+      geom_line(data = tp_data,
+                aes(x = wavenumber, y = offset_absorbance),
+                color = crop_timepoint_colors_three[[crop]][tp],
+                linewidth = 0.5,
+                show.legend = FALSE)
+  }
+}
+
+# Create dummy data for manual legends - one for each crop
+dummy_wheat <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  wheat_tp = names(crop_timepoint_colors_three$wheat)
+)
+
+dummy_rice <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  rice_tp = names(crop_timepoint_colors_three$rice)
+)
+
+dummy_soy <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  soy_tp = names(crop_timepoint_colors_three$soy)
+)
+
+# Add invisible layers with separate aesthetics for each crop
+combined_overlay_plot_no_noplant <- combined_overlay_plot_no_noplant +
+  # Wheat legend
+  geom_line(data = dummy_wheat,
+            aes(x = x, y = y, color = wheat_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Wheat",
+    values = crop_timepoint_colors_three$wheat,
+    breaks = names(crop_timepoint_colors_three$wheat),
+    labels = names(crop_timepoint_colors_three$wheat),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 1
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Rice legend
+  geom_line(data = dummy_rice,
+            aes(x = x, y = y, color = rice_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Rice",
+    values = crop_timepoint_colors_three$rice,
+    breaks = names(crop_timepoint_colors_three$rice),
+    labels = names(crop_timepoint_colors_three$rice),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 2
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Soy legend
+  geom_line(data = dummy_soy,
+            aes(x = x, y = y, color = soy_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Soy",
+    values = crop_timepoint_colors_three$soy,
+    breaks = names(crop_timepoint_colors_three$soy),
+    labels = names(crop_timepoint_colors_three$soy),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 3
+    )
+  )
+
+print(combined_overlay_plot_no_noplant)
+ggsave_themed("combined_overlay_no_noplant.png", combined_overlay_plot_no_noplant, width = 13, height = 9, dpi = 300)
+```
+## Showing average and range
+same as the above chunk, but showing the average spectra for each crop-timepoint combination with an opaque line (alpha = 1, width = 0.88) and a shaded ribbon representing the range of the data for each crop-timepoint (alpha = 0.58).
+
+```{r combined-stacked-overlay-no-noplant-range, fig.height=9, fig.width=13}
+
+crop_timepoint_colors_three <- color_map_three_sep
+
+# Prepare data with three crops only (ordered from bottom to top: wheat, rice, soy)
+crops_ordered_three <- c("soy", "rice", "wheat")  # Reversed for plotting so soy appears at top
+three_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered_three) %>%
+  mutate(crop = factor(crop, levels = crops_ordered_three)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount_three <- 0.7  # Space between each crop's spectra
+crop_offsets_three <- setNames(seq(0, length(crops_ordered_three) - 1) * offset_amount_three, crops_ordered_three)
+
+# Add offset to absorbance values based on crop
+three_crops_data <- three_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets_three[as.character(crop)])
+
+# Determine max y position for annotations
+max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
+
+# Create the base plot with functional region annotations
+base_plot_range <- ggplot() +
+  xlim(3777, 422) +
+  
+  labs(x = expression("Wavenumber (cm"^-1*")"), 
+       y = "Normalized absorbance") +
+  theme(
+    axis.text.y = element_blank(),
+    # axis.ticks.y = element_blank(),
+    axis.title.y = element_text(size = 15, face = "bold"),
+    axis.text.x = element_text(size = 15, face = "bold"),
+    axis.title.x = element_text(size = 16, face = "bold"),
+    legend.position = "right",
+    legend.justification = c(0, 0.07),  # (x, y) position; 0,0 is bottom-right
+    legend.box = "vertical",
+    legend.spacing.y = unit(2.8, "cm"),
+    legend.title = element_text(size = 15, face = "bold"),
+    legend.text = element_text(size = 14.5),
+    plot.margin = margin(7, 14, 7, 7, "pt"),  # (top, right, bottom, left)
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank()
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets_three + 0.003, # y-tick positions
+    labels = NULL,
+    expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
+  ) +
+  scale_x_reverse(
+    limits = c(3770, 415),
+    breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
+    expand = c(0.002, 0.003)  # Remove padding on x-axis
+  ) +
+  # Add vertical lines for functional regions
+  geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.46, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.46, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23, color = annotation_text_color, alpha = 0.8) +
+  # Add shaded regions with annotations
+  annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
+           alpha = 0.3, fill = "#e3c8b1") +
+  annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
+           alpha = 0.3, fill = "#e3c8b1") +
+  annotate("text", x = 2650, y = max_y_three - 0.05, label = "Simple Plant", 
+           size = 4.9, face = "bold", hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
+           alpha = 0.3, fill = "#a8cbad") +
+  annotate("text", x = 1800, y = max_y_three, label = "Microbial", 
+           size = 4.9, face = "bold", hjust = 0.5, color = annotation_text_color) +
+  annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
+           alpha = 0.3, fill = "#beb5d5") +
+  annotate("text", x = 1300, y = max_y_three, label = "Complex Plant", 
+           size = 4.9, face = "bold", hjust = 0.5, color = annotation_text_color)
+
+# Add layers for each crop with average and range
+combined_overlay_range_plot <- base_plot_range
+
+for (crop in crops_ordered_three) {
+  crop_data <- three_crops_data %>% filter(crop == !!crop)
+  
+  for (tp in names(crop_timepoint_colors_three[[crop]])) {
+    tp_data <- crop_data %>% filter(timepoint == tp)
+    
+    # Calculate average and range for this crop+timepoint combination
+    summary_data <- tp_data %>%
+      group_by(wavenumber) %>%
+      summarise(
+        mean_absorbance = mean(offset_absorbance, na.rm = TRUE),
+        min_absorbance = min(offset_absorbance, na.rm = TRUE),
+        max_absorbance = max(offset_absorbance, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    # Add range ribbon (semi-transparent)
+    combined_overlay_range_plot <- combined_overlay_range_plot +
+      geom_ribbon(data = summary_data,
+                  aes(x = wavenumber, ymin = min_absorbance, ymax = max_absorbance),
+                  fill = crop_timepoint_colors_three[[crop]][tp],
+                  alpha = 0.58,
+                  color = NA,
+                  show.legend = FALSE)
+    
+    # Add average line (opaque)
+    combined_overlay_range_plot <- combined_overlay_range_plot +
+      geom_line(data = summary_data,
+                aes(x = wavenumber, y = mean_absorbance),
+                color = crop_timepoint_colors_three[[crop]][tp],
+                linewidth = 0.88,
+                alpha = 1,
+                show.legend = FALSE)
+  }
+}
+
+# Create dummy data for manual legends - one for each crop
+dummy_wheat <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  wheat_tp = names(crop_timepoint_colors_three$wheat)
+)
+
+dummy_rice <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  rice_tp = names(crop_timepoint_colors_three$rice)
+)
+
+dummy_soy <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  soy_tp = names(crop_timepoint_colors_three$soy)
+)
+
+# Add invisible layers with separate aesthetics for each crop
+combined_overlay_range_plot <- combined_overlay_range_plot +
+  # Wheat legend
+  geom_line(data = dummy_wheat,
+            aes(x = x, y = y, color = wheat_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Wheat",
+    values = crop_timepoint_colors_three$wheat,
+    breaks = names(crop_timepoint_colors_three$wheat),
+    labels = names(crop_timepoint_colors_three$wheat),
+    guide = guide_legend(
+      override.aes = list(linewidth = 3, alpha = 1),
+      order = 1
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Rice legend
+  geom_line(data = dummy_rice,
+            aes(x = x, y = y, color = rice_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Rice",
+    values = crop_timepoint_colors_three$rice,
+    breaks = names(crop_timepoint_colors_three$rice),
+    labels = names(crop_timepoint_colors_three$rice),
+    guide = guide_legend(
+      override.aes = list(linewidth = 3, alpha = 1),
+      order = 2
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Soy legend
+  geom_line(data = dummy_soy,
+            aes(x = x, y = y, color = soy_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Soy",
+    values = crop_timepoint_colors_three$soy,
+    breaks = names(crop_timepoint_colors_three$soy),
+    labels = names(crop_timepoint_colors_three$soy),
+    guide = guide_legend(
+      override.aes = list(linewidth = 3, alpha = 1),
+      order = 3
+    )
+  )
+
+print(combined_overlay_range_plot)
+ggsave_themed("combined_overlay_range_no_noplant.png", combined_overlay_range_plot, width = 13, height = 9, dpi = 300)
+```
+
+# Comparing regions of interest
+Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions before visualizing everything. Spectra were normalized with the standard normal variate (SNV) method for scatter correction. Subsequently, absorbance peak areas were integrated using a local baseline defined as a straight line connecting the absorbances at the upper and lower wavenumber limits of each functional group (simple plant, complex plant & microbial). This procedure divides the baseline-corrected peak area by the total peak area in the ranges of interest to get the proportions.
+
+## Integrating spectral regions
+```{r spectral-integration-function}
+# Function to perform spectral integration on DPT data (based on Leila_code_modified.Rmd)
+perform_spectral_integration <- function(dpt_data) {
+  cat("Starting spectral integration processing...\n")
+  
+  # Load required library for integration
+  if (!require(pracma, quietly = TRUE)) {
+    install.packages("pracma")
+    library(pracma)
+  }
+  
+  # Prepare the data in the format needed for integration
+  # Rename columns to match expected format
+  comb <- dpt_data %>%
+    select(filename, wavenumber, absorbance) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
+  
+  # Define spectral windows of interest (same as Leila's code)
+  red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1
+  red2 <- comb[comb$wavelength > 2898 & comb$wavelength < 2976, ]  # Aliphatic 2  
+  red3 <- comb[comb$wavelength > 1580 & comb$wavelength < 1660, ]  # Microbial
+  red4 <- comb[comb$wavelength > 1500 & comb$wavelength < 1550, ]  # Complex plant
+  
+  # Get unique samples
+  sample <- unique(comb$sample)
+  
+  # Create integration results data frame
+  ints <- data.frame(
+    sample = sample,
+    int_2839_2870 = numeric(length(sample)),
+    int_2898_2976 = numeric(length(sample)),
+    int_1580_1660 = numeric(length(sample)),
+    int_1500_1550 = numeric(length(sample)),
+    stringsAsFactors = FALSE
+  )
+  
+  # Calculate integrated areas for each spectral window and sample
+  cat("Processing", length(sample), "samples for integration...\n")
+  for (i in seq_len(nrow(ints))) {
+    current_sample <- sample[i]
+    
+    # Extract data for current sample from each spectral window
+    sample_red1 <- red1[red1$sample == current_sample, ]
+    sample_red2 <- red2[red2$sample == current_sample, ]
+    sample_red3 <- red3[red3$sample == current_sample, ]
+    sample_red4 <- red4[red4$sample == current_sample, ]
+    
+    # Calculate area under curve (integration) using trapezoidal rule
+    if (nrow(sample_red1) > 1) {
+      ints$int_2839_2870[i] <- pracma::trapz(sample_red1$wavelength, sample_red1$abs)
+    }
+    
+    if (nrow(sample_red2) > 1) {
+      ints$int_2898_2976[i] <- pracma::trapz(sample_red2$wavelength, sample_red2$abs)
+    }
+    
+    if (nrow(sample_red3) > 1) {
+      ints$int_1580_1660[i] <- pracma::trapz(sample_red3$wavelength, sample_red3$abs)
+    }
+    
+    if (nrow(sample_red4) > 1) {
+      ints$int_1500_1550[i] <- pracma::trapz(sample_red4$wavelength, sample_red4$abs)
+    }
+  }
+  
+  # Use existing metadata from the input data (no need to re-extract)
+  cat("Using existing metadata from DPT data...\n")
+  basic_meta <- dpt_data %>%
+    select(filename, crop, timepoint, sample_type, ID) %>%
+    distinct() %>%
+    rename(sample = filename, type = sample_type)
+  
+  # Combine metadata with integration results
+  ftir_data <- merge(basic_meta, ints, by = "sample", all = TRUE)
+  
+  # Rename integration columns to match expected names
+  names(ftir_data)[names(ftir_data) == "int_1580_1660"] <- "int_microbial"
+  names(ftir_data)[names(ftir_data) == "int_1500_1550"] <- "int_complex_plant"
+  
+  # Calculate derived metrics (same as original)
+  ftir_data$aliphatic <- ftir_data$int_2839_2870 + ftir_data$int_2898_2976
+  ftir_data$total_peak_area <- ftir_data$aliphatic + ftir_data$int_microbial + ftir_data$int_complex_plant
+  ftir_data$simple_plant_prop <- ftir_data$aliphatic / ftir_data$total_peak_area
+  ftir_data$complex_plant_prop <- ftir_data$int_complex_plant / ftir_data$total_peak_area
+  ftir_data$microbial_prop <- ftir_data$int_microbial / ftir_data$total_peak_area
+  ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_prop
+  ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_prop
+  
+  # Remove individual aliphatic integration columns (keep only derived metrics)
+  ftir_data <- ftir_data %>%
+    select(-int_2839_2870, -int_2898_2976)
+  
+  # Save the processed data to the output directory
+  today <- format(Sys.Date(), "%Y-%m-%d")
+  output_file <- file.path(outputs_folder, paste0("processed_int_data_", today, ".csv"))
+  write.csv(ftir_data, file = output_file, row.names = FALSE)
+  cat("Saved processed integration data to:", output_file, "\n")
+  
+  cat("Integration processing completed successfully.\n")
+  return(ftir_data)
+}
+```
+
+## Generating statistics
+```{r import-integration-data}
+# Try to find the most recent processed integration data file
+ftir_file <- find_most_recent_processed_file(integrated_ftir_data)
+
+if (!is.null(ftir_file) && file.exists(ftir_file)) {
+  ftir_data <- read_csv(ftir_file, show_col_types = FALSE)
+  cat("Successfully loaded FTIR integration data from:", basename(ftir_file), "\n")
+  cat("Dimensions:", dim(ftir_data), "\n")
+  cat("Columns:", names(ftir_data), "\n")
+} else {
+  cat("No processed integration data found. Processing raw DPT data to generate integration results...\n")
+  
+  # Check if we have the required dpt_data_roots from previous chunk
+  if (!exists("dpt_data_roots") || nrow(dpt_data_roots) == 0) {
+    stop("No DPT data available for integration. Please ensure the DPT data import was successful.")
+  }
+  
+  # Process raw DPT data using the integrated function
+  ftir_data <- perform_spectral_integration(dpt_data_roots)
+  
+  # Verify the processing was successful
+  if (is.null(ftir_data) || nrow(ftir_data) == 0) {
+    stop("Failed to process DPT data for integration.")
+  }
+  
+  cat("Successfully processed", nrow(ftir_data), "samples from DPT data\n")
+  cat("Generated columns:", names(ftir_data), "\n")
+}
+
+# Calculate summary statistics by group
+crop_stats <- ftir_data %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy"))) %>%
+  group_by(crop) %>%
+  summarise(
+    Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
+    SE_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_complex_plant_prop = mean(complex_plant_prop, na.rm = TRUE),
+    SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_microbial_prop = mean(microbial_prop, na.rm = TRUE),
+    SE_microbial_prop = sd(microbial_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+
+timepoint_stats <- ftir_data %>%
+  group_by(timepoint) %>%
+  summarise(
+    Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
+    SE_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_complex_plant_prop = mean(complex_plant_prop, na.rm = TRUE),
+    SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_microbial_prop = mean(microbial_prop, na.rm = TRUE),
+    SE_microbial_prop = sd(microbial_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+
+crop_timepoint_stats <- ftir_data %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy"))) %>%
+  group_by(crop, timepoint) %>%
+  summarise(
+    Mean_simple_plant_prop = mean(simple_plant_prop, na.rm = TRUE),
+    SE_simple_plant_prop = sd(simple_plant_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_complex_plant_prop = mean(complex_plant_prop, na.rm = TRUE),
+    SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_microbial_prop = mean(microbial_prop, na.rm = TRUE),
+    SE_microbial_prop = sd(microbial_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+```
+
+# Visualizing integrated ranges
+This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
+```{r recreate-leila-plots}
+# Recreate the EXACT plotting function from Leila_code_modified.Rmd
+create_proportion_plots <- function(stats_data, group_col, title_prefix) {
+  # Choose colors based on grouping variable
+  colors_to_use <- if(group_col == "crop") crop_colors else timepoint_colors
+  
+  p1 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_simple_plant_prop", fill = group_col)) +
+    geom_col(alpha = 0.98) +
+    geom_errorbar(aes_string(ymin = "Mean_simple_plant_prop - SE_simple_plant_prop", 
+                            ymax = "Mean_simple_plant_prop + SE_simple_plant_prop"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Simple Plant OM"),
+         x = str_to_title(group_col),
+         y = "Simple Plant OM Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank())
+
+  p2 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_complex_plant_prop", fill = group_col)) +
+    geom_col(alpha = 0.98) +
+    geom_errorbar(aes_string(ymin = "Mean_complex_plant_prop - SE_complex_plant_prop", 
+                            ymax = "Mean_complex_plant_prop + SE_complex_plant_prop"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Complex Plant OM"),
+         x = str_to_title(group_col),
+         y = "Complex Plant OM Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank())
+
+  p3 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_microbial_prop", fill = group_col)) +
+    geom_col(alpha = 0.98) +
+    geom_errorbar(aes_string(ymin = "Mean_microbial_prop - SE_microbial_prop", 
+                            ymax = "Mean_microbial_prop + SE_microbial_prop"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Microbial OM"),
+         x = str_to_title(group_col),
+         y = "Microbial OM Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank())
+
+  list(p1 = p1, p2 = p2, p3 = p3)
+}
+
+# Create EXACT plots by crop (from Leila_code_modified.Rmd)
+crop_plots <- create_proportion_plots(crop_stats, "crop", "")
+crop_combined <- plot_grid(crop_plots$p1, crop_plots$p2, crop_plots$p3, nrow = 1, labels = "auto")
+print(crop_combined)
+
+# Create EXACT plots by timepoint (from Leila_code_modified.Rmd)
+timepoint_plots <- create_proportion_plots(timepoint_stats, "timepoint", "")
+timepoint_combined <- plot_grid(timepoint_plots$p1, timepoint_plots$p2, timepoint_plots$p3, nrow = 1, labels = "auto")
+print(timepoint_combined)
+
+
+# SIMPLE PLANT PROPORTION INTERACTION PLOT
+# Recreate simple plant proportion interaction plot (crop x timepoint) from Leila_code_modified.Rmd
+interaction_plot <- ggplot(crop_timepoint_stats) +
+  geom_col(aes(x = crop, y = Mean_simple_plant_prop, fill = timepoint),
+           position = "dodge", alpha = 0.98) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_simple_plant_prop - SE_simple_plant_prop,
+                    ymax = Mean_simple_plant_prop + SE_simple_plant_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Simple Plant OM by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Simple Plant OM Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+print(interaction_plot)
+
+# COMPLEX PLANT PROPORTION INTERACTION PLOT
+CP_interaction_plot <- ggplot(crop_timepoint_stats) +
+  geom_col(aes(x = crop, y = Mean_complex_plant_prop, fill = timepoint),
+           position = "dodge", alpha = 0.98) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_complex_plant_prop - SE_complex_plant_prop,
+                    ymax = Mean_complex_plant_prop + SE_complex_plant_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Complex Plant OM by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Complex Plant OM Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+print(CP_interaction_plot)
+
+# MICROBIAL PROPORTION INTERACTION PLOT
+micr_interaction_plot <- ggplot(crop_timepoint_stats) +
+  geom_col(aes(x = crop, y = Mean_microbial_prop, fill = timepoint),
+           position = "dodge", alpha = 0.98) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_microbial_prop - SE_microbial_prop,
+                    ymax = Mean_microbial_prop + SE_microbial_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Microbial OM by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Microbial OM Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+print(micr_interaction_plot)
+
+# STACKED BAR PLOTS
+# Recreate stacked bar plots from Leila_code_modified.Rmd
+create_stacked_data <- function(stats_data, group_col) {
+  # Reshape data for stacking (exact reproduction)
+  long_data <- stats_data %>%
+    select(all_of(group_col), Mean_simple_plant_prop, Mean_complex_plant_prop, Mean_microbial_prop) %>%
+    pivot_longer(cols = starts_with("Mean_"),
+                 names_to = "func_type",
+                 values_to = "proportion") %>%
+    mutate(func_type = case_when(
+      func_type == "Mean_simple_plant_prop" ~ "Simple Plant",
+      func_type == "Mean_complex_plant_prop" ~ "Complex Plant",
+      func_type == "Mean_microbial_prop" ~ "Microbial"
+    )) %>%
+    mutate(func_type = factor(func_type, levels = c("Complex Plant", "Simple Plant", "Microbial")))
+
+  long_data
+}
+
+# Create stacked plots
+crop_stacked_data <- create_stacked_data(crop_stats, "crop")
+crop_stacked_data$crop <- factor(crop_stacked_data$crop, levels = c("noPlant", "wheat", "rice", "soy"))
+timepoint_stacked_data <- create_stacked_data(timepoint_stats, "timepoint")
+
+p_crop_stacked <- ggplot(crop_stacked_data, aes(x = crop, y = proportion * 100, fill = func_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("#93deed", "#d2f0f4", "#1ca5cf"),
+                    breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
+  
+  labs(x = "Crop Type",
+       y = "Functional Group Amount (%)",
+       fill = "") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 27, 20, 13),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.margin = margin(10, 16, 10, 8),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+p_timepoint_stacked <- ggplot(timepoint_stacked_data, aes(x = timepoint, y = proportion * 100, fill = func_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("#e8aa9c", "#f5d8d1", "#c54e30"),
+                    breaks = c("Microbial", "Simple Plant", "Complex Plant")) +
+  
+  labs(x = "Timepoint",
+       y = "Functional Group Amount (%)",
+       fill = "") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 27, 20, 13),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.margin = margin(10, 16, 10, 8),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+combined_stacked <- plot_grid(
+  p_crop_stacked,
+  p_timepoint_stacked,
+  nrow = 1,
+  labels = "auto"
+)
+print(combined_stacked)
+```
+
+
+## Stacked interaction plots (crop x timepoint)
+
+```{r stacked-interaction-plots}
+timepoint_prop_colors <- list(
+  "wk0" = c("Simple Plant" = "#8a82c0", "Microbial" = "#bdb8e0", "Complex Plant" = "#50478A"),
+  "wk10" = c("Simple Plant" = "#7ba7c6", "Microbial" = "#b8d0e0", "Complex Plant" = "#3D6988"),
+  "wk20" = c("Simple Plant" = "#c5aa7c", "Microbial" = "#e0d1b8", "Complex Plant" = "#876B3D"),
+  "wk30" = c("Simple Plant" = "#7cc5af", "Microbial" = "#b8e0d4", "Complex Plant" = "#3D8770"),
+  "wk40" = c("Simple Plant" = "#b4c57c", "Microbial" = "#d6e0b8", "Complex Plant" = "#75873D")
+)
+
+# Stacked interaction plot - crop x timepoint with all three proportions
+# Create stacked data for interaction plot
+interaction_stacked_data <- crop_timepoint_stats %>%
+  select(crop, timepoint, Mean_simple_plant_prop, Mean_complex_plant_prop, Mean_microbial_prop) %>%
+  pivot_longer(cols = starts_with("Mean_"),
+               names_to = "func_type",
+               values_to = "proportion") %>%
+  mutate(func_type = case_when(
+    func_type == "Mean_simple_plant_prop" ~ "Simple Plant",
+    func_type == "Mean_microbial_prop" ~ "Microbial",
+    func_type == "Mean_complex_plant_prop" ~ "Complex Plant"
+  )) %>%
+  mutate(func_type = factor(func_type, levels = c("Simple Plant", "Microbial", "Complex Plant")))
+
+# Create a combined group for positioning (crop:timepoint)
+interaction_stacked_data <- interaction_stacked_data %>%
+  mutate(crop_time = interaction(crop, timepoint, sep = "_"))
+
+# Apply colors - using average of timepoint colors for each functional group
+# Or better - use timepoint-specific colors from timepoint_prop_colors
+# Create fill based on timepoint:func_type combination
+interaction_stacked_data <- interaction_stacked_data %>%
+  mutate(fill_group = paste(timepoint, func_type, sep = "_"))
+
+interaction_plot_stacked <- ggplot(interaction_stacked_data, 
+                                   aes(x = interaction(crop, timepoint), 
+                                       y = proportion * 100, 
+                                       fill = fill_group)) +
+  geom_col(position = "stack") +
+  facet_grid(. ~ crop, scales = "free_x", space = "free_x") +
+  scale_x_discrete(labels = function(x) {
+    # Extract just the timepoint part (after the dot)
+    sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
+  }) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
+  
+  labs(title = "",
+       x = "",
+       y = "Functional Group Proportion (%)",
+       fill = "") +
+  theme(legend.position = "right",
+        plot.margin = margin(-2, 76, 0, 12), # (top, right, bottom, left)
+        axis.text.x = element_text(angle = 45, hjust = .9, size = 12.5, face = "bold"),
+        axis.title.y = element_text(size = 12),
+        axis.text.y = element_text(size = 11),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14.5, face = "bold", color = annotation_text_color),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()
+        ) +
+  coord_cartesian(clip = "off")
+
+# Create manual color scale using timepoint_prop_colors
+color_values <- c()
+color_names <- c()
+for (tp in c("wk0", "wk10", "wk20", "wk30", "wk40")) {
+  for (ft in c("Simple Plant", "Microbial", "Complex Plant")) {
+    color_names <- c(color_names, paste(tp, ft, sep = "_"))
+    color_values <- c(color_values, timepoint_prop_colors[[tp]][ft])
+  }
+}
+names(color_values) <- color_names
+
+interaction_plot_stacked <- interaction_plot_stacked +
+  scale_fill_manual(values = color_values,
+                    labels = function(x) {
+                      parts <- strsplit(x, "_")
+                      sapply(parts, function(p) paste(p[1], p[2], sep = " - "))
+                    }) +
+  theme(legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+# Calculate label positions (midpoint of each segment in the rightmost bar)
+# Get the rightmost crop-timepoint combination for labeling
+label_data <- interaction_stacked_data %>%
+  filter(crop == "soy" & timepoint == "wk40") %>%
+  arrange(func_type) %>%
+  mutate(
+    # Calculate cumulative sum for positioning
+    cum_prop = cumsum(proportion * 100),
+    # Calculate midpoint of each segment
+    label_y = cum_prop - (proportion * 100) / 2
+  )
+
+# Add labels on the right side
+interaction_plot_stacked <- interaction_plot_stacked +
+  geom_text(data = label_data,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = func_type),
+            hjust = 0, 
+            nudge_x = 0.5,
+            size = 3.8,
+            angle = 10,
+            fontface = "bold",
+            inherit.aes = FALSE)
+
+print(interaction_plot_stacked)
+```
+
+```{r stacked-interaction-plots-no-noPlant}
+# Stacked interaction plot - crop x timepoint (without noPlant)
+# Create stacked data for interaction plot
+interaction_stacked_data_no_noPlant <- crop_timepoint_stats %>%
+  filter(crop != "noPlant") %>%
+  select(crop, timepoint, Mean_simple_plant_prop, Mean_complex_plant_prop, Mean_microbial_prop) %>%
+  pivot_longer(cols = starts_with("Mean_"),
+               names_to = "func_type",
+               values_to = "proportion") %>%
+  mutate(func_type = case_when(
+    func_type == "Mean_simple_plant_prop" ~ "Simple Plant",
+    func_type == "Mean_microbial_prop" ~ "Microbial",
+    func_type == "Mean_complex_plant_prop" ~ "Complex Plant"
+  )) %>%
+  mutate(func_type = factor(func_type, levels = c("Simple Plant", "Microbial", "Complex Plant")))
+
+# Create a combined group for positioning (crop:timepoint)
+interaction_stacked_data_no_noPlant <- interaction_stacked_data_no_noPlant %>%
+  mutate(crop_time = interaction(crop, timepoint, sep = "_"))
+
+# Create fill based on timepoint:func_type combination
+interaction_stacked_data_no_noPlant <- interaction_stacked_data_no_noPlant %>%
+  mutate(fill_group = paste(timepoint, func_type, sep = "_"))
+
+interaction_plot_stacked_no_noPlant <- ggplot(interaction_stacked_data_no_noPlant, 
+                                   aes(x = interaction(crop, timepoint), 
+                                       y = proportion * 100, 
+                                       fill = fill_group)) +
+  geom_col(position = "stack") +
+  facet_grid(. ~ crop, scales = "free_x", space = "free_x",
+             labeller = labeller(crop = c("wheat" = "Wheat", "rice" = "Rice", "soy" = "Soy"))) +
+  scale_x_discrete(labels = function(x) {
+    # Extract just the timepoint part (after the dot)
+    sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
+  }) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
+  
+  labs(title = "",
+       x = "",
+       y = "Functional Group Proportion (%)",
+       fill = "") +
+  theme(legend.position = "right",
+        plot.margin = margin(-2, 76, 0, 12), # (top, right, bottom, left)
+        axis.text.x = element_text(angle = 45, hjust = .9, size = 12.5, face = "bold"),
+        axis.title.y = element_text(size = 12),
+        axis.text.y = element_text(size = 11),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14, face = "bold", color = annotation_text_color)) +
+  coord_cartesian(clip = "off")
+
+# Create manual color scale using timepoint_prop_colors
+interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
+  scale_fill_manual(values = color_values,
+                    labels = function(x) {
+                      parts <- strsplit(x, "_")
+                      sapply(parts, function(p) paste(p[1], p[2], sep = " - "))
+                    }) +
+  theme(legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+# Calculate label positions (midpoint of each segment for ALL bars)
+# Calculate cumulative proportions for positioning percentage labels
+label_data_no_noPlant <- interaction_stacked_data_no_noPlant %>%
+  group_by(crop, timepoint) %>%
+  arrange(func_type) %>%
+  mutate(
+    # Calculate cumulative sum for positioning
+    cum_prop = cumsum(proportion * 100),
+    # Calculate midpoint of each segment
+    label_y = cum_prop - (proportion * 100) / 2,
+    # Create percentage label
+    pct_label = paste0(round(proportion * 100, 1), "%"),
+    # Assign label color: black for Microbial (light), white for others (darker)
+    # label_color = ifelse(func_type == "Microbial", "black", "white")
+    label_color = ifelse(func_type == "Complex Plant", "white", "black")
+  ) %>%
+  ungroup()
+
+# Create label data for func_type labels (rightmost bar only)
+functype_label_data <- label_data_no_noPlant %>%
+  filter(crop == "soy" & timepoint == "wk40")
+
+# Add percentage labels to all bars
+interaction_plot_stacked_no_noPlant <- interaction_plot_stacked_no_noPlant +
+  geom_text(data = label_data_no_noPlant,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = pct_label,
+                color = label_color),
+            size = 3.5,
+            fontface = "bold",
+            inherit.aes = FALSE) +
+  scale_color_identity() +  # Use the actual color values from label_color
+  # Add func_type labels on the right side
+  geom_text(data = functype_label_data,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = func_type),
+            hjust = 0, 
+            nudge_x = 0.5,
+            size = 3.8,
+            angle = 10,
+            fontface = "bold",
+            color = annotation_text_color,
+            inherit.aes = FALSE)
+
+print(interaction_plot_stacked_no_noPlant)
+
+ggsave_themed("stacked_interaction_plot_no_noPlant.png", interaction_plot_stacked_no_noPlant, width = 10, height = 6)
+```
+
+## Simple and Total Plant : Microbial Ratios Over Time
+
+These scatterplots show the ratios of organic matter functional groups over the incubation period. Each point represents the mean ratio for a crop at a given timepoint, with error bars showing the standard error. Linear regression lines for each crop are shown with corresponding r² and p-values displayed in each crop's color.
+
+## Data preparation and regression analysis
+
+```{r ratio-plots-data-prep}
+# Calculate total plant : microbial ratio (simple + complex) for each sample
+ftir_data <- ftir_data %>%
+  mutate(
+    total_plant_prop = simple_plant_prop + complex_plant_prop,
+    total_plant_microbial_prop = total_plant_prop / microbial_prop,
+    simple_complex_prop = simple_plant_prop / complex_plant_prop
+  )
+
+# Create summary statistics by crop and timepoint for ratio metrics
+# Convert timepoint to numeric for regression (wk0 = 0, wk10 = 10, etc.)
+ratio_stats <- ftir_data %>%
+  filter(crop %in% c("wheat", "rice", "soy")) %>%  # Exclude noPlant
+  mutate(
+    crop = factor(crop, levels = c("wheat", "rice", "soy")),
+    timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+"))
+  ) %>%
+  group_by(crop, timepoint, timepoint_numeric) %>%
+  summarise(
+    Mean_simple_microbial = mean(simple_microbial_prop, na.rm = TRUE),
+    SE_simple_microbial = sd(simple_microbial_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_total_microbial = mean(total_plant_microbial_prop, na.rm = TRUE),
+    SE_total_microbial = sd(total_plant_microbial_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_simple_complex = mean(simple_complex_prop, na.rm = TRUE),
+    SE_simple_complex = sd(simple_complex_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+
+# Calculate regression statistics for each crop (simple : microbial ratio)
+# Using all individual data points, not just the 3 averaged points
+simple_micr_regression_stats <- data.frame()
+for (crop_name in c("wheat", "rice", "soy")) {
+  crop_data <- ftir_data %>%
+    filter(crop == crop_name) %>%
+    mutate(timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+")))
+  
+  if (nrow(crop_data) > 1) {
+    model <- lm(simple_microbial_prop ~ timepoint_numeric, data = crop_data)
+    summary_model <- summary(model)
+    
+    r_squared <- summary_model$r.squared
+    p_value <- summary_model$coefficients[2, 4]
+    intercept <- coef(model)[1]
+    slope <- coef(model)[2]
+    
+    simple_micr_regression_stats <- rbind(simple_micr_regression_stats,
+      data.frame(
+        crop = crop_name,
+        r_squared = r_squared,
+        p_value = p_value,
+        intercept = intercept,
+        slope = slope
+      )
+    )
+  }
+}
+
+# Calculate regression statistics for each crop (total plant : microbial ratio)
+# Using all individual data points, not just the 3 averaged points
+total_micr_regression_stats <- data.frame()
+for (crop_name in c("wheat", "rice", "soy")) {
+  crop_data <- ftir_data %>%
+    filter(crop == crop_name) %>%
+    mutate(timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+")))
+  
+  if (nrow(crop_data) > 1) {
+    model <- lm(total_plant_microbial_prop ~ timepoint_numeric, data = crop_data)
+    summary_model <- summary(model)
+    
+    r_squared <- summary_model$r.squared
+    p_value <- summary_model$coefficients[2, 4]
+    intercept <- coef(model)[1]
+    slope <- coef(model)[2]
+    
+    total_micr_regression_stats <- rbind(total_micr_regression_stats,
+      data.frame(
+        crop = crop_name,
+        r_squared = r_squared,
+        p_value = p_value,
+        intercept = intercept,
+        slope = slope
+      )
+    )
+  }
+}
+
+# Calculate regression statistics for each crop (simple plant : complex plant ratio)
+# Using all individual data points, not just the 3 averaged points
+simple_complex_regression_stats <- data.frame()
+for (crop_name in c("wheat", "rice", "soy")) {
+  crop_data <- ftir_data %>%
+    filter(crop == crop_name) %>%
+    mutate(timepoint_numeric = as.numeric(str_extract(timepoint, "\\d+")))
+  
+  if (nrow(crop_data) > 1) {
+    model <- lm(simple_complex_prop ~ timepoint_numeric, data = crop_data)
+    summary_model <- summary(model)
+    
+    r_squared <- summary_model$r.squared
+    p_value <- summary_model$coefficients[2, 4]
+    intercept <- coef(model)[1]
+    slope <- coef(model)[2]
+    
+    simple_complex_regression_stats <- rbind(simple_complex_regression_stats,
+      data.frame(
+        crop = crop_name,
+        r_squared = r_squared,
+        p_value = p_value,
+        intercept = intercept,
+        slope = slope
+      )
+    )
+  }
+}
+```
+
+## Ratio scatterplots with regression statistics
+
+```{r ratio-scatterplots}
+
+# Function to create ratio scatterplot with regression lines and statistics
+create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label, regression_stats, crop_colors) {
+  plot <- ggplot(data, aes(x = timepoint_numeric, y = !!sym(y_metric), color = crop)) +
+    geom_point(size = 3, alpha = 0.98) +
+    geom_errorbar(aes(ymin = !!sym(y_metric) - !!sym(y_metric_se),
+                      ymax = !!sym(y_metric) + !!sym(y_metric_se)),
+                  width = 1.5, alpha = 0.73, linewidth = 0.8) +
+    
+    scale_color_manual(values = crop_colors) +
+    labs(title = title,
+         x = "Timepoint (weeks)",
+         y = y_label,
+         color = "Crop") +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(size = 11.5, face = "bold"),
+      axis.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 13, face = "bold"),
+      plot.title = element_blank(),
+      plot.margin = margin(17, 17, 7, 17)
+    )
+  
+  # Get data range for positioning
+  max_x <- max(data$timepoint_numeric, na.rm = TRUE)
+  min_x <- min(data$timepoint_numeric, na.rm = TRUE)
+  max_y <- max(data[[y_metric]], na.rm = TRUE)
+  min_y <- min(data[[y_metric]], na.rm = TRUE)
+  y_range <- max_y - min_y
+  
+  # Create data frame to store all labels
+  labels_df <- data.frame(
+    label_x = numeric(),
+    label_y = numeric(),
+    label_text = character(),
+    crop_color = character(),
+    label_fontface = character(),
+    stringsAsFactors = FALSE
+  )
+  
+  # Add regression lines and statistics for each crop
+  for (i in seq_len(nrow(regression_stats))) {
+    reg_row <- regression_stats[i, ]
+    crop_name <- reg_row$crop
+    slope <- reg_row$slope
+    intercept <- reg_row$intercept
+    r_sq <- reg_row$r_squared
+    p_val <- reg_row$p_value
+    crop_color <- crop_colors[crop_name]
+    
+    # Add regression line
+    plot <- plot +
+      geom_abline(intercept = intercept, slope = slope,
+                  color = crop_color, linewidth = 1.2, alpha = 0.8, linetype = "solid")
+    
+    # Position R² and p-value labels at top-right with staggered y positions
+    label_x <- min_x + (max_x - min_x) * 0.99
+    crop_order <- match(crop_name, c("wheat", "rice", "soy"))
+    label_y <- max_y - (crop_order - 1.27) * (y_range * 0.09)
+    
+    # Format p-value and determine if significant
+    p_significant <- p_val < 0.05
+    if (p_val < 0.001) {
+      p_label <- "p < 0.001"
+    } else {
+      p_label <- paste0("p = ", format(round(p_val, 3), nsmall = 3))
+    }
+    
+    # Add star if p < 0.05 and set formatting
+    p_label_with_star <- if (p_significant) paste0(p_label, "*") else p_label
+    label_fontface <- if (p_significant) "bold" else "plain"
+    
+    # Create label with r², slope, and p-value
+    label_text <- paste0("r² = ", format(round(r_sq, 3), nsmall = 3), ", slope = ", format(round(slope, 3), nsmall = 3), ", ", p_label_with_star)
+    
+    # Add to labels data frame
+    labels_df <- rbind(labels_df, data.frame(
+      label_x = label_x,
+      label_y = label_y,
+      label_text = label_text,
+      crop_color = crop_color,
+      label_fontface = label_fontface,
+      stringsAsFactors = FALSE
+    ))
+  }
+  
+  # Add all labels at once after the loop
+  plot <- plot +
+    geom_label(data = labels_df,
+               aes(x = label_x, y = label_y, label = label_text, color = I(crop_color), fontface = I(label_fontface)),
+               fill = annotation_fill_color,
+               alpha = 0.77,
+               label.size = 0,
+               label.color = NA,
+               hjust = 1, # Align text to the right
+               inherit.aes = FALSE,
+               show.legend = FALSE)
+  
+  return(plot)
+}
+
+# Create Simple Plant : Microbial Ratio scatterplot
+simple_micr_plot <- create_ratio_scatterplot(
+  data = ratio_stats,
+  y_metric = "Mean_simple_microbial",
+  y_metric_se = "SE_simple_microbial",
+  title = "",
+  y_label = "Simple Plant : Microbial Ratio",
+  regression_stats = simple_micr_regression_stats,
+  crop_colors = crop_colors
+)
+
+print(simple_micr_plot)
+ggsave_themed("simple_plant_microbial_ratio_scatterplot.png", simple_micr_plot)
+
+# Create Total Plant : Microbial Ratio scatterplot
+total_micr_plot <- create_ratio_scatterplot(
+  data = ratio_stats,
+  y_metric = "Mean_total_microbial",
+  y_metric_se = "SE_total_microbial",
+  title = "",
+  y_label = "Total Plant : Microbial Ratio",
+  regression_stats = total_micr_regression_stats,
+  crop_colors = crop_colors
+)
+
+print(total_micr_plot)
+ggsave_themed("total_plant_microbial_ratio_scatterplot.png", total_micr_plot)
+
+# Create Simple Plant : Complex Plant Ratio scatterplot
+simple_complex_plot <- create_ratio_scatterplot(
+  data = ratio_stats,
+  y_metric = "Mean_simple_complex",
+  y_metric_se = "SE_simple_complex",
+  title = "",
+  y_label = "Simple Plant : Complex Plant Ratio",
+  regression_stats = simple_complex_regression_stats,
+  crop_colors = crop_colors
+)
+
+print(simple_complex_plot)
+ggsave_themed("simple_complex_ratio_scatterplot.png", simple_complex_plot)
+```
+
+
+# Plotting with suberin annotations
+These ridge plots show the same spectral data as the original Ridge Plots section, but with annotations highlighting suberin-related peaks identified in the literature. The annotations indicate peaks associated with suberin content in plant roots, based on White et al. (2011, 2016).
+
+
+<table style="width: auto; border-collapse: collapse; border: 1px solid #f5f5f5;">
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Aliphatic suberin moiety:</td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">2923 - 2930, 2854 - 2856 cm<sup>-1</sup> (within 3000-2800 cm<sup>-1</sup> range)</td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Suberin esters:</td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">1737-1742 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 1px solid #f5f5f5;">Aromatic suberin moiety:</td>
+<td style="padding: 5px; border: 1px solid #f5f5f5;">1506 cm<sup>-1</sup> (also lignin)</td>
+</tr>
+</table>
+
+White, K. E., Reeves, J. B., & Coale, F. J. (2011). Mid-infrared diffuse reflectance spectroscopy for the rapid analysis of plant root composition. Geoderma, 167–168, 197–203. https://doi.org/10.1016/j.geoderma.2011.08.009    
+or   
+White, K. E., Reeves, J. B., & Coale, F. J. (2016). Cell wall compositional changes during incubation of plant roots measured by mid-infrared diffuse reflectance spectroscopy and fiber analysis. Geoderma, 264, 205–213. https://doi.org/10.1016/j.geoderma.2015.10.018
+
+## Plotting by timepoint (with suberin annotations)
+### Ridge plots
+```{r suberin-timepoint-ridge, results='asis'}
+# Generic function to create ridge plots with suberin annotations
+create_suberin_ridge_plot <- function(data, timepoint_week, title = NULL) {
+  # Filter data for specific timepoint
+  filtered_data <- data %>%
+    filter(timepoint == timepoint_week) %>%
+    mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
+  
+  # Create title if not provided
+  if (is.null(title)) {
+    week_num <- str_extract(timepoint_week, "\\d+")
+    title <- paste("Root suberin at week", week_num)
+  }
+  
+  # Determine y-position for annotations based on data
+  max_y <- max(filtered_data$normalized_absorbance)*(length(unique(filtered_data$crop))+3)
+  
+  # Create the plot
+  ridge_plot <- filtered_data %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = crop,
+                         height = normalized_absorbance,
+                         group = crop,
+                         fill = crop,
+                         color = crop)) +
+    geom_density_ridges(stat = "identity",
+                        scale = 4.5,
+                        alpha = 0.25) +
+    
+    # Suberin peak annotations
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.06, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2920, xmax = 2926, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+
+    # Suberin esters (1735-1742 cm-1)
+    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#4d653a") +
+    # geom_vline(xintercept = 1706, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#4d653a") + # free acid C=O stretch Garcia et al. 2015
+
+    # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-19 cm-1)
+    annotate("rect", xmin = 1462, xmax = 1464, ymin = -Inf, ymax = Inf, 
+             alpha = 0.43, fill = "#5f3e38") +
+    geom_vline(xintercept = 1374, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#5f3e38") +
+    annotate("rect", xmin = 1240, xmax = 1245, ymin = -Inf, ymax = Inf, 
+             alpha = 0.29, fill = "#5f3e38") +
+    annotate("rect", xmin = 1179, xmax = 1174, ymin = -Inf, ymax = Inf, 
+             alpha = 0.31, fill = "#5f3e38") +
+    annotate("rect", xmin = 1157, xmax = 1158, ymin = -Inf, ymax = Inf, 
+             alpha = 0.67, fill = "#5f3e38") +
+    annotate("rect", xmin = 719, xmax = 723, ymin = -Inf, ymax = Inf, 
+             alpha = 0.38, fill = "#5f3e38") +
+
+    scale_x_reverse(limits = c(3050, 680), expand = c(0.008, 0.008)) +  # Reverse axis and remove padding
+    scale_y_discrete(expand = expansion(mult = c(0.01, 0.56))) +  # Less space below, more above
+    
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
+    scale_fill_manual(values = crop_colors) +
+    scale_color_manual(values = crop_colors) +
+    ggtitle(title) +
+    labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
+   # spacer
+    annotate("text", x = 1900, y = max_y + 0.2, label = " ", 
+             size = 3, hjust = 0.5, color = annotation_text_color) +
+    # Add aliphatic annotation
+    annotate("text", x = 2626, y = max_y*1.19, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add esters annotation
+    annotate("text", x = 1930, y = max_y*1.32, label = "suberin esters", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add fingerprint annotation
+    annotate("label", x = 1310, y = max_y*1.4, label = "suberin fingerprint", 
+             size = 3.3, hjust = 0.5, fill = annotation_fill_color, label.size = NA, color = annotation_text_color)
+
+  return(list(plot = ridge_plot, data = filtered_data))
+}
+
+# Get unique timepoints and sort them (use dpt_data_roots, not ftir_data)
+timepoints <- sort(unique(dpt_data_roots$timepoint))
+
+# Create plots and tables for each timepoint
+timepoints <- sort(unique(dpt_data_roots$timepoint))
+
+for (tp in timepoints) {
+  # Create plot and get filtered data
+  result <- create_suberin_ridge_plot(dpt_data_roots, tp)
+  
+  # Print the plot
+  print(result$plot)
+  
+  # Create and print sample count table with results='asis'
+  counts_table <- create_sample_count_table(result$data, tp)
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+### Line plots
+```{r line-time-suberin-plots, results='asis', include=FALSE}
+# Generic function to create line plots for any timepoint
+create_timepoint_line_plot <- function(data, timepoint_week, title = NULL) {
+  # Filter data for specific timepoint
+  filtered_data <- data %>%
+    filter(timepoint == timepoint_week) %>%
+    mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy")))
+  
+  # Create title if not provided
+  if (is.null(title)) {
+    week_num <- str_extract(timepoint_week, "\\d+")
+    title <- paste("Roots at week", week_num)
+  }
+  
+  # Create the plot - offset lines vertically by crop like ridge plots
+  # Only include crops that are actually present in the filtered data
+  all_crop_levels <- c("noPlant", "wheat", "rice", "soy")
+  present_crops <- intersect(all_crop_levels, unique(filtered_data$crop))
+  len <- length(present_crops)
+  # Scale the data to match ridge plot proportions
+  max_abs <- max(filtered_data$normalized_absorbance, na.rm = TRUE)
+  # Determine y-position for annotations based on data
+  text_y <- len * 2 + 1.75
+  # Create offsets only for crops that are present
+  crop_offsets <- setNames(seq(0, (len-1) * 3, 3), present_crops)
+
+  # Add offset to data
+  filtered_data_offset <- filtered_data %>%
+    mutate(crop_offset = crop_offsets[as.character(crop)],
+           normalized_absorbance_offset = (normalized_absorbance*4.444 + crop_offset))
+  line_plot <- filtered_data_offset %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = normalized_absorbance_offset,
+                         group = filename,
+                         color = crop)) +
+    scale_x_reverse(limits = c(3050, 670), expand = c(0.008, 0.008)) +
+    geom_line(alpha = 0.7) +
+    scale_y_continuous(
+      breaks = crop_offsets + 1.111,  # move labels up
+      labels = names(crop_offsets)
+    ) +
+    
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
+    scale_fill_manual(values = crop_colors) +
+    scale_color_manual(values = crop_colors) +
+    ggtitle(title) +
+    labs(x = expression("wavenumber (cm"^-1*")"), 
+         y = "", 
+         color = "Crop") +
+    # Suberin peak annotations
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.06, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2918, xmax = 2928, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2848, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+
+    # Suberin esters (1735-1742 cm-1)
+    annotate("rect", xmin = 1728, xmax = 1749, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#4d653a") +
+    # geom_vline(xintercept = 1706, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#4d653a") + # free acid C=O stretch Garcia et al. 2015
+
+    # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-19 cm-1)
+    annotate("rect", xmin = 1454, xmax = 1472, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    annotate("rect", xmin = 1355, xmax = 1375, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    annotate("rect", xmin = 1233, xmax = 1253, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    annotate("rect", xmin = 1153, xmax = 1183, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1169, xmax = 1184, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1152, xmax = 1163, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 714, xmax = 728, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5f3e38") +
+
+   # spacer
+    annotate("text", x = 1900, y = 11, label = " ", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add aliphatic annotation
+    annotate("text", x = 2626, y = max_y*1.19, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add esters annotation
+    annotate("text", x = 1930, y = max_y*1.32, label = "suberin esters", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add fingerprint annotation
+    annotate("label", x = 1310, y = max_y*1.4, label = "suberin fingerprint", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
+
+  return(list(plot = line_plot, data = filtered_data))
+}
+
+# Generic function to create sample count tables
+create_sample_count_table <- function(filtered_data, timepoint_week) {
+  week_num <- str_extract(timepoint_week, "\\d+")
+  col_name <- paste("Week", week_num, "samples")
+  
+  counts <- filtered_data %>%
+    select(filename, crop) %>%
+    distinct() %>%
+    count(crop) %>%
+    arrange(match(crop, c("noPlant", "wheat", "rice", "soy"))) %>%
+    mutate(!!col_name := paste(n, "&nbsp;&nbsp;", crop)) %>%
+    select(all_of(col_name))
+  
+  return(counts)
+}
+
+# Create plots and tables for each timepoint
+timepoints <- sort(unique(dpt_data_roots$timepoint))
+
+for (tp in timepoints) {
+  # Create plot and get filtered data
+  result <- create_timepoint_line_plot(dpt_data_roots, tp)
+  
+  # Print the plot
+  print(result$plot)
+  
+  # Create and print sample count table with results='asis'
+  counts_table <- create_sample_count_table(result$data, tp)
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+## Plotting by crop (with suberin annotations)
+### Ridge Plots
+```{r suberin-crop-ridge, results = 'asis'}
+# Define crop-specific color palettes
+crop_timepoint_colors <- list(
+  wheat = c("wk0" = "#d2a9f6", "wk10" = "#bd7ef6", "wk20" = "#9355CC",
+            "wk30" = "#692DA1", "wk40" = "#3f0477"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk29" = "#F18204",
+           "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk20" = "#F4016E",
+          "wk30" = "#B70153", "wk40" = "#7A0137"),
+  noPlant = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk20" = "#79A63A",
+            "wk30" = "#58792A", "wk40" = "#374B1B")
+)
+# Generic function to create crop-specific DRIFTS plots with suberin annotations 
+create_crop_plot <- function(data, crop_name, color_palette) {
+  # Filter data for specific crop
+  crop_data <- data %>%
+    group_by(timepoint) %>%
+    filter(crop == crop_name)
+  
+  # Ensure absorbance is numeric
+  crop_data$normalized_absorbance <- as.numeric(crop_data$normalized_absorbance)
+  
+  # Create the plot
+  crop_plot <- ggplot(crop_data,
+                      aes(x = wavenumber,
+                          y = normalized_absorbance,
+                          color = timepoint)) +
+    xlim(3100, 600) +
+    geom_line() +
+    
+    scale_color_manual(values = color_palette) +
+    ggtitle(paste(str_to_title(crop_name), "root suberin")) +
+    labs(x = expression("wavenumber (cm"^-1*")"), 
+         y = "normalized absorbance") +
+   # Suberin peak annotations
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.06, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2922, xmax = 2932, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.27, fill = "#5076ab") +
+
+    # Suberin esters (1735-1742 cm-1)
+    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#4d653a") +
+    
+    # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-20 cm-1)
+    annotate("rect", xmin = 1462, xmax = 1464, ymin = -Inf, ymax = Inf, 
+             alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 1355, xmax = 1375, ymin = -Inf, ymax = Inf, 
+             alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 1233, xmax = 1253, ymin = -Inf, ymax = Inf, 
+             alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 1153, xmax = 1183, ymin = -Inf, ymax = Inf, 
+             alpha = 0.3, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1169, xmax = 1184, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1152, xmax = 1163, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 714, xmax = 728, ymin = -Inf, ymax = Inf, 
+             alpha = 0.3, fill = "#5f3e38") +
+
+    # Add aliphatic annotation
+    annotate("text", x = 2626, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add esters annotation
+    annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add fingerprint annotation
+    annotate("label", x = 1290, y = max(crop_data$normalized_absorbance)+0.04, label = "suberin fingerprint", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
+
+  
+  return(list(plot = crop_plot, data = crop_data))
+}
+
+# Generate plots and tables for each crop
+crops <- c("noPlant", "wheat", "rice", "soy")
+
+for (crop in crops) {
+  # Create plot and get data
+  result <- create_crop_plot(dpt_data_roots, crop, crop_timepoint_colors[[crop]])
+  
+  # Print the plot
+  print(result$plot)
+  cat("<br>")  # Add space between plot and table
+  
+  # Create and print ID combinations table
+  id_table <- create_crop_id_table(result$data, crop)
+  cat(paste0("<h4>", str_to_title(crop), " pot root samples</h4>"))
+  cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+## Combined stacked overlay plot (with suberin annotations)  
+
+This chunk creates a single visualization showing all crops and timepoints by stacking the overlay plots vertically with a shared y-axis. Each crop has its own color palette and legend.
+
+```{r combined-stacked-overlay-suberin, fig.height=9, fig.width=13}
+# Define crop-specific color palettes (exclude noPlant)
+crop_timepoint_colors_three <- list(
+  wheat = c("wk0" = "#d2a9f6", "wk10" = "#bd7ef6", "wk40" = "#3f0477"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk40" = "#7A0137")
+)
+
+# Prepare data with three crops only (ordered from bottom to top: wheat, rice, soy)
+crops_ordered_three <- c("soy", "rice", "wheat")  # Reversed for plotting so soy appears at top
+three_crops_data <- dpt_data_roots %>%
+  filter(crop %in% crops_ordered_three) %>%
+  mutate(crop = factor(crop, levels = crops_ordered_three)) %>%
+  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+
+# Calculate vertical offset for each crop to create stacking effect
+offset_amount_three <- 0.7  # Space between each crop's spectra
+crop_offsets_three <- setNames(seq(0, length(crops_ordered_three) - 1) * offset_amount_three, crops_ordered_three)
+
+# Add offset to absorbance values based on crop
+three_crops_data <- three_crops_data %>%
+  mutate(offset_absorbance = normalized_absorbance + crop_offsets_three[as.character(crop)])
+
+# Determine max y position for annotations
+max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
+
+# Create the base plot with functional region annotations
+base_plot_three <- ggplot() +
+  xlim(3100, 600) +
+  
+  labs(x = expression("wavenumber (cm"^-1*")"), 
+       y = "normalized absorbance") +
+  theme(
+    axis.text.y = element_blank(),
+    # axis.ticks.y = element_blank(),
+    axis.title.y = element_text(size = 14.5),
+    axis.text.x = element_text(size = 14.5, face = "bold"),
+    axis.title.x = element_text(size = 15.5),
+    legend.position = "right",
+    legend.justification = c(0, 0.07),  # (x, y) position; 0,0 is bottom-right
+    legend.box = "vertical",
+    legend.spacing.y = unit(2.8, "cm"),
+    legend.title = element_text(size = 15, face = "bold"),
+    legend.text = element_text(size = 14.5),
+    plot.margin = margin(7, 14, 7, 7, "pt")  # (top, right, bottom, left)
+  ) +
+  scale_y_continuous(
+    breaks = crop_offsets_three + 0.003, # y-tick positions
+    labels = NULL,
+    expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
+  ) +
+  scale_x_reverse(
+    limits = c(3100, 600),
+    breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
+    expand = c(0.002, 0.003)  # Remove padding on x-axis
+  ) +
+  
+        # Suberin peak annotations
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3000, ymin = -Inf, ymax = Inf, 
+             alpha = 0.12, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2923, xmax = 2928, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#5076ab") +
+
+    # Suberin esters (1735-1742 cm-1)
+    annotate("rect", xmin = 1730, xmax = 1748, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#4d653a") +
+    # geom_vline(xintercept = 1706, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#4d653a") + # free acid C=O stretch Garcia et al. 2015
+
+    # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-20 cm-1)
+    annotate("rect", xmin = 1454, xmax = 1472, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#5f3e38") +
+    annotate("rect", xmin = 1355, xmax = 1375, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#5f3e38") +
+    annotate("rect", xmin = 1233, xmax = 1253, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#5f3e38") +
+    annotate("rect", xmin = 1153, xmax = 1183, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1169, xmax = 1184, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1152, xmax = 1163, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 714, xmax = 728, ymin = -Inf, ymax = Inf, 
+             alpha = 0.54, fill = "#5f3e38") +
+
+  # Add aliphatic annotation
+  annotate("text", x = 2620, y = max_y_three - 0.03, label = "aliphatic suberin", 
+            size = 4.8, hjust = 0.5, color = annotation_text_color) +
+  # Add esters annotation
+  annotate("text", x = 1930, y = max_y_three - 0.01, label = "suberin esters", 
+            size = 4.8, hjust = 0.5, color = annotation_text_color) +
+  # Add fingerprint annotation
+  annotate("label", x = 1290, y = max_y_three, label = "suberin fingerprint", 
+            size = 4.8, color = annotation_text_color, hjust = 0.5, fill = annotation_fill_color, label.size = NA)
+ 
+# Add all crop layers without automatic legends, explicitly coloring each line
+combined_overlay_plot_suberin <- base_plot_three
+
+for (crop in crops_ordered_three) {
+  crop_data <- three_crops_data %>% filter(crop == !!crop)
+  
+  for (tp in names(crop_timepoint_colors_three[[crop]])) {
+    tp_data <- crop_data %>% filter(timepoint == tp)
+    
+    combined_overlay_plot_suberin <- combined_overlay_plot_suberin +
+      geom_line(data = tp_data,
+                aes(x = wavenumber, y = offset_absorbance),
+                color = crop_timepoint_colors_three[[crop]][tp],
+                linewidth = 0.5,
+                show.legend = FALSE)
+  }
+}
+
+# Create dummy data for manual legends - one for each crop
+dummy_wheat <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  wheat_tp = names(crop_timepoint_colors_three$wheat)
+)
+
+dummy_rice <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  rice_tp = names(crop_timepoint_colors_three$rice)
+)
+
+dummy_soy <- data.frame(
+  x = rep(3777, 3), y = rep(0, 3),
+  soy_tp = names(crop_timepoint_colors_three$soy)
+)
+
+# Add invisible layers with separate aesthetics for each crop
+combined_overlay_plot_suberin <- combined_overlay_plot_suberin +
+  # Wheat legend
+  geom_line(data = dummy_wheat,
+            aes(x = x, y = y, color = wheat_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Wheat",
+    values = crop_timepoint_colors_three$wheat,
+    breaks = names(crop_timepoint_colors_three$wheat),
+    labels = names(crop_timepoint_colors_three$wheat),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 1
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Rice legend
+  geom_line(data = dummy_rice,
+            aes(x = x, y = y, color = rice_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Rice",
+    values = crop_timepoint_colors_three$rice,
+    breaks = names(crop_timepoint_colors_three$rice),
+    labels = names(crop_timepoint_colors_three$rice),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 2
+    )
+  ) +
+  ggnewscale::new_scale_color() +
+  # Soy legend
+  geom_line(data = dummy_soy,
+            aes(x = x, y = y, color = soy_tp),
+            linewidth = 0, alpha = 0) +
+  scale_color_manual(
+    name = "Soy",
+    values = crop_timepoint_colors_three$soy,
+    breaks = names(crop_timepoint_colors_three$soy),
+    labels = names(crop_timepoint_colors_three$soy),
+    guide = guide_legend(
+      override.aes = list(linewidth = 2, alpha = 1),
+      order = 3
+    )
+  )
+
+print(combined_overlay_plot_suberin)
+ggsave_themed("combined_overlay_plot_suberin.png", combined_overlay_plot_suberin)
+```
+
+### Line Plots
+```{r line-crop_suberin-plots, results='asis', include=FALSE}
+# Generic function to create line plots for any crop with suberin annotations
+# Define crop-specific color palettes
+crop_timepoint_colors <- list(
+  wheat = c("wk0" = "#d2a9f6", "wk10" = "#bd7ef6", "wk20" = "#9355CC",
+            "wk30" = "#692DA1", "wk40" = "#3f0477"),
+  rice = c("wk0" = "#FDB35E", "wk10" = "#FC9D33", "wk29" = "#F18204",
+           "wk40" = "#B56203"),
+  soy = c("wk0" = "#FE71B1", "wk10" = "#FE318E", "wk20" = "#F4016E",
+          "wk30" = "#B70153", "wk40" = "#7A0137"),
+  noPlant = c("wk0" = "#B4D586", "wk10" = "#98C559", "wk20" = "#79A63A",
+            "wk30" = "#58792A", "wk40" = "#374B1B")
+)
+
+create_crop_line_plot <- function(data, crop_name, color_palette) {
+ # Filter data for specific crop
+  crop_data <- data %>%
+    group_by(timepoint) %>%
+    filter(crop == crop_name)
+  
+  # Ensure absorbance is numeric
+  crop_data$normalized_absorbance <- as.numeric(crop_data$normalized_absorbance)
+  
+  # Create the plot
+  # Scale the data to match ridge plot proportions
+  max_abs <- max(crop_data$normalized_absorbance, na.rm = TRUE)
+  line_plot <- crop_data %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = normalized_absorbance,
+                         group = filename,
+                         color = timepoint)) +
+    xlim(3100, 600) +
+    geom_line(alpha = 0.8) +
+    
+    scale_color_manual(values = color_palette) +
+    ggtitle(paste(str_to_title(crop_name), "root suberin")) +
+    labs(x = expression("wavenumber (cm"^-1*")"), 
+         y = "normalized absorbance") +
+    # Suberin peak annotations
+    # Aliphatic suberin region (3000-2850 cm-1)
+    annotate("rect", xmin = 2825, xmax = 3010, ymin = -Inf, ymax = Inf, 
+             alpha = 0.07, fill = "#5076ab") +
+    # Specific aliphatic peaks
+    geom_vline(xintercept = 2923, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    geom_vline(xintercept = 2930, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # asymmetric CH2 stretch region (2930, 2925, 2919 cm-1)
+    annotate("rect", xmin = 2923, xmax = 2930, ymin = -Inf, ymax = Inf, 
+             alpha = 0.22, fill = "#5076ab") +
+    # geom_vline(xintercept = 2854, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    # geom_vline(xintercept = 2856, linetype = "longdash", linewidth = 0.23, color = "#3D6AA9") +
+    annotate("rect", xmin = 2853, xmax = 2858, ymin = -Inf, ymax = Inf, 
+             alpha = 0.22, fill = "#5076ab") +
+
+    # Suberin esters (1735-1742 cm-1)
+    annotate("rect", xmin = 1730, xmax = 1742, ymin = -Inf, ymax = Inf, 
+             alpha = 0.15, fill = "#4d653a") +
+    # geom_vline(xintercept = 1706, linetype = "solid", linewidth = 0.33, alpha = 0.33, color = "#4d653a") + # free acid C=O stretch Garcia et al. 2015
+
+    # suberin fingerprint (1464-62, 1374, 1245-40, 1179-74, 723-20 cm-1)
+    annotate("rect", xmin = 1454, xmax = 1472, ymin = -Inf, ymax = Inf, 
+             alpha = 0.33, fill = "#5f3e38") +
+    annotate("rect", xmin = 1355, xmax = 1375, ymin = -Inf, ymax = Inf, 
+             alpha = 0.33, fill = "#5f3e38") +
+    annotate("rect", xmin = 1233, xmax = 1253, ymin = -Inf, ymax = Inf, 
+             alpha = 0.33, fill = "#5f3e38") +
+    annotate("rect", xmin = 1153, xmax = 1183, ymin = -Inf, ymax = Inf, 
+             alpha = 0.33, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1169, xmax = 1184, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    # annotate("rect", xmin = 1152, xmax = 1163, ymin = -Inf, ymax = Inf, 
+    #          alpha = 0.3, fill = "#5f3e38") +
+    annotate("rect", xmin = 714, xmax = 728, ymin = -Inf, ymax = Inf, 
+             alpha = 0.33, fill = "#5f3e38") +
+
+    # Add aliphatic annotation
+    annotate("text", x = 2626, y = max(crop_data$normalized_absorbance)-0.05, label = "aliphatic suberin", 
+             size = 3.3, hjust = 0.5, color = "#163a6c") +
+    # Add esters annotation
+    annotate("text", x = 1919, y = max(crop_data$normalized_absorbance), label = "suberin esters", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add fingerprint annotation
+    annotate("text", x = 1296, y = max(crop_data$normalized_absorbance)+0.02, label = "suberin fingerprint", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color)
+  return(list(plot = line_plot, data = crop_data))
+}
+
+# Generate plots and tables for each crop
+crops <- c("noPlant", "wheat", "rice", "soy")
+
+for (crop in crops) {
+  # Create plot and get data
+  result <- create_crop_line_plot(dpt_data_roots, crop, crop_timepoint_colors[[crop]])
+  
+  # Print the plot
+  print(result$plot)
+  cat("<br>")  # Add space between plot and table
+  
+  # Create and print ID combinations table
+  id_table <- create_crop_id_table(result$data, crop)
+  cat(paste0("<h4>", str_to_title(crop), " pot root samples</h4>"))
+  cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
+  cat("<br><br>")  # Add HTML line breaks for spacing
+}
+```
+
+# Suberin integration
+## Integrating suberin regions
+I'm using normalized values for integration to force positive values.
+
+```{r suberin-integration-function}
+suberin_spectral_integration <- function(dpt_data) {
+  cat("Starting spectral integration processing...\n")
+  
+  # Load required library for integration
+  if (!require(pracma, quietly = TRUE)) {
+    install.packages("pracma")
+    library(pracma)
+  }
+  
+  # DIAGNOSTIC: Check what columns exist and their values
+  cat("=== DIAGNOSTIC ===\n")
+  cat("Available columns in dpt_data:", paste(names(dpt_data), collapse=", "), "\n")
+  if ("normalized_absorbance" %in% names(dpt_data)) {
+    cat("normalized_absorbance range:", 
+        range(dpt_data$normalized_absorbance, na.rm=TRUE), "\n")
+  } else {
+    cat("WARNING: normalized_absorbance column NOT FOUND!\n")
+  }
+  cat("==================\n")
+  
+  # Prepare the data in the format needed for integration
+  # Use normalized_absorbance values to ensure positive integration results
+  comb <- dpt_data %>%
+    select(filename, wavenumber, normalized_absorbance) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = normalized_absorbance)
+  
+  # Define spectral windows of interest
+  red1 <- comb[comb$wavelength > 2918 & comb$wavelength < 2928, ]  # Aliphatic 1
+  red2 <- comb[comb$wavelength > 2848 & comb$wavelength < 2858, ]  # Aliphatic 2  
+  red3 <- comb[comb$wavelength > 1728 & comb$wavelength < 1749, ]  # Esters
+  red4 <- comb[comb$wavelength > 1454 & comb$wavelength < 1472, ]  # fingerprint 1
+  red5 <- comb[comb$wavelength > 1355 & comb$wavelength < 1375, ]  # fingerprint 2
+  red6 <- comb[comb$wavelength > 1233 & comb$wavelength < 1253, ]  # fingerprint 3
+  red7 <- comb[comb$wavelength > 1153 & comb$wavelength < 1183, ]  # fingerprint 4
+  red8 <- comb[comb$wavelength > 714 & comb$wavelength < 728, ]  # fingerprint 5
+
+  # Get unique samples
+  sample <- unique(comb$sample)
+  
+  # Create integration results data frame
+  S_ints <- data.frame(
+    sample = sample,
+    int_2918_2928 = numeric(length(sample)),
+    int_2848_2858 = numeric(length(sample)),
+    int_1728_1749 = numeric(length(sample)),
+    int_1454_1472 = numeric(length(sample)),
+    int_1355_1375 = numeric(length(sample)),
+    int_1233_1253 = numeric(length(sample)),
+    int_1153_1183 = numeric(length(sample)),
+    int_714_728 = numeric(length(sample)),
+    stringsAsFactors = FALSE
+  )
+  
+  # Calculate integrated areas for each spectral window and sample
+  cat("Processing", length(sample), "samples for integration...\n")
+  for (i in seq_len(nrow(S_ints))) {
+    current_sample <- sample[i]
+    
+    # Extract data for current sample from each spectral window
+    # Sort by wavelength in ASCENDING order to ensure positive integration
+    sample_red1 <- red1[red1$sample == current_sample, ]
+    sample_red1 <- sample_red1[order(sample_red1$wavelength), ]
+    
+    sample_red2 <- red2[red2$sample == current_sample, ]
+    sample_red2 <- sample_red2[order(sample_red2$wavelength), ]
+    
+    sample_red3 <- red3[red3$sample == current_sample, ]
+    sample_red3 <- sample_red3[order(sample_red3$wavelength), ]
+    
+    sample_red4 <- red4[red4$sample == current_sample, ]
+    sample_red4 <- sample_red4[order(sample_red4$wavelength), ]
+    
+    sample_red5 <- red5[red5$sample == current_sample, ]
+    sample_red5 <- sample_red5[order(sample_red5$wavelength), ]
+    
+    sample_red6 <- red6[red6$sample == current_sample, ]
+    sample_red6 <- sample_red6[order(sample_red6$wavelength), ]
+    
+    sample_red7 <- red7[red7$sample == current_sample, ]
+    sample_red7 <- sample_red7[order(sample_red7$wavelength), ]
+    
+    sample_red8 <- red8[red8$sample == current_sample, ]
+    sample_red8 <- sample_red8[order(sample_red8$wavelength), ]
+    
+    # Calculate area under curve (integration) using trapezoidal rule
+    if (nrow(sample_red1) > 1) {
+      S_ints$int_2918_2928[i] <- pracma::trapz(sample_red1$wavelength, sample_red1$abs)
+    }
+    
+    if (nrow(sample_red2) > 1) {
+      S_ints$int_2848_2858[i] <- pracma::trapz(sample_red2$wavelength, sample_red2$abs)
+    }
+    
+    if (nrow(sample_red3) > 1) {
+      S_ints$int_1728_1749[i] <- pracma::trapz(sample_red3$wavelength, sample_red3$abs)
+    }
+    
+    if (nrow(sample_red4) > 1) {
+      S_ints$int_1454_1472[i] <- pracma::trapz(sample_red4$wavelength, sample_red4$abs)
+    }
+    
+    if (nrow(sample_red5) > 1) {
+      S_ints$int_1355_1375[i] <- pracma::trapz(sample_red5$wavelength, sample_red5$abs)
+    }
+    
+    if (nrow(sample_red6) > 1) {
+      S_ints$int_1233_1253[i] <- pracma::trapz(sample_red6$wavelength, sample_red6$abs)
+    }
+    
+    if (nrow(sample_red7) > 1) {
+      S_ints$int_1153_1183[i] <- pracma::trapz(sample_red7$wavelength, sample_red7$abs)
+    }
+    
+    if (nrow(sample_red8) > 1) {
+      S_ints$int_714_728[i] <- pracma::trapz(sample_red8$wavelength, sample_red8$abs)
+    }
+  }
+  
+  # Use existing metadata from the input data (no need to re-extract)
+  cat("Using existing metadata from DPT data...\n")
+  basic_meta <- dpt_data %>%
+    select(filename, crop, timepoint, sample_type, ID) %>%
+    distinct() %>%
+    rename(sample = filename, type = sample_type)
+  
+  # Combine metadata with integration results
+  ftir_suber <- merge(basic_meta, S_ints, by = "sample", all = TRUE)
+  
+  # Calculate derived metrics (same as original)
+  ftir_suber$esterS <- ftir_suber$int_1728_1749
+  ftir_suber$aliphaticS <- ftir_suber$int_2848_2858 + ftir_suber$int_2918_2928
+  ftir_suber$fingerprintS <- ftir_suber$int_1454_1472 + ftir_suber$int_1355_1375 + ftir_suber$int_1233_1253 + ftir_suber$int_1153_1183 + ftir_suber$int_714_728
+  ftir_suber$fingerprintS_no723 <- ftir_suber$int_1454_1472 + ftir_suber$int_1355_1375 + ftir_suber$int_1233_1253 + ftir_suber$int_1153_1183
+  ftir_suber$total_suberin <- ftir_suber$aliphaticS + ftir_suber$esterS + ftir_suber$fingerprintS
+  ftir_suber$aliphaticS_prop <- ftir_suber$aliphaticS / ftir_suber$total_suberin
+  ftir_suber$esterS_prop <- ftir_suber$esterS / ftir_suber$total_suberin
+  ftir_suber$fingerprintS_prop <- ftir_suber$fingerprintS / ftir_suber$total_suberin
+  ftir_suber$fingerprintS_no723_prop <- ftir_suber$fingerprintS_no723 / ftir_suber$total_suberin
+  
+  
+  # Save the processed data to the output directory
+  today <- format(Sys.Date(), "%Y-%m-%d")
+  output_file <- file.path(outputs_folder, paste0("processed_suberin_int_data_", today, ".csv"))
+  write.csv(ftir_suber, file = output_file, row.names = FALSE)
+  cat("Saved processed integration data to:", output_file, "\n")
+  
+  cat("Integration processing completed successfully.\n")
+  return(ftir_suber)
+}
+```
+
+## Generating suberin statistics
+```{r import-suberin-integration-data, message=FALSE, warning=FALSE}
+# Helper function to find the most recent processed integration data file
+most_recent_suberin_file <- function(data_dir) {
+  pattern <- "processed_suberin_int_data_.*\\.csv$"
+  files <- list.files(data_dir, pattern = pattern, full.names = TRUE)
+  
+  if (length(files) == 0) {
+    return(NULL)
+  }
+  
+  # Extract dates from filenames and find the most recent
+  dates <- stringr::str_extract(basename(files), "\\d{4}-\\d{2}-\\d{2}")
+  most_recent_idx <- which.max(as.Date(dates))
+  
+  cat("Found", length(files), "processed suberin integration files\n")
+  cat("Using most recent file:", basename(files[most_recent_idx]), "\n")
+  
+  return(files[most_recent_idx])
+}
+# Try to find the most recent processed integration data file
+suber_ftir_file <- most_recent_suberin_file(integrated_ftir_data)
+
+if (!is.null(suber_ftir_file) && file.exists(suber_ftir_file)) {
+  ftir_suber <- read_csv(suber_ftir_file, show_col_types = FALSE)
+  cat("Successfully loaded FTIR integration data from:", basename(suber_ftir_file), "\n")
+  cat("Dimensions:", dim(ftir_suber), "\n")
+  cat("Columns:", names(ftir_suber), "\n")
+  
+  # Check if total_suberin values are negative (indicating old data with raw absorbance)
+  if ("total_suberin" %in% names(ftir_suber) && any(ftir_suber$total_suberin < 0, na.rm = TRUE)) {
+    cat("WARNING: Detected negative total_suberin values in loaded CSV.\n")
+    cat("This indicates data was integrated using raw absorbance instead of normalized values.\n")
+    cat("Forcing re-integration with normalized absorbance...\n")
+    ftir_suber <- NULL  # Force re-integration
+  } else {
+    # Calculate fingerprintS_no723_prop if it doesn't exist (for older CSV files)
+    if (!"fingerprintS_no723_prop" %in% names(ftir_suber)) {
+      cat("Calculating missing fingerprintS_no723_prop column...\n")
+      if ("fingerprintS_no723" %in% names(ftir_suber) && "total_suberin" %in% names(ftir_suber)) {
+        ftir_suber$fingerprintS_no723_prop <- ftir_suber$fingerprintS_no723 / ftir_suber$total_suberin
+      } else {
+        warning("Cannot calculate fingerprintS_no723_prop: required columns not found")
+      }
+    }
+  }
+}
+
+if (is.null(suber_ftir_file) || !file.exists(suber_ftir_file) || is.null(ftir_suber)) {
+  cat("No processed integration data found. Processing raw DPT data to generate integration results...\n")
+  
+  # Check if we have the required dpt_data_roots from previous chunk
+  if (!exists("dpt_data_roots") || nrow(dpt_data_roots) == 0) {
+    stop("No DPT data available for integration. Please ensure the DPT data import was successful.")
+  }
+  
+  # Process raw DPT data using the integrated function
+  ftir_suber <- suberin_spectral_integration(dpt_data_roots)
+  
+  # Verify the processing was successful
+  if (is.null(ftir_suber) || nrow(ftir_suber) == 0) {
+    stop("Failed to process DPT data for integration.")
+  }
+  
+  cat("Successfully processed", nrow(ftir_suber), "samples from DPT data\n")
+  cat("Generated columns:", names(ftir_suber), "\n")
+}
+
+# Diagnostic: Check integration values
+cat("\n=== DIAGNOSTIC: Integration Values ===\n")
+cat("Summary of total_suberin:\n")
+print(summary(ftir_suber$total_suberin))
+cat("\nSample of integration data:\n")
+print(head(ftir_suber[, c("sample", "int_2918_2928", "int_2848_2858", "aliphaticS", "esterS", "fingerprintS", "total_suberin")]))
+
+cat("\n=== DIAGNOSTIC: Normalized Absorbance in Integration Region ===\n")
+diag_data <- dpt_data_roots %>%
+  filter(wavenumber > 2918 & wavenumber < 2928) %>%
+  group_by(filename) %>%
+  summarise(
+    n_points = n(),
+    min_norm = min(normalized_absorbance, na.rm = TRUE),
+    max_norm = max(normalized_absorbance, na.rm = TRUE),
+    mean_norm = mean(normalized_absorbance, na.rm = TRUE),
+    .groups = 'drop'
+  )
+cat("Data points in 2918-2928 cm-1 region:\n")
+print(head(diag_data))
+
+# Calculate summary statistics by group
+crop_suber <- ftir_suber %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy"))) %>%
+  group_by(crop) %>%
+  summarise(
+    Mean_total_suberin = mean(total_suberin, na.rm = TRUE),
+    SE_total_suberin = sd(total_suberin, na.rm = TRUE) / sqrt(n()),
+    Mean_aliphaticS_prop = mean(aliphaticS_prop, na.rm = TRUE),
+    SE_aliphaticS_prop = sd(aliphaticS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_esterS_prop = mean(esterS_prop, na.rm = TRUE),
+    SE_esterS_prop = sd(esterS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_fingerprintS_prop = mean(fingerprintS_prop, na.rm = TRUE),
+    SE_fingerprintS_prop = sd(fingerprintS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_fingerprintS_no723_prop = mean(fingerprintS_no723_prop, na.rm = TRUE),
+    SE_fingerprintS_no723_prop = sd(fingerprintS_no723_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+
+timepoint_suber <- ftir_suber %>%
+  group_by(timepoint) %>%
+  summarise(
+    Mean_total_suberin = mean(total_suberin, na.rm = TRUE),
+    SE_total_suberin = sd(total_suberin, na.rm = TRUE) / sqrt(n()),
+    Mean_aliphaticS_prop = mean(aliphaticS_prop, na.rm = TRUE),
+    SE_aliphaticS_prop = sd(aliphaticS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_esterS_prop = mean(esterS_prop, na.rm = TRUE),
+    SE_esterS_prop = sd(esterS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_fingerprintS_prop = mean(fingerprintS_prop, na.rm = TRUE),
+    SE_fingerprintS_prop = sd(fingerprintS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_fingerprintS_no723_prop = mean(fingerprintS_no723_prop, na.rm = TRUE),
+    SE_fingerprintS_no723_prop = sd(fingerprintS_no723_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+
+crop_timepoint_suber <- ftir_suber %>%
+  mutate(crop = factor(crop, levels = c("noPlant", "wheat", "rice", "soy"))) %>%
+  group_by(crop, timepoint) %>%
+  summarise(
+    Mean_total_suberin = mean(total_suberin, na.rm = TRUE),
+    SE_total_suberin = sd(total_suberin, na.rm = TRUE) / sqrt(n()),
+    Mean_aliphaticS_prop = mean(aliphaticS_prop, na.rm = TRUE),
+    SE_aliphaticS_prop = sd(aliphaticS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_esterS_prop = mean(esterS_prop, na.rm = TRUE),
+    SE_esterS_prop = sd(esterS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_fingerprintS_prop = mean(fingerprintS_prop, na.rm = TRUE),
+    SE_fingerprintS_prop = sd(fingerprintS_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_fingerprintS_no723_prop = mean(fingerprintS_no723_prop, na.rm = TRUE),
+    SE_fingerprintS_no723_prop = sd(fingerprintS_no723_prop, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+```
+# Visualizing suberin ranges
+This code is modified from "Visualizing_FTIR_w_Elemental_Data.R"
+```{r leila-plots-suberin}
+# Recreate the EXACT plotting function from Leila_code_modified.Rmd
+suber_proportion_plots <- function(stats_data, group_col, title_prefix) {
+  # Choose colors based on grouping variable
+  colors_to_use <- if(group_col == "crop") crop_colors else timepoint_colors
+  
+  p1 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_total_suberin", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(ymin = "Mean_total_suberin - SE_total_suberin", 
+                            ymax = "Mean_total_suberin + SE_total_suberin"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Total (relative) Suberin"),
+         x = str_to_title(group_col),
+         y = "Total Suberin Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10))
+
+  p2 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_aliphaticS_prop", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(ymin = "Mean_aliphaticS_prop - SE_aliphaticS_prop", 
+                            ymax = "Mean_aliphaticS_prop + SE_aliphaticS_prop"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Aliphatic Suberin/Total Suberin"),
+         x = str_to_title(group_col),
+         y = "Aliphatic Suberin Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10))
+
+  p3 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_esterS_prop", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(ymin = "Mean_esterS_prop - SE_esterS_prop", 
+                            ymax = "Mean_esterS_prop + SE_esterS_prop"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Esterified Suberin/Total Suberin"),
+         x = str_to_title(group_col),
+         y = "Esterified Suberin Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10))
+
+  p4 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_fingerprintS_prop", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(ymin = "Mean_fingerprintS_prop - SE_fingerprintS_prop", 
+                            ymax = "Mean_fingerprintS_prop + SE_fingerprintS_prop"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Fingerprint Suberin/Total Suberin"),
+         x = str_to_title(group_col),
+         y = "Fingerprint Suberin Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10))
+
+  p5 <- ggplot(data = stats_data, aes_string(x = group_col, y = "Mean_fingerprintS_no723_prop", fill = group_col)) +
+    geom_col(alpha = 0.8) +
+    geom_errorbar(aes_string(ymin = "Mean_fingerprintS_no723_prop - SE_fingerprintS_no723_prop", 
+                            ymax = "Mean_fingerprintS_no723_prop + SE_fingerprintS_no723_prop"),
+                  width = 0.2) +
+    
+    scale_fill_manual(values = colors_to_use) +
+    labs(title = paste0(title_prefix, "Fingerprint Suberin/Total Suberin"),
+         x = str_to_title(group_col),
+         y = "Fingerprint Suberin Proportion") +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.margin = margin(20, 20, 20, 20),
+          axis.title = element_text(size = 12),
+          plot.title = element_text(size = 10))
+
+  list(p1 = p1, p2 = p2, p3 = p3, p4 = p4, p5 = p5)
+}
+
+# Create EXACT plots by crop (from Leila_code_modified.Rmd)
+crop_suber_plots <- suber_proportion_plots(crop_suber, "crop", "")
+crop_suber_combined <- plot_grid(crop_suber_plots$p1, crop_suber_plots$p2, crop_suber_plots$p3, crop_suber_plots$p4, crop_suber_plots$p5, nrow = 1, labels = "auto")
+print(crop_suber_combined)
+
+# Create EXACT plots by timepoint (from Leila_code_modified.Rmd)
+timepoint_suber_plots <- suber_proportion_plots(timepoint_suber, "timepoint", "")
+timepoint_suber_combined <- plot_grid(timepoint_suber_plots$p1, timepoint_suber_plots$p2, timepoint_suber_plots$p3, timepoint_suber_plots$p4, timepoint_suber_plots$p5, nrow = 1, labels = "auto")
+print(timepoint_suber_combined)
+
+
+# SUBERIN INTERACTION PLOT
+# Recreate simple plant proportion interaction plot (crop x timepoint) from Leila_code_modified.Rmd
+suber_interaction_plot <- ggplot(crop_timepoint_suber) +
+  geom_col(aes(x = crop, y = Mean_total_suberin, fill = timepoint),
+           position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_total_suberin - SE_total_suberin,
+                    ymax = Mean_total_suberin + SE_total_suberin,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Total Suberin by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Total Suberin Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(suber_interaction_plot)
+
+# Esterified PROPORTION INTERACTION PLOT
+esterS_interaction_plot <- ggplot(crop_timepoint_suber) +
+  geom_col(aes(x = crop, y = Mean_esterS_prop, fill = timepoint),
+           position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_esterS_prop - SE_esterS_prop,
+                    ymax = Mean_esterS_prop + SE_esterS_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Esterified Suberin by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Esterified Suberin Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(esterS_interaction_plot)
+
+# FINGERPRINT PROPORTION INTERACTION PLOT
+fingpr_interaction_plot <- ggplot(crop_timepoint_suber) +
+  geom_col(aes(x = crop, y = Mean_fingerprintS_prop, fill = timepoint),
+           position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(x = crop,
+                    ymin = Mean_fingerprintS_prop - SE_fingerprintS_prop,
+                    ymax = Mean_fingerprintS_prop + SE_fingerprintS_prop,
+                    group = timepoint),
+                position = position_dodge(0.9), width = 0.2) +
+  
+  scale_fill_manual("Timepoint", values = timepoint_colors) +
+  labs(title = "Fingerprint Suberin by Crop and Timepoint",
+       x = "Crop Type",
+       y = "Fingerprint Suberin Proportion") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 20, 20, 20),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(fingpr_interaction_plot)
+
+# STACKED BAR PLOTS
+# Recreate stacked bar plots from Leila_code_modified.Rmd
+suber_stacked_data <- function(stats_data, group_col) {
+  # Reshape data for stacking (exact reproduction)
+  long_data <- stats_data %>%
+    select(all_of(group_col), Mean_aliphaticS_prop, Mean_esterS_prop, Mean_fingerprintS_prop) %>%
+    pivot_longer(cols = starts_with("Mean_"),
+                 names_to = "func_type",
+                 values_to = "proportion") %>%
+    mutate(func_type = case_when(
+      func_type == "Mean_aliphaticS_prop" ~ "Aliphatic",
+      func_type == "Mean_esterS_prop" ~ "Esterified",
+      func_type == "Mean_fingerprintS_prop" ~ "Fingerprint"
+    )) %>%
+    mutate(func_type = factor(func_type, levels = c("Fingerprint", "Esterified", "Aliphatic")))
+
+  long_data
+}
+
+# Create stacked plots
+crop_stacked_suber <- suber_stacked_data(crop_suber, "crop")
+crop_stacked_suber$crop <- factor(crop_stacked_suber$crop, levels = c("noPlant", "wheat", "rice", "soy"))
+timepoint_stacked_suber <- suber_stacked_data(timepoint_suber, "timepoint")
+
+s_crop_stacked <- ggplot(crop_stacked_suber, aes(x = crop, y = proportion * 100, fill = func_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("#93deed", "#d2f0f4", "#1ca5cf"),
+                    breaks = c("Fingerprint", "Esterified", "Aliphatic")) +
+  
+  labs(x = "Crop Type",
+       y = "Suberin Peak Proportion (%)",
+       fill = "") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 27, 20, 13),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.margin = margin(10, 16, 10, 8))
+
+s_timepoint_stacked <- ggplot(timepoint_stacked_suber, aes(x = timepoint, y = proportion * 100, fill = func_type)) +
+  geom_col(position = "stack") +
+  scale_fill_manual(values = c("#e8aa9c", "#f5d8d1", "#c54e30"),
+                    breaks = c("Fingerprint", "Esterified", "Aliphatic")) +
+  
+  labs(x = "Timepoint",
+       y = "Suberin Peak Proportion (%)",
+       fill = "") +
+  theme(legend.position = "top",
+        plot.margin = margin(20, 27, 20, 13),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.margin = margin(10, 16, 10, 8))
+
+s_combined_stacked <- plot_grid(
+  s_crop_stacked,
+  s_timepoint_stacked,
+  nrow = 1,
+  labels = "auto"
+)
+print(s_combined_stacked)
+```
+
+
+## Stacked suberin interaction plots (crop x timepoint)
+
+```{r suber-stacked-interaction-plots}
+timepoint_suber_colors <- list(
+  "wk0" = c("Fingerprint" = "#8a82c0", "Esterified" = "#bdb8e0", "Aliphatic" = "#50478A"),
+  "wk10" = c("Fingerprint" = "#7ba7c6", "Esterified" = "#b8d0e0", "Aliphatic" = "#3D6988"),
+  "wk20" = c("Fingerprint" = "#c5aa7c", "Esterified" = "#e0d1b8", "Aliphatic" = "#876B3D"),
+  "wk30" = c("Fingerprint" = "#7cc5af", "Esterified" = "#b8e0d4", "Aliphatic" = "#3D8770"),
+  "wk40" = c("Fingerprint" = "#b4c57c", "Esterified" = "#d6e0b8", "Aliphatic" = "#75873D")
+)
+
+# Stacked interaction plot - crop x timepoint with all three proportions
+# Create stacked data for interaction plot
+interaction_stacked_suber <- crop_timepoint_suber %>%
+  select(crop, timepoint, Mean_aliphaticS_prop, Mean_esterS_prop, Mean_fingerprintS_prop) %>%
+  pivot_longer(cols = starts_with("Mean_"),
+               names_to = "func_type",
+               values_to = "proportion") %>%
+  mutate(func_type = case_when(
+    func_type == "Mean_aliphaticS_prop" ~ "Aliphatic",
+    func_type == "Mean_esterS_prop" ~ "Esterified",
+    func_type == "Mean_fingerprintS_prop" ~ "Fingerprint"
+  )) %>%
+  mutate(func_type = factor(func_type, levels = c("Fingerprint", "Esterified", "Aliphatic")))
+
+# Create a combined group for positioning (crop:timepoint)
+interaction_stacked_suber <- interaction_stacked_suber %>%
+  mutate(crop_time = interaction(crop, timepoint, sep = "_"))
+
+# Apply colors - using average of timepoint colors for each functional group
+# Or better - use timepoint-specific colors from timepoint_prop_colors
+# Create fill based on timepoint:func_type combination
+interaction_stacked_suber <- interaction_stacked_suber %>%
+  mutate(fill_group = paste(timepoint, func_type, sep = "_"))
+
+interaction_suber_stacked <- ggplot(interaction_stacked_suber, 
+                                   aes(x = interaction(crop, timepoint), 
+                                       y = proportion * 100, 
+                                       fill = fill_group)) +
+  geom_col(position = "stack") +
+  facet_grid(. ~ crop, scales = "free_x", space = "free_x") +
+  scale_x_discrete(labels = function(x) {
+    # Extract just the timepoint part (after the dot)
+    sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
+  }) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
+  
+  labs(title = "",
+       x = "",
+       y = "Suberin Peak Proportion (%)",
+       fill = "") +
+  theme(legend.position = "right",
+        plot.margin = margin(-2, 76, 0, 12), # (top, right, bottom, left)
+        axis.text.x = element_text(angle = 45, hjust = .9, size = 12.5, face = "bold"),
+        axis.title.y = element_text(size = 12),
+        axis.text.y = element_text(size = 11),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14.5, face = "bold")) +
+  coord_cartesian(clip = "off")
+
+# Create manual color scale using timepoint_prop_colors
+color_values <- c()
+color_names <- c()
+for (tp in c("wk0", "wk10", "wk20", "wk30", "wk40")) {
+  for (ft in c("Fingerprint", "Esterified", "Aliphatic")) {
+    color_names <- c(color_names, paste(tp, ft, sep = "_"))
+    color_values <- c(color_values, timepoint_suber_colors[[tp]][ft])
+  }
+}
+names(color_values) <- color_names
+
+interaction_suber_stacked <- interaction_suber_stacked +
+  scale_fill_manual(values = color_values,
+                    labels = function(x) {
+                      parts <- strsplit(x, "_")
+                      sapply(parts, function(p) paste(p[1], p[2], sep = " - "))
+                    }) +
+  theme(legend.position = "none")
+
+# Calculate label positions (midpoint of each segment in the rightmost bar)
+# Get the rightmost crop-timepoint combination for labeling
+label_data <- interaction_stacked_suber %>%
+  filter(crop == "soy" & timepoint == "wk40") %>%
+  arrange(func_type) %>%
+  mutate(
+    # Calculate cumulative sum for positioning
+    cum_prop = cumsum(proportion * 100),
+    # Calculate midpoint of each segment
+    label_y = cum_prop - (proportion * 100) / 2
+  )
+
+# Add labels on the right side
+interaction_suber_stacked <- interaction_suber_stacked +
+  geom_text(data = label_data,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = func_type),
+            hjust = 0, 
+            nudge_x = 0.5,
+            size = 3.8,
+            angle = 10,
+            fontface = "bold",
+            inherit.aes = FALSE)
+
+print(interaction_suber_stacked)
+```
+
+```{r suber-stacked-interaction-plots-no-noPlant}
+# Stacked interaction plot - crop x timepoint (without noPlant)
+# Create stacked data for interaction plot
+interaction_stacked_suber_no_noPlant <- crop_timepoint_suber %>%
+  filter(crop != "noPlant") %>%
+  select(crop, timepoint, Mean_aliphaticS_prop, Mean_esterS_prop, Mean_fingerprintS_prop) %>%
+  pivot_longer(cols = starts_with("Mean_"),
+               names_to = "func_type",
+               values_to = "proportion") %>%
+  mutate(func_type = case_when(
+    func_type == "Mean_aliphaticS_prop" ~ "Aliphatic",
+    func_type == "Mean_esterS_prop" ~ "Esterified",
+    func_type == "Mean_fingerprintS_prop" ~ "Fingerprint"
+  )) %>%
+  mutate(func_type = factor(func_type, levels = c("Fingerprint", "Esterified", "Aliphatic")))
+
+# Create a combined group for positioning (crop:timepoint)
+interaction_stacked_suber_no_noPlant <- interaction_stacked_suber_no_noPlant %>%
+  mutate(crop_time = interaction(crop, timepoint, sep = "_"))
+
+# Create fill based on timepoint:func_type combination
+interaction_stacked_suber_no_noPlant <- interaction_stacked_suber_no_noPlant %>%
+  mutate(fill_group = paste(timepoint, func_type, sep = "_"))
+
+interaction_suber_stacked_no_noPlant <- ggplot(interaction_stacked_suber_no_noPlant, 
+                                   aes(x = interaction(crop, timepoint), 
+                                       y = proportion * 100, 
+                                       fill = fill_group)) +
+  geom_col(position = "stack") +
+  facet_grid(. ~ crop, scales = "free_x", space = "free_x") +
+  scale_x_discrete(labels = function(x) {
+    # Extract just the timepoint part (after the dot)
+    sapply(strsplit(as.character(x), "\\."), function(parts) parts[2])
+  }) +
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.02))) +
+  
+  labs(title = "",
+       x = "",
+       y = "Suberin Peak Proportion (%)",
+       fill = "") +
+  theme(legend.position = "right",
+        plot.margin = margin(-2, 76, 0, 12), # (top, right, bottom, left)
+        axis.text.x = element_text(angle = 45, hjust = .9, size = 12.5, face = "bold"),
+        axis.title.y = element_text(size = 12),
+        axis.text.y = element_text(size = 11),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 14, face = "bold", color = annotation_text_color)) +
+  coord_cartesian(clip = "off")
+
+# Create manual color scale using timepoint_prop_colors
+interaction_suber_stacked_no_noPlant <- interaction_suber_stacked_no_noPlant +
+  scale_fill_manual(values = color_values,
+                    labels = function(x) {
+                      parts <- strsplit(x, "_")
+                      sapply(parts, function(p) paste(p[1], p[2], sep = " - "))
+                    }) +
+  theme(legend.position = "none")
+
+# Calculate label positions (midpoint of each segment for ALL bars)
+# Calculate cumulative proportions for positioning percentage labels
+label_suber_no_noPlant <- interaction_stacked_suber_no_noPlant %>%
+  group_by(crop, timepoint) %>%
+  arrange(func_type) %>%
+  mutate(
+    # Calculate cumulative sum for positioning
+    cum_prop = cumsum(proportion * 100),
+    # Calculate midpoint of each segment
+    label_y = cum_prop - (proportion * 100) / 2,
+    # Create percentage label
+    pct_label = paste0(round(proportion * 100, 1), "%"),
+
+    label_color = ifelse(func_type == "Aliphatic", "white", "black")
+  ) %>%
+  ungroup()
+
+# Create label data for func_type labels (rightmost bar only)
+functype_label_data <- label_suber_no_noPlant %>%
+  filter(crop == "soy" & timepoint == "wk40")
+
+# Add percentage labels to all bars
+interaction_suber_stacked_no_noPlant <- interaction_suber_stacked_no_noPlant +
+  geom_text(data = label_suber_no_noPlant,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = pct_label,
+                color = label_color),
+            size = 3.2,
+            fontface = "plain",
+            inherit.aes = FALSE) +
+  scale_color_identity() +  # Use the actual color values from label_color
+  # Add func_type labels on the right side
+  geom_text(data = functype_label_data,
+            aes(x = interaction(crop, timepoint), 
+                y = label_y, 
+                label = func_type),
+            hjust = 0, 
+            nudge_x = 0.5,
+            size = 3.8,
+            angle = 10,
+            fontface = "bold",
+            inherit.aes = FALSE)
+
+print(interaction_suber_stacked_no_noPlant)
+```
+
+# Summary
+```{r summary-stats}
+# Print summary information
+cat("Summary of FTIR Analysis:\n")
+cat("Number of samples:", nrow(ftir_data), "\n")
+cat("Crops:", paste(unique(ftir_data$crop), collapse = ", "), "\n")
+cat("Timepoints:", paste(unique(ftir_data$timepoint), collapse = ", "), "\n")
+
+# Display summary statistics
+print("Crop Statistics:")
+print(crop_stats)
+print("\nTimepoint Statistics:")
+print(timepoint_stats)
+print("\nCrop Suberin Statistics:")
+print(crop_suber)
+print("\nTimepoint Suberin Statistics:")
+print(timepoint_suber)
+```
+```{r diagnostics}
+# Check if normalized_absorbance exists and what it looks like
+dpt_data_roots %>%
+  filter(wavenumber > 2918 & wavenumber < 2928) %>%
+  select(filename, wavenumber, absorbance, baseline_corrected, normalized_absorbance) %>%
+  group_by(filename) %>%
+  summarise(
+    n_points = n(),
+    min_norm = min(normalized_absorbance, na.rm = TRUE),
+    max_norm = max(normalized_absorbance, na.rm = TRUE),
+    mean_norm = mean(normalized_absorbance, na.rm = TRUE)
+  ) %>%
+  head()
+```
+
+## Statistical Methods
+
+### 1. **Data Normalization**
+Spectral absorbance data from FTIR DPT files undergoes two-step normalization for each sample:
+- **Baseline correction**: The minimum absorbance value is subtracted from all data points to remove background noise
+- **Max normalization**: Values are divided by the maximum absorbance (after baseline correction) to standardize absorbance on a 0–1 scale, making spectra comparable across samples with different overall intensities
+
+### 2. **Spectral Integration for Functional Groups**
+Functional group proportions are calculated using integrated peak areas from specific spectral regions (based on Mainka et al. 2022):
+- Peak areas are calculated using the **trapezoidal rule** (via the `pracma::trapz()` function) across four spectral windows:
+  - **Simple plant (aliphatic)**: 2839–2870 cm⁻¹ + 2898–2976 cm⁻¹
+  - **Complex plant (aromatic)**: 1500–1550 cm⁻¹
+  - **Microbial**: 1580–1660 cm⁻¹
+  
+- **Proportion calculation**: Each functional group's proportion is calculated as:
+  $$\text{Proportion} = \frac{\text{Peak Area}_{\text{functional group}}}{\text{Total Peak Area}_{\text{all groups}}}$$
+
+- **Ratio metrics** are derived from these proportions (e.g., Simple:Microbial ratio, Total Plant:Microbial ratio)
+
+### 3. **Descriptive Statistics by Group**
+Summary statistics are calculated by crop and timepoint:
+- **Mean** and **Standard Error (SE)** for each functional group proportion
+  $$SE = \frac{SD}{\sqrt{n}}$$
+  where SD is the standard deviation and n is the sample size for each group
+
+### 4. **Linear Regression Analysis (Ratio Scatterplots)**
+Time-series trends are analyzed using **simple linear regression** for each crop, fitting all individual data points (not just group averages):
+- **Model**: `y ~ timepoint_numeric` where y is a ratio metric (e.g., Simple:Microbial)
+- **Statistics reported**:
+  - **R²** (coefficient of determination): Explains the proportion of variance in the ratio accounted for by timepoint
+  - **Slope**: The change in ratio per week, fitted to all individual replicate measurements
+  - **P-value**: Statistical significance test (α = 0.05); values < 0.05 marked with asterisk
+
+This approach uses all available replicate data for regression rather than averaged values, providing more robust statistical inference.
+
+### 5. **Data Visualization**
+- **Ridge plots**: Show the full range of spectral data (min to max across replicates) using transparent ribbons
+- **Box plots & stacked bar plots**: Display proportions by crop and timepoint with error bars (±1 SE)
+- **Ratio scatterplots**: Display averaged ratios with error bars, overlaid with fitted regression lines and statistics
+
+### 6. **Data Aggregation Levels**
+- Timepoint-level summaries (across all crops)
+- Crop-level summaries (across all timepoints)
+- Crop × Timepoint summaries (group means and SEs)
+
+All statistical calculations are implemented in R using `dplyr` for data manipulation, `ggplot2` for visualization, and base R functions for statistical modeling.
