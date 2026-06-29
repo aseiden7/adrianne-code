@@ -175,6 +175,65 @@ except Exception as e:
 print("\nSummary Statistics Preview:")
 print(summary_stats.head())
 ```
+
+### Jar cumulative flux CSV
+
+The following code calculates cumulative CO<sub>2</sub>-C for each jar at every sampling timepoint using trapezoidal integration on the jar-level flux series, then saves the result as a CSV file.
+
+```{python jar-cumulative-flux-csv}
+import os
+import numpy as np
+import pandas as pd
+
+flux_col = 'Flux (μg CO2-C/g-soil/minute)'
+csv_output_path = os.path.join(
+    box_base,
+    'Salk Institute Project/AKS Salk files/CO2 data/jars_cumulative_flux_by_timepoint.csv'
+)
+
+required_cols = ['jar_num', 'crop', 'isotope', 'sampling_wk', 'sampling_date', flux_col]
+jar_flux = df_clean.dropna(subset=required_cols).copy()
+jar_flux = jar_flux.sort_values(['jar_num', 'sampling_wk', 'sampling_date'])
+
+jar_cumulative_rows = []
+
+for (jar_num, crop, isotope), group in jar_flux.groupby(['jar_num', 'crop', 'isotope']):
+    group = group.sort_values(['sampling_wk', 'sampling_date']).copy()
+    weeks = group['sampling_wk'].to_numpy(dtype=float)
+    fluxes = group[flux_col].to_numpy(dtype=float)
+    cumulative_flux = np.zeros(len(group), dtype=float)
+
+    for i in range(1, len(group)):
+        delta_t = weeks[i] - weeks[i - 1]
+        trap_area = (fluxes[i - 1] + fluxes[i]) / 2.0 * delta_t
+        cumulative_flux[i] = cumulative_flux[i - 1] + trap_area
+
+    group['cumulative_flux_trapz'] = cumulative_flux
+    group['cumulative_flux_timepoint'] = np.arange(1, len(group) + 1)
+    jar_cumulative_rows.append(
+        group[[
+            'jar_num',
+            'crop',
+            'isotope',
+            'sampling_wk',
+            'sampling_date',
+            flux_col,
+            'cumulative_flux_trapz',
+            'cumulative_flux_timepoint'
+        ]]
+    )
+
+jar_cumulative_df = pd.concat(jar_cumulative_rows, ignore_index=True) if jar_cumulative_rows else pd.DataFrame()
+
+try:
+    jar_cumulative_df.to_csv(csv_output_path, index=False)
+    print(f"Saved jar cumulative flux CSV to: {csv_output_path}")
+    print("\nJar cumulative flux preview:")
+    print(jar_cumulative_df.head(10).to_string())
+except Exception as e:
+    print(f"Error saving jar cumulative flux CSV: {e}")
+```
+
 ## Plotting δ<sup>13</sup>C<sub>VPDB</sub> \& CO<sub>2</sub> flux (jars)
 
 The following code plots δ<sup>13</sup>C<sub>VPDB</sub> (‰) vs Sampling week and Flux (μg CO<sub>2</sub>-C ⋅ g-soil<sup>-1</sup> ⋅ minute<sup>-1</sup>) vs Sampling week as subplots on one figure. It saves the figure as a PNG file called "jars_analysis_plots_VPDB". 
@@ -652,6 +711,91 @@ for crop in crop_order:
         print(f"{crop.capitalize()}: {final_cumulative:.2f} ± {final_sem:.2f} μg CO2-C/g-soil (n={n})")
 
 plt.show()
+```
+
+## Decay rate (k)
+
+The following code estimates an apparent first-order decay constant for each crop using the cumulative CO<sub>2</sub>-C loss and the crop-level starting total carbon stock. The formula is $k = -\ln(C_t / C_0) / t$, where $C_0$ is the mean `est-total-C_mg` for that crop, $C_t = C_0 - \mathrm{cumulative\ CO_2\text{-}C}$, and $t$ is time in days since the start of the incubation.
+
+The `dry_soil_g` column is now available in the `Jars` tab, but the current flux values are still normalized per g soil, so the decay calculation stays on this apparent basis. The `initial_mass_mg` values in the factor tables are root material added, not jar soil mass, so they are not used here.
+
+```{python jar-decay-rate-k}
+import numpy as np
+import pandas as pd
+
+flux_col = 'Flux (μg CO2-C/g-soil/minute)'
+required_cols = ['crop', 'sampling_wk', 'est-total-C_mg', flux_col]
+missing_cols = [col for col in required_cols if col not in df.columns]
+
+if missing_cols:
+    raise ValueError(f"Missing required columns for decay-rate calculation: {missing_cols}")
+
+crop_decay = df.dropna(subset=required_cols).copy()
+crop_decay['sampling_wk'] = pd.to_numeric(crop_decay['sampling_wk'], errors='coerce')
+crop_decay = crop_decay.dropna(subset=['sampling_wk'])
+
+crop_levels = []
+for crop, group in crop_decay.groupby('crop'):
+    group = group.sort_values('sampling_wk').copy()
+    weeks = group['sampling_wk'].drop_duplicates().to_numpy(dtype=float)
+    if len(weeks) == 0:
+        continue
+
+    weekly_flux = []
+    for week in weeks:
+        weekly_flux.append(group.loc[group['sampling_wk'] == week, flux_col].mean())
+
+    cumulative_flux = np.zeros(len(weeks), dtype=float)
+    for i in range(1, len(weeks)):
+        delta_weeks = weeks[i] - weeks[i - 1]
+        cumulative_flux[i] = cumulative_flux[i - 1] + ((weekly_flux[i - 1] + weekly_flux[i]) / 2.0) * delta_weeks
+
+    initial_C_mg = group['est-total-C_mg'].mean()
+    elapsed_days = (weeks - weeks.min()) * 7.0
+    remaining_C_mg = initial_C_mg - cumulative_flux
+
+    valid_mask = (
+        (elapsed_days > 0) &
+        (remaining_C_mg > 0) &
+        (remaining_C_mg < initial_C_mg)
+    )
+    k_per_day = np.full(len(weeks), np.nan, dtype=float)
+    k_per_day[valid_mask] = -np.log(remaining_C_mg[valid_mask] / initial_C_mg) / elapsed_days[valid_mask]
+
+    crop_levels.append(pd.DataFrame({
+        'crop': crop,
+        'sampling_wk': weeks,
+        'elapsed_days': elapsed_days,
+        'initial_C_mg': initial_C_mg,
+        'weekly_flux_mean': weekly_flux,
+        'cumulative_flux_proxy': cumulative_flux,
+        'remaining_C_mg': remaining_C_mg,
+        'k_per_day': k_per_day,
+        'k_per_week': k_per_day * 7.0,
+    }))
+
+crop_k = pd.concat(crop_levels, ignore_index=True) if crop_levels else pd.DataFrame()
+
+valid_k = crop_k['k_per_day'].dropna() if not crop_k.empty else pd.Series(dtype=float)
+print("Apparent decay-rate calculation:")
+print(f"Rows processed: {len(crop_k)}")
+print(f"Valid k estimates: {len(valid_k)}")
+
+if len(valid_k) > 0:
+    print("\nSummary of k values (per day):")
+    print(valid_k.describe().to_string())
+else:
+    print("\nNo valid k values were found. That usually means the cumulative flux exceeds the starting carbon stock on the current unit basis.")
+
+print("\nPer-crop k preview:")
+print(crop_k[['crop', 'sampling_wk', 'initial_C_mg', 'cumulative_flux_proxy', 'remaining_C_mg', 'elapsed_days', 'k_per_day', 'k_per_week']].head(10).to_string())
+
+try:
+    with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        crop_k.to_excel(writer, sheet_name='Crop_decay_k', index=False)
+    print("\nDecay-rate table saved to 'Crop_decay_k' tab in the existing Excel file")
+except Exception as e:
+    print(f"\nError saving decay-rate table to Excel file: {e}")
 ```
 
 # Pot data
