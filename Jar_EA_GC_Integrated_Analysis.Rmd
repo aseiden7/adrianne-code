@@ -461,6 +461,8 @@ plt.show()
 
 ## Plot 4: Percent recovery metrics from EA + GC integration
 
+This figure summarizes the final apparent recovery metrics, showing total root C respired and labeled <sup>13</sup>C recovered over time by treatment. 
+
 ```{python plot-ea-gc-recovery-metrics}
 rec_df = jar_cum.copy()
 
