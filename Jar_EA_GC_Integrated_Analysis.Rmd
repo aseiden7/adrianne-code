@@ -1,5 +1,5 @@
 ---
-title: "Salk Project CO2 Data Analysis: Jar EA + GC Integration"
+title: "Salk Project CO<sub>2</sub> Data Analysis: Jar EA + GC Integration"
 author: "Adrianne Seiden"
 date: "07/05/2026"
 output:
@@ -48,19 +48,21 @@ knitr::opts_chunk$set(
 
 ### Sample collection
 
-CO2 gas samples were collected from incubation jars and at UC Merced between December 31, 2024 and July 28, 2025. For each sampling, jars were sealed with screw-on lids for approximately 24 hours. Headspace gas was sampled by hand (60 mL each) and injected into evacuated 12mL Labco Exetainer vials. About 48 mL of sample was used to flush the vials, which were then overpressurized with the remaining 12mL.
+CO<sub>2</sub> gas samples were collected from incubation jars and at UC Merced between December 31, 2024 and July 28, 2025. For each sampling, jars were sealed with screw-on lids for approximately 24 hours. Headspace gas was sampled by hand (60 mL each) and injected into evacuated 12mL Labco Exetainer vials. About 48 mL of sample was used to flush the vials, which were then overpressurized with the remaining 12mL.
 
 ### Analysis
 
-Samples were analyzed at UC Davis's Stable Isotope Facility (SIF), using a Thermo Scientific Gas Bench interfaced to a Delta V Plus IRMS (ThermoScientific, Bremen, Germany). d13C_VPDB (per mil) and atom-% 13C are raw values from SIF. CO2 (ppm) - Blank and CO2 Flux are calculated values.
+Samples were analyzed at UC Davis's Stable Isotope Facility (SIF), using a Thermo Scientific Gas Bench interfaced to a Delta V Plus IRMS (ThermoScientific, Bremen, Germany). $\delta^{13}C_{VPDB}$ (per mil) and atom-% $^{13}C$ are raw values from SIF. CO<sub>2</sub> (ppm) - Blank and CO<sub>2</sub> Flux are calculated values.
 
-### CO2 (ppm) - Blank
+### CO<sub>2</sub> (ppm) - Blank
 
-For the first batch (1 - 629), SIF lab air CO2 concentrations are used as the blank value because no samples of SRE 450 lab air were analyzed with these samples. For the second batch, 6 samples of the air in room 450 were included, and an average of these values (within 1 standard deviation, n = 5) is used as the blank value.
+For the first batch (1 - 629), SIF lab air CO<sub>2</sub> concentrations are used as the blank value because no samples of SRE 450 lab air were analyzed with these samples. For the second batch, 6 samples of the air in room 450 were included, and an average of these values (within 1 standard deviation, n = 5) is used as the blank value.
+
+Estimates of percent carbon and atom-% $^{13}C$ in the root litter are from EA-IRMS analysis of the root material harvested from the nursery pots at T0. These values are used to estimate the total initial root-C mass and the labeled $^{13}C$ fraction in each jar.
 
 ### Why this file is separate
 
-This report focuses on jar-specific integration of EA-IRMS root properties (root %C and root atom-% 13C at T0) with GC-IRMS headspace data, and updates cumulative flux metrics so they account for differences in starting root-litter mass.
+This report focuses on jar-specific integration of EA-IRMS root properties (root %C and root atom-% <sup>13</sup>C at T0) with GC-IRMS headspace data, and updates cumulative flux metrics so they account for differences in starting root-litter mass.
 
 # Jar Data: EA + GC Integration
 
@@ -73,13 +75,13 @@ The calculations below use the compiled `full-jar-co2.csv` table as the master i
 - converting the reported flux from `ug CO2-C / g soil / min` into a jar-scale daily carbon rate using the measured dry soil mass and the minutes-per-day conversion,
 - normalizing that jar-scale flux by starting estimated root C for the planted jars so the outputs can be compared across jars with different litter inputs,
 - separately normalizing by total initial jar C so the noPlant controls can be shown on the same scale as the crop jars,
-- estimating a weekly 12C baseline for headspace atom-% 13C so the labeled isotope signal can be separated from natural-abundance background,
-- deriving an apparent labeled 13C respiration rate as a proxy for recovery of the added isotope,
+- estimating a weekly <sup>12</sup>C baseline for headspace atom-% <sup>13</sup>C so the labeled isotope signal can be separated from natural-abundance background,
+- deriving an apparent labeled <sup>13</sup>C respiration rate,
 - saving the merged dataframe as CSV so the exact derived table can be reused without re-running the entire notebook.
 
-The calculations are intentionally explicit rather than compressed into a single summary step because each derived value supports a different interpretation: absolute jar respiration, respiration per unit root input, and labeled isotope recovery.
-
 ## Load data and compute normalized flux terms
+
+This chunk loads the compiled jar table, standardizes the column names and types, converts headspace flux to a jar-scale carbon rate, and creates the root-C and jar-C normalized rate variables used in the downstream summaries.
 
 ```{python load-and-integrate-data}
 import os
@@ -200,6 +202,8 @@ print(
 
 ## Build cumulative metrics per jar
 
+This chunk assigns each sampling date to days since the fixed incubation start date (12/30/2024), integrates the rate series through time for each jar with the trapezoidal rule, and writes the timepoint-level and endpoint summary CSV outputs.
+
 ```{python cumulative-metrics-per-jar}
 def cumulative_trapz(group, x_col, y_col, out_col):
     g = group.sort_values(['sampling_wk', 'sampling_date']).copy()
@@ -314,18 +318,14 @@ Trapezoidal integration is used because it is a simple, transparent approximatio
 
 The cumulative outputs are saved as CSV so the timepoint-level integrated table and final jar-level endpoint summaries can be inspected or plotted outside the notebook if needed.
 
-## Plotting rationale
 
-The figures below are saved as PNGs so the report produces reusable static outputs alongside the tables. Each plot answers a different question:
-
-- the first figure compares the headspace isotope trajectory with root-C-normalized respiration, which shows whether isotope enrichment and respiration intensity move together over time,
-- the second figure shows cumulative respiration normalized by initial root C, which is the most direct way to compare treatment effects after accounting for different litter additions,
-- the third figure normalizes by total initial jar C so the noPlant controls can be shown on the same scale as the crop jars,
-- the fourth figure summarizes apparent recovery of carbon from the EA and GC measurements as a percent-based endpoint view.
+# Flux plots
 
 Error bars show mean and standard error by crop and week because the jar-level replicates are the experimental units and the weekly aggregation is intended to summarize treatment-level patterns rather than individual containers.
 
 ## Plot 1: Headspace atom-% 13C and root-C normalized flux over time
+
+This figure shows the weekly isotope trajectory in the top panel and the root-C-normalized respiration trajectory in the bottom panel, which shows whether isotope enrichment and respiration intensity move together over time,
 
 ```{python plot-timeseries-atom-and-normalized-flux}
 plot_df = jar_cum.dropna(subset=['crop', 'isotope', 'sampling_wk']).copy()
@@ -336,7 +336,7 @@ series_order = sorted(plot_df['group'].dropna().unique())
 color_map = {k: colors[i % len(colors)] for i, k in enumerate(series_order)}
 
 fig = plt.figure(figsize=(15, 10))
-fig.suptitle('Incubation Jars: GC-IRMS Isotope and Root-C-Normalized Flux', fontsize=16)
+# fig.suptitle('Incubation Jars: GC-IRMS Isotope and Root-C-Normalized Flux', fontsize=16)
 
 # Panel A: headspace atom-% 13C
 ax1 = plt.subplot(2, 1, 1)
@@ -348,8 +348,8 @@ for grp in series_order:
         marker='o', linestyle='-', color=color_map[grp], label=grp
     )
 ax1.set_xlabel('Sampling Week')
-ax1.set_ylabel('Headspace atom-% 13C')
-ax1.set_title('Headspace atom-% 13C vs Sampling Week')
+ax1.set_ylabel('Headspace atom-% ¹³C')
+# ax1.set_title('Headspace atom-% ¹³C vs Sampling Week')
 ax1.grid(True, linestyle='--', alpha=0.45)
 ax1.legend(ncol=2)
 
@@ -365,8 +365,8 @@ for grp in norm_series:
         marker='o', linestyle='-', color=color_map[grp], label=grp
     )
 ax2.set_xlabel('Sampling Week')
-ax2.set_ylabel('Flux (mg CO2-C mg root-C^-1 day^-1)')
-ax2.set_title('Root-C-Normalized CO2 Flux vs Sampling Week')
+ax2.set_ylabel('Flux (mg CO₂-C mg root-C⁻¹ day⁻¹)')
+# ax2.set_title('Root-C-Normalized CO₂ Flux vs Sampling Week')
 ax2.grid(True, linestyle='--', alpha=0.45)
 ax2.legend(ncol=2)
 
@@ -378,6 +378,8 @@ plt.show()
 ```
 
 ## Plot 2: Cumulative root-C-normalized respiration by crop
+
+This figure shows cumulative respiration normalized by initial root C, which is the most direct way to compare treatment effects after accounting for different litter additions
 
 ```{python plot-cumulative-rootC-normalized}
 cum_df = jar_cum.dropna(subset=['cumul_mgC_per_mgRootC']).copy()
@@ -403,9 +405,9 @@ for crop in crop_order:
         color=crop_colors.get(crop, '#cccccc'), label=crop, capsize=4
     )
 
-ax.set_xlabel('Sampling Week', fontsize=14)
-ax.set_ylabel('Cumulative CO2-C (mg per mg initial root-C)', fontsize=14)
-ax.set_title('Mass-Corrected Cumulative Respiration by Crop', fontsize=16, pad=14)
+ax.set_xlabel('Sampling Week', fontsize=14, fontweight='bold')
+ax.set_ylabel('Cumulative CO₂-C (mg per mg initial root-C)', fontsize=14, fontweight='bold')
+# ax.set_title('Mass-Corrected Cumulative Respiration by Crop', fontsize=16, pad=14)
 ax.grid(True, linestyle='--', alpha=0.45)
 ax.legend(fontsize=12)
 ax.spines['top'].set_visible(False)
@@ -419,6 +421,8 @@ plt.show()
 ```
 
 ## Plot 3: Cumulative jar-C-normalized respiration including noPlant
+
+This figure repeats the cumulative analysis using total initial jar C, based on added root C + soil mass * 1.38% C content (estimated from ESF soil data from 2025, 10--30 cm). I did this so that the noPlant controls can be shown on the same scale as the crop jars. I will amend the total C estimates later when I have actual soil C measurements for each jar, but the current estimate is sufficient assuming the soil C content is relatively uniform across the experimental blocks
 
 ```{python plot-cumulative-jarC-normalized}
 jarC_df = jar_cum.dropna(subset=['cumul_mgC_per_mgJarC']).copy()
@@ -444,9 +448,9 @@ for crop in crop_order_with_control:
         color=crop_colors_with_control.get(crop, '#cccccc'), label=crop, capsize=4
     )
 
-ax.set_xlabel('Sampling Week', fontsize=14)
-ax.set_ylabel('Cumulative CO2-C (mg per mg initial jar-C)', fontsize=14)
-ax.set_title('Jar-C-Normalized Cumulative Respiration Including noPlant Controls', fontsize=16, pad=14)
+ax.set_xlabel('Sampling Week', fontsize=14, fontweight='bold')
+ax.set_ylabel('Cumulative CO₂-C (mg per mg initial jar-C)', fontsize=14, fontweight='bold' )
+# ax.set_title('Jar-C-Normalized Cumulative Respiration Including noPlant Controls', fontsize=16, pad=14)
 ax.grid(True, linestyle='--', alpha=0.45)
 ax.legend(fontsize=12)
 ax.spines['top'].set_visible(False)
@@ -461,7 +465,7 @@ plt.show()
 
 ## Plot 4: Percent recovery metrics from EA + GC integration
 
-This figure summarizes the final apparent recovery metrics, showing total root C respired and labeled <sup>13</sup>C recovered over time by treatment. 
+This figure summarizes the final apparent recovery metrics, showing total root C respired and labeled <sup>13</sup>C recovered over time by treatment. Recovery = what fraction of the starting carbon pool that emitted CO<sub>2</sub> represents.
 
 ```{python plot-ea-gc-recovery-metrics}
 rec_df = jar_cum.copy()
@@ -487,8 +491,8 @@ for crop in crop_order:
         marker='o', linestyle='-', linewidth=2.2, markersize=7,
         color=crop_colors.get(crop, '#cccccc'), label=crop, capsize=4
     )
-axes[0].set_ylabel('Respired root C (% of initial root C)')
-axes[0].set_title('Integrated Recovery Metrics from Root EA and Headspace GC')
+axes[0].set_ylabel('Respired root C (% of initial root C)', fontsize=14, fontweight='bold')
+# axes[0].set_title('Integrated Recovery Metrics from Root EA and Headspace GC')
 axes[0].grid(True, linestyle='--', alpha=0.45)
 axes[0].legend(fontsize=11)
 
@@ -505,12 +509,12 @@ for crop in crop_order:
     axes[1].errorbar(
         grp['sampling_wk'], grp['mean'], yerr=grp['sem'],
         marker='o', linestyle='-', linewidth=2.2, markersize=7,
-        color=crop_colors.get(crop, '#cccccc'), label=f'13C {crop}', capsize=4
+        color=crop_colors.get(crop, '#cccccc'), label=f'¹³C {crop}', capsize=4
     )
-axes[1].set_xlabel('Sampling Week')
-axes[1].set_ylabel('Recovered labeled 13C (% of initial excess 13C)')
+axes[1].set_xlabel('Sampling Week', fontsize=14, fontweight='bold')
+axes[1].set_ylabel('Recovered labeled ¹³C (% of initial excess ¹³C)', fontsize=14, fontweight='bold')
 axes[1].grid(True, linestyle='--', alpha=0.45)
-axes[1].legend(fontsize=11)
+axes[1].legend(fontsize=12)
 
 for ax in axes:
     ax.spines['top'].set_visible(False)
@@ -523,8 +527,127 @@ print(f"Saved: {out_plot_3}")
 plt.show()
 ```
 
-# Notes for interpretation
+## Estimating k by crop and destructive-sampling week
 
-- The old cumulative method integrated flux normalized to soil mass only; the new metrics explicitly account for the initial root-C pool and total jar-C pool using `T0_est-root-C_mg` and `T0_est-jar-C_mg`.
-- `pct_rootC_respired` can exceed 100% if non-root C sources contribute strongly to CO2 production.
-- `pct_root13C_recovered` isolates the excess-13C signal using weekly 12C controls and should be interpreted as an apparent recovery, not a full isotopic mass balance.
+This chunk estimates a first-order decay constant for each jar at its own final destructive-sampling endpoint. Because the jars were destructively sampled at different incubation lengths, the endpoint is jar-specific rather than shared across the whole experiment. The initial pool is total jar C. A valid k requires positive time and a remaining carbon pool between 0 and the initial pool.
+
+```{python jar-k-estimation}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+
+# Keep the final observed row for each jar, since each jar ends at a different destructive-sampling time.
+endpoint_df = (
+    jar_cum.sort_values(['jar_num', 'days_since_start'])
+    .groupby('jar_num', as_index=False)
+    .tail(1)
+    .copy()
+)
+
+# Choose the carbon pool used for k based on crop type.
+# All jars use total initial jar C.
+endpoint_df['k_basis'] = 'jarC'
+endpoint_df['initial_C_mg'] = endpoint_df['T0_est-jar-C_mg']
+
+endpoint_df['remaining_C_mg'] = endpoint_df['initial_C_mg'] - endpoint_df['cumul_mgC_jar']
+endpoint_df['time_days'] = endpoint_df['days_since_start']
+endpoint_df['endpoint_week'] = pd.to_numeric(endpoint_df['sampling_wk'], errors='coerce').round().astype('Int64')
+
+# k = -ln(remainingC / initialC) / time
+# Only calculate when the ratio is valid.
+valid_mask = (
+    endpoint_df['time_days'].gt(0) &
+    endpoint_df['initial_C_mg'].gt(0) &
+    endpoint_df['remaining_C_mg'].gt(0) &
+    endpoint_df['remaining_C_mg'].lt(endpoint_df['initial_C_mg'])
+)
+
+endpoint_df['k_day-1'] = np.nan
+endpoint_df.loc[valid_mask, 'k_day-1'] = -np.log(
+    endpoint_df.loc[valid_mask, 'remaining_C_mg'] / endpoint_df.loc[valid_mask, 'initial_C_mg']
+) / endpoint_df.loc[valid_mask, 'time_days']
+
+# Expose basis-specific k columns for transparency.
+endpoint_df['k_rootC_day-1'] = np.where(
+    endpoint_df['crop'].ne('noPlant'),
+    endpoint_df['k_day-1'],
+    np.nan
+)
+endpoint_df['k_jarC_day-1'] = np.where(
+    endpoint_df['crop'].eq('noPlant'),
+    endpoint_df['k_day-1'],
+    np.nan
+)
+
+# Save the per-jar k table.
+k_output_csv = os.path.join(co2_dir, 'jar_ea_gc_k_by_jar.csv')
+endpoint_df.to_csv(k_output_csv, index=False)
+
+# Summarize by crop and destructive-sampling week.
+k_summary = (
+    endpoint_df
+    .groupby(['crop', 'endpoint_week', 'k_basis'], as_index=False)
+    .agg(
+        n_jars=('jar_num', 'count'),
+        mean_k_day=('k_day-1', 'mean'),
+        sem_k_day=('k_day-1', 'sem'),
+        min_k_day=('k_day-1', 'min'),
+        max_k_day=('k_day-1', 'max'),
+        mean_initial_C_mg=('initial_C_mg', 'mean'),
+        mean_remaining_C_mg=('remaining_C_mg', 'mean'),
+        mean_time_days=('time_days', 'mean')
+    )
+    .sort_values(['crop', 'endpoint_week'])
+)
+
+k_summary_csv = os.path.join(co2_dir, 'jar_ea_gc_k_summary_by_crop_and_week.csv')
+k_summary.to_csv(k_summary_csv, index=False)
+
+print(f"Saved per-jar k table: {k_output_csv}")
+print(f"Saved k summary table: {k_summary_csv}")
+print("\nK summary preview:")
+print(k_summary)
+
+# Plot k by crop and destructive-sampling week.
+fig, ax = plt.subplots(figsize=(12, 8))
+
+plot_df = k_summary.dropna(subset=['mean_k_day']).copy()
+crop_order = ['noPlant', 'wheat', 'rice', 'soy']
+crop_colors = {
+    'noPlant': '#2fb1b9',
+    'wheat': '#8c4dc3',
+    'rice': '#FC9D33',
+    'soy': '#FE318E'
+}
+
+for crop in crop_order:
+    sub = plot_df.loc[plot_df['crop'] == crop]
+    if sub.empty:
+        continue
+    ax.errorbar(
+        sub['endpoint_week'],
+        sub['mean_k_day'],
+        yerr=sub['sem_k_day'],
+        marker='o',
+        linestyle='-',
+        linewidth=2.2,
+        markersize=7,
+        color=crop_colors.get(crop, '#cccccc'),
+        label=crop,
+        capsize=4
+    )
+
+ax.set_xlabel('Destructive-sampling week', fontsize=14, fontweight='bold')
+ax.set_ylabel('k (day$^{-1}$)', fontsize=14, fontweight='bold')
+ax.set_title('Apparent First-Order Decay Constant by Crop and Endpoint', fontsize=16, pad=14)
+ax.grid(True, linestyle='--', alpha=0.45)
+ax.legend(fontsize=12)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+
+k_plot_png = os.path.join(plots_dir, 'jar_k_by_crop_and_endpoint_week.png')
+plt.savefig(k_plot_png, dpi=300)
+print(f"Saved: {k_plot_png}")
+plt.show()
