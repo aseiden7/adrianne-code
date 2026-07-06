@@ -50,13 +50,61 @@
             margin-top: 30px;
         }
 
+        .theme-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            background: none;
+            border: none;
+            border-bottom: 2px solid #007acc;
+            padding: 0 0 10px 0;
+            margin: 0 0 16px 0;
+            cursor: pointer;
+            font-family: inherit;
+            text-align: left;
+        }
+
+        .theme-header:focus-visible {
+            outline: 2px solid #007acc;
+            outline-offset: 4px;
+        }
+
         .theme-title {
             color: #ffffff;
             font-size: 1.3em;
             font-weight: 500;
-            margin: 0 0 16px 0;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #007acc;
+            margin: 0;
+        }
+
+        .theme-chevron {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            color: #9d9d9d;
+            transition: transform 0.25s ease, color 0.2s ease;
+        }
+
+        .theme-header:hover .theme-chevron {
+            color: #569cd6;
+        }
+
+        .theme-section.collapsed .theme-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .collapse-wrapper {
+            display: grid;
+            grid-template-rows: 1fr;
+            transition: grid-template-rows 0.3s ease;
+        }
+
+        .theme-section.collapsed .collapse-wrapper {
+            grid-template-rows: 0fr;
+        }
+
+        .collapse-inner {
+            overflow: hidden;
         }
 
         .nav-links {
@@ -170,7 +218,7 @@
                     <p>Integrations and visualization of NMR spectra using SOMnmR package</p>
                 </a>
             </div>
-            
+
         <div class="theme-section">
             <h2 class="theme-title">CO₂ Analysis &amp; Mass Loss</h2>
             <div class="nav-links">
