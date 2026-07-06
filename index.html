@@ -189,7 +189,14 @@
         <h1>Adrianne's Salk Project Code</h1>
         <p class="subtitle"> Adrianne Seiden 2026 </p>
         <div class="theme-section">
-            <h2 class="theme-title">Spectral Data Analysis</h2>
+            <button class="theme-header" onclick="toggleThemeSection(this)" aria-expanded="false">
+                <h2 class="theme-title">Spectral Data Analysis</h2>
+                <svg class="theme-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+            <div class="collapse-wrapper">
+            <div class="collapse-inner">
             <div class="nav-links">
             <div class="nav-item">
                 <a href="OPUSprocessing.html">
@@ -220,11 +227,18 @@
             </div>
 
         <div class="theme-section">
-            <h2 class="theme-title">CO₂ Analysis &amp; Mass Loss</h2>
-            <div class="nav-links">
-            <div class="nav-item">
-                <a href="Salk_CO2.html">
-                    <h3><sup>13</sup>CO₂ Data Analysis</h3>
+            <button class="theme-header" onclick="toggleThemeSection(this)" aria-expanded="false">
+                <h2 class="theme-title">CO₂ Analysis &amp; Mass Loss</h2>
+                <svg class="theme-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+            <div class="collapse-wrapper">
+                <div class="collapse-inner">
+                    <div class="nav-links">
+                        <div class="nav-item">
+                            <a href="Salk_CO2.html">
+                                <h3><sup>13</sup>CO₂ Data Analysis</h3>
                     <p>Plotting flux and enrichment measurements from jars and pots</p>
                 </a>
             </div>
