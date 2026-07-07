@@ -283,11 +283,6 @@ dpt_data_rhizo <- dpt_data %>%
   filter(sample_type == "rhizoSoil") %>%
   filter(!is.na(crop))
 
-cat("RhizoSoil samples by crop:\n")
-print(table(dpt_data_rhizo$crop))
-cat("RhizoSoil samples by timepoint:\n") 
-print(table(dpt_data_rhizo$timepoint))
-
 # Generic function to create ridge plots for any timepoint
 create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
   # Filter data for specific timepoint
