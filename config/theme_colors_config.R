@@ -127,13 +127,14 @@ color_map_light_all_sep <- list(
   soy = c("wk0" = "#FE67AB", "wk10" = "#FD358F", "wk40" = "#950445"),
   rice = c("wk0" = "#FEB057", "wk10" = "#F6962A", "wk40" = "#AF5F04"),
   wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594"),
-  noPlant = c("wk30" = "#27B4C1", "wk40" = "#177982")
+  noPlant = c("wk0" = "#9fe2e9", "wk10" = "#82dae3", "wk20" = "#63d2de", "wk30" = "#43CCD8", "wk40" = "#1fa2ad")
 )
 
 color_map_light_three_sep <- list(
   soy = c("wk0" = "#FE67AB", "wk10" = "#FD358F", "wk40" = "#950445"),
   rice = c("wk0" = "#FEB057", "wk10" = "#F6962A", "wk40" = "#AF5F04"),
-  wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594")
+  wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594"),
+  noPlant = c("wk0" = "#9fe2e9", "wk10" = "#82dae3", "wk20" = "#63d2de", "wk30" = "#43CCD8", "wk40" = "#1fa2ad")
 )
 
 # ===== Dark Theme Colors =====
@@ -153,8 +154,15 @@ color_map_dark <- c(
   "rice_wk40" = "#E37A03",
   "wheat_wk0" = "#DBB4FE",
   "wheat_wk10" = "#C381FD",
-  "wheat_wk40" = "#7307D2"
+  "wheat_wk40" = "#7307D2",
+  "noPlant_wk0" = "#9fe2e9",
+  "noPlant_wk10" = "#82dae3",
+  "noPlant_wk20" = "#63d2de",
+  "noPlant_wk30" = "#43CCD8",
+  "noPlant_wk40" = "#1fa2ad"
 )
+
+
 color_map_dark_three_sep <- list(
   wheat = c("wk0" = "#DBB4FE", "wk10" = "#C381FD", "wk40" = "#7307D2"),
   rice = c("wk0" = "#FECF9A", "wk10" = "#FD9768", "wk40" = "#E37A03"),
@@ -164,7 +172,7 @@ color_map_dark_all_sep <- list(
   wheat = c("wk0" = "#DBB4FE", "wk10" = "#C381FD", "wk40" = "#7307D2"),
   rice = c("wk0" = "#FECF9A", "wk10" = "#FD9768", "wk40" = "#E37A03"),
   soy = c("wk0" = "#FE9AC7", "wk10" = "#FC368F", "wk40" = "#C7055C"),
-  noPlant = c("wk30" = "#43CCD8", "wk40" = "#27B4C1")
+  noPlant = c("wk0" = "#9fe2e9", "wk10" = "#82dae3", "wk20" = "#63d2de", "wk30" = "#43CCD8", "wk40" = "#1fa2ad")
 )
 
 # ===== Dynamic Color Selection =====
@@ -178,7 +186,8 @@ color_map_three_sep <- if (theme_suffix == "-dark") color_map_dark_three_sep els
 crop_color <- c(
   "soy" = crop_colors[["soy"]],
   "rice" = crop_colors[["rice"]],
-  "wheat" = crop_colors[["wheat"]]
+  "wheat" = crop_colors[["wheat"]],
+  "noPlant" = crop_colors[["noPlant"]]
 )
 
 # crop_timepoint_colors <- list(

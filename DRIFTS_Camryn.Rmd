@@ -525,7 +525,7 @@ for (crop in crops) {
 These chunks create a single visualization showing all crops and timepoints by stacking the overlay plots vertically with a shared y-axis. Each crop has its own color palette and legend.
 
 
-```{r combined-stacked-overlay, fig.height=10, fig.width=13, include=FALSE}
+```{r combined-stacked-overlay, fig.height=10, fig.width=13}
 # Define crop-specific color palettes (include noPlant)
 crop_timepoint_colors_all <- color_map_all_sep
 
