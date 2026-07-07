@@ -226,7 +226,7 @@ ID = case_when(
   filter(!is.na(sample_type)) %>%  # Remove files without clear sample type
   filter(!str_detect(filename, "KBr")) %>%  # Remove KBr files if needed
   # Filter out anomalous spectra if needed
-  filter(!filename %in% c("DRIFTS_pot079_13Crice_wk0_root_250725.0.dpt",
+  filter(!filename %in% c("DRIFTS_Pot109_13Cwheat_wk10_rhizoSoil_260624a.0.dpt",
                           "DRIFTS_pot047_13Crice_wk0_root_250725.0.dpt")) # examples of bad spectra
 # save as csv for record-keeping
 write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE)
@@ -234,7 +234,7 @@ write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE
 ```
 
 ## Normalizing data
-This code is modified to only use baseline correction (subtracting the minimum) and skip normalization to the maximum absorbance value.
+This code is modified to use baseline correction (subtracting the minimum) and standard normal variate (SNV) normalization.
 ```{r normalize-data}
 # Normalize absorbance data by sample (same approach as OPUSprocessing.Rmd)
 dpt_data <- dpt_data %>%
@@ -249,7 +249,21 @@ dpt_data <- dpt_data %>%
   ) %>%
   select(-mean_abs, -sd_abs) %>%
   ungroup()
+dpt_data <- dpt_data %>%
+  group_by(filename) %>%
+  mutate(
+    # Baseline correction - subtract minimum
+    snv_corrected = normalized_absorbance - min(normalized_absorbance, na.rm = TRUE)
+  ) %>%
+  ungroup()
 
+dpt_data <- dpt_data %>%
+  group_by(filename) %>%
+  mutate(
+    # Baseline correction + 1
+    snv_plusOne = normalized_absorbance + 1
+  ) %>%
+  ungroup()
 ```
 
 
@@ -297,18 +311,29 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
   }
   
   # Determine y-position for annotations based on data
-  max_y <- max(filtered_data$normalized_absorbance)*(length(unique(filtered_data$crop))+3)
+  present_levels <- levels(droplevels(filtered_data$crop))  # only levels actually in this week's data, in original order
+  peak_heights <- filtered_data %>%
+    group_by(crop) %>%
+    summarise(group_max = max(snv_plusOne, na.rm = TRUE)) %>%
+    mutate(baseline = match(as.character(crop), present_levels))  # true rendered position, not raw factor code
+  global_max <- max(peak_heights$group_max, na.rm = TRUE)
+  max_y <- max(peak_heights$baseline + 3 * (peak_heights$group_max / global_max)) + 0.2
+#   n_groups <- length(unique(filtered_data$crop))
+#   ridge_scale <- 3  # matches your geom_density_ridges(scale = 3)
+#   max_y <- n_groups + ridge_scale * .33 + 0.33  # headroom above the top category
+
+
   
   # Create the plot
   ridge_plot <- filtered_data %>%
     ggplot(mapping = aes(x = wavenumber,
                          y = crop,
-                         height = normalized_absorbance,
+                         height = snv_plusOne,
                          group = crop,
                          fill = crop,
                          color = crop)) +
     geom_density_ridges(stat = "identity",
-                        scale = 4.5,
+                        scale = 3, # overlap scale - 1 is no overlap, >1 is more overlap
                         alpha = 0.25) +
     geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.23) +
     geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.23) +
@@ -319,7 +344,7 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
     geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
     geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
     xlim(3777, 422) +
-    scale_y_discrete(expand = expansion(mult = c(0.0, 0.56))) +  # Less space below, more above
+    scale_y_discrete(expand = expansion(mult = c(0, 0.1), add = c(0, 0))) +  # space below, space above+  # space below, space above
     
     theme(axis.text.y = element_text(size = 12),
           legend.position = "none") +
@@ -413,18 +438,19 @@ create_crop_plot <- function(data, crop_name, color_palette) {
     filter(crop == crop_name)
   
   # Ensure absorbance is numeric
-  crop_data$normalized_absorbance <- as.numeric(crop_data$normalized_absorbance)
+  crop_data$snv_plusOne <- as.numeric(crop_data$snv_plusOne)
   
   # Create the plot
   crop_plot <- ggplot(crop_data,
                       aes(x = wavenumber,
-                          y = normalized_absorbance,
+                          y = snv_plusOne,
                           color = timepoint)) +
     xlim(3777, 422) +
+    ylim(0, max(crop_data$snv_plusOne, na.rm = TRUE) + 0.1) +
     geom_line() +
     
     scale_color_manual(values = color_palette) +
-    ggtitle(paste(str_to_title(crop_name), "Roots DRIFTS")) +
+    ggtitle(paste(str_to_title(crop_name), "Soil DRIFTS")) +
     labs(x = expression("wavenumber (cm"^-1*")"), 
          y = "normalized absorbance") +
     geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.3) +
@@ -440,17 +466,17 @@ create_crop_plot <- function(data, crop_name, color_palette) {
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2550, y = max(crop_data$normalized_absorbance), label = "Simple Plant", 
+    annotate("text", x = 2550, y = max(crop_data$snv_plusOne), label = "Simple Plant", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1850, y = max(crop_data$normalized_absorbance), label = "Microbial", 
+    annotate("text", x = 1850, y = max(crop_data$snv_plusOne), label = "Microbial", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1200, y = max(crop_data$normalized_absorbance)+0.02, label = "Complex Plant", 
+    annotate("text", x = 1200, y = max(crop_data$snv_plusOne)+0.02, label = "Complex Plant", 
              size = 3.3, hjust = 0.5, color = annotation_text_color)
   
   return(list(plot = crop_plot, data = crop_data))
@@ -509,15 +535,15 @@ crops_ordered <- c("soy", "rice", "wheat", "noPlant")  # Reversed for plotting s
 all_crops_data <- dpt_data_rhizo   %>%
   filter(crop %in% crops_ordered) %>%
   mutate(crop = factor(crop, levels = crops_ordered)) %>%
-  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+  mutate(snv_plusOne = as.numeric(snv_plusOne))
 
 # Calculate vertical offset for each crop to create stacking effect
-offset_amount <- 0.6  # Space between each crop's spectra
+offset_amount <- 1  # Space between each crop's spectra
 crop_offsets <- setNames(seq(0, length(crops_ordered) - 1) * offset_amount, crops_ordered)
 
 # Add offset to absorbance values based on crop
 all_crops_data <- all_crops_data %>%
-  mutate(offset_absorbance = normalized_absorbance + crop_offsets[as.character(crop)])
+  mutate(offset_absorbance = snv_plusOne + crop_offsets[as.character(crop)])
 
 # Determine max y position for annotations
 max_y <- max(all_crops_data$offset_absorbance, na.rm = TRUE) + 0.2
@@ -611,15 +637,15 @@ crops_ordered_three <- c("soy", "rice", "wheat")  # Reversed for plotting so soy
 three_crops_data <- dpt_data_rhizo %>%
   filter(crop %in% crops_ordered_three) %>%
   mutate(crop = factor(crop, levels = crops_ordered_three)) %>%
-  mutate(normalized_absorbance = as.numeric(normalized_absorbance))
+  mutate(snv_plusOne = as.numeric(snv_plusOne))
 
 # Calculate vertical offset for each crop to create stacking effect
-offset_amount_three <- 0.7  # Space between each crop's spectra
+offset_amount_three <- 1  # Space between each crop's spectra
 crop_offsets_three <- setNames(seq(0, length(crops_ordered_three) - 1) * offset_amount_three, crops_ordered_three)
 
 # Add offset to absorbance values based on crop
 three_crops_data <- three_crops_data %>%
-  mutate(offset_absorbance = normalized_absorbance + crop_offsets_three[as.character(crop)])
+  mutate(offset_absorbance = snv_plusOne + crop_offsets_three[as.character(crop)])
 
 # Determine max y position for annotations
 max_y_three <- max(three_crops_data$offset_absorbance, na.rm = TRUE)
@@ -976,7 +1002,8 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_col(alpha = 0.98) +
     geom_errorbar(aes_string(ymin = "Mean_simple_plant_prop - SE_simple_plant_prop", 
                             ymax = "Mean_simple_plant_prop + SE_simple_plant_prop"),
-                  width = 0.2) +
+                  width = 0.2,
+                  color = annotation_text_color) +
     
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Simple Plant OM"),
@@ -995,7 +1022,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_complex_plant_prop - SE_complex_plant_prop", 
                             ymax = "Mean_complex_plant_prop + SE_complex_plant_prop"),
                   width = 0.2,
-                  color = annotation_line_color) +
+                  color = annotation_text_color) +
     
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Complex Plant OM"),
@@ -1014,7 +1041,7 @@ create_proportion_plots <- function(stats_data, group_col, title_prefix) {
     geom_errorbar(aes_string(ymin = "Mean_microbial_prop - SE_microbial_prop", 
                             ymax = "Mean_microbial_prop + SE_microbial_prop"),
                   width = 0.2,
-                  color = annotation_line_color) +
+                  color = annotation_text_color) +
     
     scale_fill_manual(values = colors_to_use) +
     labs(title = paste0(title_prefix, "Microbial OM"),
@@ -1051,7 +1078,7 @@ interaction_plot <- ggplot(crop_timepoint_stats) +
                     ymin = Mean_simple_plant_prop - SE_simple_plant_prop,
                     ymax = Mean_simple_plant_prop + SE_simple_plant_prop,
                     group = timepoint),
-                position = position_dodge(0.9), width = 0.2, color = annotation_line_color) +
+                position = position_dodge(0.9), width = 0.2, color = annotation_text_color) +
   
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Simple Plant OM by Crop and Timepoint",
@@ -1073,7 +1100,7 @@ CP_interaction_plot <- ggplot(crop_timepoint_stats) +
                     ymin = Mean_complex_plant_prop - SE_complex_plant_prop,
                     ymax = Mean_complex_plant_prop + SE_complex_plant_prop,
                     group = timepoint),
-                position = position_dodge(0.9), width = 0.2, color = annotation_line_color) +
+                position = position_dodge(0.9), width = 0.2, color = annotation_text_color) +
   
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Complex Plant OM by Crop and Timepoint",
@@ -1095,7 +1122,7 @@ micr_interaction_plot <- ggplot(crop_timepoint_stats) +
                     ymin = Mean_microbial_prop - SE_microbial_prop,
                     ymax = Mean_microbial_prop + SE_microbial_prop,
                     group = timepoint),
-                position = position_dodge(0.9), width = 0.2, color = annotation_line_color) +
+                position = position_dodge(0.9), width = 0.2, color = annotation_text_color) +
   
   scale_fill_manual("Timepoint", values = timepoint_colors) +
   labs(title = "Microbial OM by Crop and Timepoint",
@@ -1621,16 +1648,16 @@ print("\nTimepoint Statistics:")
 print(timepoint_stats)
 ```
 ```{r diagnostics}
-# Check if normalized_absorbance exists and what it looks like
+# Check if snv_plusOne exists and what it looks like
 dpt_data_rhizo %>%
   filter(wavenumber > 2918 & wavenumber < 2928) %>%
-  select(filename, wavenumber, absorbance, baseline_corrected, normalized_absorbance) %>%
+  select(filename, wavenumber, absorbance, baseline_corrected, snv_plusOne) %>%
   group_by(filename) %>%
   summarise(
     n_points = n(),
-    min_norm = min(normalized_absorbance, na.rm = TRUE),
-    max_norm = max(normalized_absorbance, na.rm = TRUE),
-    mean_norm = mean(normalized_absorbance, na.rm = TRUE)
+    min_norm = min(snv_plusOne, na.rm = TRUE),
+    max_norm = max(snv_plusOne, na.rm = TRUE),
+    mean_norm = mean(snv_plusOne, na.rm = TRUE)
   ) %>%
   head()
 ```

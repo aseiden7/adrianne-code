@@ -238,11 +238,7 @@ write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE
 dpt_data_roots <- dpt_data %>% 
   filter(sample_type == "root") %>%
   filter(!is.na(crop))
-
-cat("Root samples by crop:\n")
-print(table(dpt_data_roots$crop))
-cat("Root samples by timepoint:\n") 
-print(table(dpt_data_roots$timepoint))
+  
 ```
 
 ## Normalizing data
