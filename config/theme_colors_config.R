@@ -120,21 +120,25 @@ color_map_light <- c(
   "rice_wk40" = "#AF5F04",
   "wheat_wk0" = "#C381FD",
   "wheat_wk10" = "#AB50FB",
-  "wheat_wk40" = "#510594"
+  "wheat_wk40" = "#510594",
+  "noPlant_wk0" = "#75d7df",
+  "noPlant_wk10" = "#58cfda",
+  "noPlant_wk20" = "#39c8d5",
+  "noPlant_wk30" = "#27B4C1",
+  "noPlant_wk40" = "#177982"
 )
 
 color_map_light_all_sep <- list(
   soy = c("wk0" = "#FE67AB", "wk10" = "#FD358F", "wk40" = "#950445"),
   rice = c("wk0" = "#FEB057", "wk10" = "#F6962A", "wk40" = "#AF5F04"),
   wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594"),
-  noPlant = c("wk0" = "#9fe2e9", "wk10" = "#82dae3", "wk20" = "#63d2de", "wk30" = "#43CCD8", "wk40" = "#1fa2ad")
+  noPlant = c("wk0" = "#75d7df", "wk10" = "#58cfda", "wk20" = "#39c8d5", "wk30" = "#27B4C1", "wk40" = "#177982")
 )
 
 color_map_light_three_sep <- list(
   soy = c("wk0" = "#FE67AB", "wk10" = "#FD358F", "wk40" = "#950445"),
   rice = c("wk0" = "#FEB057", "wk10" = "#F6962A", "wk40" = "#AF5F04"),
-  wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594"),
-  noPlant = c("wk0" = "#9fe2e9", "wk10" = "#82dae3", "wk20" = "#63d2de", "wk30" = "#43CCD8", "wk40" = "#1fa2ad")
+  wheat = c("wk0" = "#C381FD", "wk10" = "#AB50FB", "wk40" = "#510594")
 )
 
 # ===== Dark Theme Colors =====
