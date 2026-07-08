@@ -264,8 +264,11 @@ dpt_data <- dpt_data %>%
     snv_plusOne = normalized_absorbance + 1
   ) %>%
   ungroup()
-```
 
+## Save normalized data for record-keeping
+
+write.csv(dpt_data, file.path(outputs_folder, "dpt_data_normalized.csv"), row.names = FALSE)
+```
 
 # Plotting DRIFTS spectra
 ## Plotting by timepoint

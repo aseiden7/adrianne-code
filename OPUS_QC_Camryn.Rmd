@@ -1,5 +1,5 @@
 ---
-title: "Visualizing OPUS binary files and DPT files in R"
+title: "Visualizing OPUS binary files in R"
 author: "Adrianne Seiden"
 date: "`r Sys.Date()`"
 output:
@@ -36,6 +36,8 @@ dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Camryn_
 # set outputs folder path
 outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Camryn_DRIFTSdata/code_outputs")
 ```
+# Overview
+Use this markdown for quality control of OPUS binary files. It reads the files, extracts metadata (i.e. method parameters) and plots the spectra. It also stacks spectra for the same sample number, crop, and timepoint to check for consistency. Problematic spectra can be identified and then filtered out in DRIFTS_Camryn.Rmd.
 
 # Reading OPUS files
 [source](https://spectral-cockpit.github.io/opusreader2/articles/opusreader2_introduction.html)

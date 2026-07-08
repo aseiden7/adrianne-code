@@ -11,7 +11,7 @@
 
 <meta name="author" content="Adrianne Seiden" />
 
-<meta name="date" content="2026-07-07" />
+<meta name="date" content="2026-07-08" />
 
 <title>Integrated DRIFTS Analysis</title>
 
@@ -1668,7 +1668,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">Integrated DRIFTS Analysis</h1>
 <h4 class="author">Adrianne Seiden</h4>
-<h4 class="date">2026-07-07</h4>
+<h4 class="date">2026-07-08</h4>
 
 </div>
 
@@ -1973,7 +1973,11 @@ minimum) and standard normal variate (SNV) normalization.</p>
 <span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a>    <span class="co"># Baseline correction + 1</span></span>
 <span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a>    <span class="at">snv_plusOne =</span> normalized_absorbance <span class="sc">+</span> <span class="dv">1</span></span>
 <span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code></pre></div>
+<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb8-29"><a href="#cb8-29" tabindex="-1"></a></span>
+<span id="cb8-30"><a href="#cb8-30" tabindex="-1"></a><span class="do">## Save normalized data for record-keeping</span></span>
+<span id="cb8-31"><a href="#cb8-31" tabindex="-1"></a></span>
+<span id="cb8-32"><a href="#cb8-32" tabindex="-1"></a><span class="fu">write.csv</span>(dpt_data, <span class="fu">file.path</span>(outputs_folder, <span class="st">&quot;dpt_data_normalized.csv&quot;</span>), <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
 </div>
 </div>
 <div id="plotting-drifts-spectra" class="section level1">
