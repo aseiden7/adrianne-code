@@ -3831,10 +3831,10 @@ interaction between crop type and timepoint.</p>
 <div id="stacked-interaction-plots-crop-x-timepoint" class="section level2">
 <h2>Stacked interaction plots (crop x timepoint)</h2>
 <p>The following code chunk creates a stacked bar plot showing the
-proportions of simple plant, complex plant, and microbial OM for each
-crop at each timepoint, allowing for visualization of the interactive
-effect of crop type and timepoint on all three regions in a single
-figure.</p>
+proportions (with labels in percent) of simple plant, complex plant, and
+microbial OM for each crop at each timepoint, allowing for visualization
+of the interactive effect of crop type and timepoint on all three
+regions in a single figure.</p>
 <div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a>timepoint_prop_colors <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a>  <span class="st">&quot;wk0&quot;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;Simple Plant&quot;</span> <span class="ot">=</span> <span class="st">&quot;#8a82c0&quot;</span>, <span class="st">&quot;Microbial&quot;</span> <span class="ot">=</span> <span class="st">&quot;#bdb8e0&quot;</span>, <span class="st">&quot;Complex Plant&quot;</span> <span class="ot">=</span> <span class="st">&quot;#50478A&quot;</span>),</span>
 <span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a>  <span class="st">&quot;wk10&quot;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;Simple Plant&quot;</span> <span class="ot">=</span> <span class="st">&quot;#7ba7c6&quot;</span>, <span class="st">&quot;Microbial&quot;</span> <span class="ot">=</span> <span class="st">&quot;#b8d0e0&quot;</span>, <span class="st">&quot;Complex Plant&quot;</span> <span class="ot">=</span> <span class="st">&quot;#3D6988&quot;</span>),</span>
@@ -3994,9 +3994,7 @@ figure.</p>
 <div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="fu">ggsave_themed</span>(<span class="st">&quot;stacked_interaction_plot.png&quot;</span>, interaction_plot_stacked, <span class="at">width =</span> <span class="dv">11</span>, <span class="at">height =</span> <span class="fl">6.3</span>)</span></code></pre></div>
 <div id="stacked-interaction-plots-crop-x-timepoint-without-noplant" class="section level3">
 <h3>Stacked interaction plots (crop x timepoint) without noPlant</h3>
-<p>Same as above, but excluding the noPlant controls, and adding labels
-for the percentage of each functional group region in each stacked
-bar.</p>
+<p>Same as above, but excluding the noPlant controls.</p>
 <div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>interaction_plot_stacked_no_noPlant <span class="ot">&lt;-</span> <span class="fu">create_stacked_interaction_plot</span>(</span>
 <span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a>  interaction_stacked_data,</span>
 <span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a>  <span class="at">include_noPlant =</span> <span class="cn">FALSE</span></span>

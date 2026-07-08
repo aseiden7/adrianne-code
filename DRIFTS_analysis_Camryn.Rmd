@@ -1212,7 +1212,7 @@ print(micr_interaction_plot)
 
 
 ## Stacked interaction plots (crop x timepoint)
-The following code chunk creates a stacked bar plot showing the proportions of simple plant, complex plant, and microbial OM for each crop at each timepoint, allowing for visualization of the interactive effect of crop type and timepoint on all three regions in a single figure.
+The following code chunk creates a stacked bar plot showing the proportions (with labels in percent) of simple plant, complex plant, and microbial OM for each crop at each timepoint, allowing for visualization of the interactive effect of crop type and timepoint on all three regions in a single figure.
 
 ```{r stacked-interaction-plots, fig.width=11, fig.height=6.3}
 timepoint_prop_colors <- list(
@@ -1375,7 +1375,7 @@ ggsave_themed("stacked_interaction_plot.png", interaction_plot_stacked, width = 
 ```
 
 ### Stacked interaction plots (crop x timepoint) without noPlant
-Same as above, but excluding the noPlant controls, and adding labels for the percentage of each functional group region in each stacked bar.
+Same as above, but excluding the noPlant controls.
 
 ```{r stacked-interaction-plots-no-noPlant}
 interaction_plot_stacked_no_noPlant <- create_stacked_interaction_plot(
