@@ -14,7 +14,7 @@ This guide walks you through setting up your computer from scratch to run `DRIFT
 
 ## 2. Set up your GitHub repository
 
-The original file has a custom setting that saves the knitted HTML output to a folder called `../adrianne-code/` (a repository folder used by the original author). You'll want your own repository instead.
+The original file has a custom setting that saves the knitted HTML output to a folder called `../adrianne-code/` (Adrianne's GitHub repository). You'll want your own repository instead.
 
 1. Go to [github.com](https://github.com/) and log in (or create an account if you don't have one).
 2. Click the **+** icon (top right) → **New repository**.
@@ -43,8 +43,6 @@ knit: (function(inputFile, encoding) {
                      output_dir = "../camryn-drifts-code/") })
 ```
 
-If you'd rather just save the knitted HTML in the same folder as the `.Rmd` (simplest option), you can delete the whole `knit:` block instead — RStudio will then just knit to the current folder when you click "Knit."
-
 ---
 
 ## 3. Set up your project folder structure
@@ -60,7 +58,7 @@ your-repo-folder/
     └── theme_colors_config.R
 ```
 
-- Copy `DRIFTS_analysis_Camryn.Rmd` into the root of the repo folder.
+- Copy `DRIFTS_analysis_Camryn.Rmd` and `OPUS_QC_Camryn.Rmd` into the root of the repo folder.
 - Copy the `config` folder (contains `theme_colors_config.R`) into the repo folder.
 
 This matters because the `.Rmd` looks for the config file using this line:
@@ -75,7 +73,7 @@ This means: "look in a `config` folder sitting right next to this `.Rmd` file." 
 
 ## 4. Remove the Box-specific code (since you're not using Box)
 
-The original script uses a Box-based environment variable (`BOX_BASE`) to build file paths. Since you're not using Box, you'll want to simplify this. In the setup chunk near the top of the `.Rmd`, find this:
+The original script uses a Box-based environment variable (`BOX_BASE`) to build file paths so that the files can be accessed through Box on either a Mac or a PC. Since you're not using Box, you'll want to simplify this. In the setup chunk near the top of the `.Rmd`, find this:
 
 ```r
 # Set Box path
@@ -124,7 +122,7 @@ install.packages(c("ggplot2", "ggridges", "readr", "stringr", "viridis",
 4. The first time, RStudio may prompt you to install a few additional packages — click "Yes" if so.
 5. If you want to switch to light theme figures, open theme_colors_config.R, comment out "theme_set(theme_dark_custom())" and uncomment "# theme_set(theme_minimal())". Then comment out "theme_suffix <- "-dark"" and uncomment "# theme_suffix <- "-light"" (lines 43–49; see screenshot below)
 
-![theme-control](https://github.com/aseiden7/adrianne-code/blob/17edaca867fa2420084d23a86739e024616fc1c7/code-theme-control.png)
+![theme-control](https://github.com/aseiden7/adrianne-code/raw/17edaca867fa2420084d23a86739e024616fc1c7/code-theme-control.png)
 ---
 
 ## 7. Push your work to GitHub
