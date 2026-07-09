@@ -1,5 +1,5 @@
 ---
-title: "Integrated DRIFTS Analysis"
+title: "DRIFTS Analysis for Soil Samples"
 author: "Adrianne Seiden"
 date: "`r Sys.Date()`"
 output:
