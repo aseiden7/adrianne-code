@@ -2566,6 +2566,227 @@ sugarcane samples
 </div>
 </div>
 </div>
+<div id="integration-of-functional-regions" class="section level1">
+<h1>Integration of functional regions</h1>
+<p>Modified from “Berhe_Ghezzehei_Lab/DRIFTS Data
+Analysis/Visualizing_FTIR_w_Elemental_Data.R” which starts by
+calculating aliphatic and aromatic indices, then deriving simple and
+complex plant and microbial proportions before visualizing everything.
+This procedure sums non-normalized absorbance values over a specified
+range, and divides by the total peak area in the ranges of interest to
+get the proportions.</p>
+<div id="performing-the-integration" class="section level2">
+<h2>Performing the integration</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Function to perform spectral integration on DPT data (based on Leila_code_modified.Rmd)</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>perform_spectral_integration <span class="ot">&lt;-</span> <span class="cf">function</span>(dpt_data) {</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Starting spectral integration processing...</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>  </span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  <span class="co"># Load required library for integration</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">require</span>(pracma, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>    <span class="fu">install.packages</span>(<span class="st">&quot;pracma&quot;</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>    <span class="fu">library</span>(pracma)</span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  }</span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  </span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  <span class="co"># Prepare the data in the format needed for integration</span></span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>  <span class="co"># Rename columns to match expected format</span></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>  comb <span class="ot">&lt;-</span> dpt_data <span class="sc">%&gt;%</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>    <span class="fu">select</span>(filename, wavenumber, absorbance) <span class="sc">%&gt;%</span></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">rename</span>(<span class="at">sample =</span> filename, <span class="at">abs =</span> absorbance)</span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>  </span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>  <span class="co"># Define spectral windows of interest (same as Leila&#39;s code)</span></span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a>  red1 <span class="ot">&lt;-</span> comb[comb<span class="sc">$</span>wavenumber <span class="sc">&gt;</span> <span class="dv">2839</span> <span class="sc">&amp;</span> comb<span class="sc">$</span>wavenumber <span class="sc">&lt;</span> <span class="dv">2870</span>, ]  <span class="co"># Aliphatic 1</span></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>  red2 <span class="ot">&lt;-</span> comb[comb<span class="sc">$</span>wavenumber <span class="sc">&gt;</span> <span class="dv">2898</span> <span class="sc">&amp;</span> comb<span class="sc">$</span>wavenumber <span class="sc">&lt;</span> <span class="dv">2976</span>, ]  <span class="co"># Aliphatic 2  </span></span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a>  red3 <span class="ot">&lt;-</span> comb[comb<span class="sc">$</span>wavenumber <span class="sc">&gt;</span> <span class="dv">1690</span> <span class="sc">&amp;</span> comb<span class="sc">$</span>wavenumber <span class="sc">&lt;</span> <span class="dv">1780</span>, ]  <span class="co"># Carbonyl</span></span>
+<span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a>  red4 <span class="ot">&lt;-</span> comb[comb<span class="sc">$</span>wavenumber <span class="sc">&gt;</span> <span class="dv">1580</span> <span class="sc">&amp;</span> comb<span class="sc">$</span>wavenumber <span class="sc">&lt;</span> <span class="dv">1660</span>, ]  <span class="co"># Microbial</span></span>
+<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a>  red5 <span class="ot">&lt;-</span> comb[comb<span class="sc">$</span>wavenumber <span class="sc">&gt;</span> <span class="dv">1500</span> <span class="sc">&amp;</span> comb<span class="sc">$</span>wavenumber <span class="sc">&lt;</span> <span class="dv">1550</span>, ]  <span class="co"># Complex plant</span></span>
+<span id="cb9-23"><a href="#cb9-23" tabindex="-1"></a>  red6 <span class="ot">&lt;-</span> comb[comb<span class="sc">$</span>wavenumber <span class="sc">&gt;</span> <span class="dv">900</span> <span class="sc">&amp;</span> comb<span class="sc">$</span>wavenumber <span class="sc">&lt;</span> <span class="dv">1200</span>, ]   <span class="co"># Sugars</span></span>
+<span id="cb9-24"><a href="#cb9-24" tabindex="-1"></a>  </span>
+<span id="cb9-25"><a href="#cb9-25" tabindex="-1"></a>  <span class="co"># Get unique samples</span></span>
+<span id="cb9-26"><a href="#cb9-26" tabindex="-1"></a>  sample <span class="ot">&lt;-</span> <span class="fu">unique</span>(comb<span class="sc">$</span>sample)</span>
+<span id="cb9-27"><a href="#cb9-27" tabindex="-1"></a>  </span>
+<span id="cb9-28"><a href="#cb9-28" tabindex="-1"></a>  <span class="co"># Create integration results data frame</span></span>
+<span id="cb9-29"><a href="#cb9-29" tabindex="-1"></a>  ints <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb9-30"><a href="#cb9-30" tabindex="-1"></a>    <span class="at">sample =</span> sample,</span>
+<span id="cb9-31"><a href="#cb9-31" tabindex="-1"></a>    <span class="at">int_2839_2870 =</span> <span class="fu">numeric</span>(<span class="fu">length</span>(sample)),</span>
+<span id="cb9-32"><a href="#cb9-32" tabindex="-1"></a>    <span class="at">int_2898_2976 =</span> <span class="fu">numeric</span>(<span class="fu">length</span>(sample)),</span>
+<span id="cb9-33"><a href="#cb9-33" tabindex="-1"></a>    <span class="at">int_1690_1780 =</span> <span class="fu">numeric</span>(<span class="fu">length</span>(sample)),</span>
+<span id="cb9-34"><a href="#cb9-34" tabindex="-1"></a>    <span class="at">int_1580_1660 =</span> <span class="fu">numeric</span>(<span class="fu">length</span>(sample)),</span>
+<span id="cb9-35"><a href="#cb9-35" tabindex="-1"></a>    <span class="at">int_1500_1550 =</span> <span class="fu">numeric</span>(<span class="fu">length</span>(sample)),</span>
+<span id="cb9-36"><a href="#cb9-36" tabindex="-1"></a>    <span class="at">int_900_1200 =</span> <span class="fu">numeric</span>(<span class="fu">length</span>(sample)),</span>
+<span id="cb9-37"><a href="#cb9-37" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb9-38"><a href="#cb9-38" tabindex="-1"></a>  )</span>
+<span id="cb9-39"><a href="#cb9-39" tabindex="-1"></a>  </span>
+<span id="cb9-40"><a href="#cb9-40" tabindex="-1"></a>  <span class="co"># Calculate integrated areas for each spectral window and sample</span></span>
+<span id="cb9-41"><a href="#cb9-41" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Processing&quot;</span>, <span class="fu">length</span>(sample), <span class="st">&quot;samples for integration...</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-42"><a href="#cb9-42" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_len</span>(<span class="fu">nrow</span>(ints))) {</span>
+<span id="cb9-43"><a href="#cb9-43" tabindex="-1"></a>    current_sample <span class="ot">&lt;-</span> sample[i]</span>
+<span id="cb9-44"><a href="#cb9-44" tabindex="-1"></a>    </span>
+<span id="cb9-45"><a href="#cb9-45" tabindex="-1"></a>    <span class="co"># Extract data for current sample from each spectral window</span></span>
+<span id="cb9-46"><a href="#cb9-46" tabindex="-1"></a>    sample_red1 <span class="ot">&lt;-</span> red1[red1<span class="sc">$</span>sample <span class="sc">==</span> current_sample, ]</span>
+<span id="cb9-47"><a href="#cb9-47" tabindex="-1"></a>    sample_red2 <span class="ot">&lt;-</span> red2[red2<span class="sc">$</span>sample <span class="sc">==</span> current_sample, ]</span>
+<span id="cb9-48"><a href="#cb9-48" tabindex="-1"></a>    sample_red3 <span class="ot">&lt;-</span> red3[red3<span class="sc">$</span>sample <span class="sc">==</span> current_sample, ]</span>
+<span id="cb9-49"><a href="#cb9-49" tabindex="-1"></a>    sample_red4 <span class="ot">&lt;-</span> red4[red4<span class="sc">$</span>sample <span class="sc">==</span> current_sample, ]</span>
+<span id="cb9-50"><a href="#cb9-50" tabindex="-1"></a>    sample_red5 <span class="ot">&lt;-</span> red5[red5<span class="sc">$</span>sample <span class="sc">==</span> current_sample, ]</span>
+<span id="cb9-51"><a href="#cb9-51" tabindex="-1"></a>    sample_red6 <span class="ot">&lt;-</span> red6[red6<span class="sc">$</span>sample <span class="sc">==</span> current_sample, ]</span>
+<span id="cb9-52"><a href="#cb9-52" tabindex="-1"></a>    </span>
+<span id="cb9-53"><a href="#cb9-53" tabindex="-1"></a>    <span class="co"># Calculate area under curve (integration) using trapezoidal rule</span></span>
+<span id="cb9-54"><a href="#cb9-54" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(sample_red1) <span class="sc">&gt;</span> <span class="dv">1</span>) {</span>
+<span id="cb9-55"><a href="#cb9-55" tabindex="-1"></a>      ints<span class="sc">$</span>int_2839_2870[i] <span class="ot">&lt;-</span> pracma<span class="sc">::</span><span class="fu">trapz</span>(sample_red1<span class="sc">$</span>wavenumber, sample_red1<span class="sc">$</span>abs)</span>
+<span id="cb9-56"><a href="#cb9-56" tabindex="-1"></a>    }</span>
+<span id="cb9-57"><a href="#cb9-57" tabindex="-1"></a>    </span>
+<span id="cb9-58"><a href="#cb9-58" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(sample_red2) <span class="sc">&gt;</span> <span class="dv">1</span>) {</span>
+<span id="cb9-59"><a href="#cb9-59" tabindex="-1"></a>      ints<span class="sc">$</span>int_2898_2976[i] <span class="ot">&lt;-</span> pracma<span class="sc">::</span><span class="fu">trapz</span>(sample_red2<span class="sc">$</span>wavenumber, sample_red2<span class="sc">$</span>abs)</span>
+<span id="cb9-60"><a href="#cb9-60" tabindex="-1"></a>    }</span>
+<span id="cb9-61"><a href="#cb9-61" tabindex="-1"></a>    </span>
+<span id="cb9-62"><a href="#cb9-62" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(sample_red3) <span class="sc">&gt;</span> <span class="dv">1</span>) {</span>
+<span id="cb9-63"><a href="#cb9-63" tabindex="-1"></a>      ints<span class="sc">$</span>int_1690_1780[i] <span class="ot">&lt;-</span> pracma<span class="sc">::</span><span class="fu">trapz</span>(sample_red3<span class="sc">$</span>wavenumber, sample_red3<span class="sc">$</span>abs)</span>
+<span id="cb9-64"><a href="#cb9-64" tabindex="-1"></a>    }</span>
+<span id="cb9-65"><a href="#cb9-65" tabindex="-1"></a>    </span>
+<span id="cb9-66"><a href="#cb9-66" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(sample_red4) <span class="sc">&gt;</span> <span class="dv">1</span>) {</span>
+<span id="cb9-67"><a href="#cb9-67" tabindex="-1"></a>      ints<span class="sc">$</span>int_1580_1660[i] <span class="ot">&lt;-</span> pracma<span class="sc">::</span><span class="fu">trapz</span>(sample_red4<span class="sc">$</span>wavenumber, sample_red4<span class="sc">$</span>abs)</span>
+<span id="cb9-68"><a href="#cb9-68" tabindex="-1"></a>    }</span>
+<span id="cb9-69"><a href="#cb9-69" tabindex="-1"></a>    </span>
+<span id="cb9-70"><a href="#cb9-70" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(sample_red5) <span class="sc">&gt;</span> <span class="dv">1</span>) {</span>
+<span id="cb9-71"><a href="#cb9-71" tabindex="-1"></a>      ints<span class="sc">$</span>int_1500_1550[i] <span class="ot">&lt;-</span> pracma<span class="sc">::</span><span class="fu">trapz</span>(sample_red5<span class="sc">$</span>wavenumber, sample_red5<span class="sc">$</span>abs)</span>
+<span id="cb9-72"><a href="#cb9-72" tabindex="-1"></a>    }</span>
+<span id="cb9-73"><a href="#cb9-73" tabindex="-1"></a>    </span>
+<span id="cb9-74"><a href="#cb9-74" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(sample_red6) <span class="sc">&gt;</span> <span class="dv">1</span>) {</span>
+<span id="cb9-75"><a href="#cb9-75" tabindex="-1"></a>      ints<span class="sc">$</span>int_900_1200[i] <span class="ot">&lt;-</span> pracma<span class="sc">::</span><span class="fu">trapz</span>(sample_red6<span class="sc">$</span>wavenumber, sample_red6<span class="sc">$</span>abs)</span>
+<span id="cb9-76"><a href="#cb9-76" tabindex="-1"></a>    }</span>
+<span id="cb9-77"><a href="#cb9-77" tabindex="-1"></a>  }</span>
+<span id="cb9-78"><a href="#cb9-78" tabindex="-1"></a>  </span>
+<span id="cb9-79"><a href="#cb9-79" tabindex="-1"></a>  <span class="co"># Use existing metadata from the input data (no need to re-extract)</span></span>
+<span id="cb9-80"><a href="#cb9-80" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Using existing metadata from DPT data...</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-81"><a href="#cb9-81" tabindex="-1"></a>  basic_meta <span class="ot">&lt;-</span> dpt_data <span class="sc">%&gt;%</span></span>
+<span id="cb9-82"><a href="#cb9-82" tabindex="-1"></a>    <span class="fu">select</span>(filename, plant, method, run_date, run_rep) <span class="sc">%&gt;%</span></span>
+<span id="cb9-83"><a href="#cb9-83" tabindex="-1"></a>    <span class="fu">distinct</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb9-84"><a href="#cb9-84" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">rename</span>(<span class="at">sample =</span> filename)</span>
+<span id="cb9-85"><a href="#cb9-85" tabindex="-1"></a>  </span>
+<span id="cb9-86"><a href="#cb9-86" tabindex="-1"></a>  <span class="co"># Combine metadata with integration results</span></span>
+<span id="cb9-87"><a href="#cb9-87" tabindex="-1"></a>  ftir_data <span class="ot">&lt;-</span> <span class="fu">merge</span>(basic_meta, ints, <span class="at">by =</span> <span class="st">&quot;sample&quot;</span>, <span class="at">all =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-88"><a href="#cb9-88" tabindex="-1"></a>  </span>
+<span id="cb9-89"><a href="#cb9-89" tabindex="-1"></a>  <span class="co"># Rename integration columns to match expected names</span></span>
+<span id="cb9-90"><a href="#cb9-90" tabindex="-1"></a>  <span class="fu">names</span>(ftir_data)[<span class="fu">names</span>(ftir_data) <span class="sc">==</span> <span class="st">&quot;int_1580_1660&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;int_microbial&quot;</span></span>
+<span id="cb9-91"><a href="#cb9-91" tabindex="-1"></a>  <span class="fu">names</span>(ftir_data)[<span class="fu">names</span>(ftir_data) <span class="sc">==</span> <span class="st">&quot;int_1500_1550&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;int_complex_plant&quot;</span></span>
+<span id="cb9-92"><a href="#cb9-92" tabindex="-1"></a>  <span class="fu">names</span>(ftir_data)[<span class="fu">names</span>(ftir_data) <span class="sc">==</span> <span class="st">&quot;int_1690_1780&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;int_carbonyl&quot;</span></span>
+<span id="cb9-93"><a href="#cb9-93" tabindex="-1"></a>  <span class="fu">names</span>(ftir_data)[<span class="fu">names</span>(ftir_data) <span class="sc">==</span> <span class="st">&quot;int_900_1200&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;int_sugars&quot;</span></span>
+<span id="cb9-94"><a href="#cb9-94" tabindex="-1"></a>  </span>
+<span id="cb9-95"><a href="#cb9-95" tabindex="-1"></a>  <span class="co"># Calculate derived metrics</span></span>
+<span id="cb9-96"><a href="#cb9-96" tabindex="-1"></a>  ftir_data<span class="sc">$</span>aliphatic <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>int_2839_2870 <span class="sc">+</span> ftir_data<span class="sc">$</span>int_2898_2976</span>
+<span id="cb9-97"><a href="#cb9-97" tabindex="-1"></a>  ftir_data<span class="sc">$</span>total_peak_area <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>aliphatic <span class="sc">+</span> ftir_data<span class="sc">$</span>int_microbial <span class="sc">+</span> ftir_data<span class="sc">$</span>int_complex_plant <span class="sc">+</span> ftir_data<span class="sc">$</span>int_carbonyl <span class="sc">+</span> ftir_data<span class="sc">$</span>int_sugars</span>
+<span id="cb9-98"><a href="#cb9-98" tabindex="-1"></a>  ftir_data<span class="sc">$</span>aliphatic_prop <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>aliphatic <span class="sc">/</span> ftir_data<span class="sc">$</span>total_peak_area</span>
+<span id="cb9-99"><a href="#cb9-99" tabindex="-1"></a>  ftir_data<span class="sc">$</span>complex_plant_prop <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>int_complex_plant <span class="sc">/</span> ftir_data<span class="sc">$</span>total_peak_area</span>
+<span id="cb9-100"><a href="#cb9-100" tabindex="-1"></a>  ftir_data<span class="sc">$</span>carbonyl_prop <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>int_carbonyl <span class="sc">/</span> ftir_data<span class="sc">$</span>total_peak_area</span>
+<span id="cb9-101"><a href="#cb9-101" tabindex="-1"></a>  ftir_data<span class="sc">$</span>sugars_prop <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>int_sugars <span class="sc">/</span> ftir_data<span class="sc">$</span>total_peak_area</span>
+<span id="cb9-102"><a href="#cb9-102" tabindex="-1"></a>  ftir_data<span class="sc">$</span>microbial_prop <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>int_microbial <span class="sc">/</span> ftir_data<span class="sc">$</span>total_peak_area</span>
+<span id="cb9-103"><a href="#cb9-103" tabindex="-1"></a>  ftir_data<span class="sc">$</span>aliphatic_microbial_prop <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>aliphatic_prop <span class="sc">/</span> ftir_data<span class="sc">$</span>microbial_prop</span>
+<span id="cb9-104"><a href="#cb9-104" tabindex="-1"></a>  ftir_data<span class="sc">$</span>complex_microbial_prop <span class="ot">&lt;-</span> ftir_data<span class="sc">$</span>complex_plant_prop <span class="sc">/</span> ftir_data<span class="sc">$</span>microbial_prop</span>
+<span id="cb9-105"><a href="#cb9-105" tabindex="-1"></a>  </span>
+<span id="cb9-106"><a href="#cb9-106" tabindex="-1"></a>  <span class="co"># Remove individual aliphatic integration columns (keep only derived metrics)</span></span>
+<span id="cb9-107"><a href="#cb9-107" tabindex="-1"></a>  ftir_data <span class="ot">&lt;-</span> ftir_data <span class="sc">%&gt;%</span></span>
+<span id="cb9-108"><a href="#cb9-108" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>int_2839_2870, <span class="sc">-</span>int_2898_2976)</span>
+<span id="cb9-109"><a href="#cb9-109" tabindex="-1"></a>  </span>
+<span id="cb9-110"><a href="#cb9-110" tabindex="-1"></a>  <span class="co"># Save the processed data to the output directory</span></span>
+<span id="cb9-111"><a href="#cb9-111" tabindex="-1"></a>  today <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.Date</span>(), <span class="st">&quot;%Y-%m-%d&quot;</span>)</span>
+<span id="cb9-112"><a href="#cb9-112" tabindex="-1"></a>  output_file <span class="ot">&lt;-</span> <span class="fu">file.path</span>(outputs_folder, <span class="fu">paste0</span>(<span class="st">&quot;processed_int_data_&quot;</span>, today, <span class="st">&quot;.csv&quot;</span>))</span>
+<span id="cb9-113"><a href="#cb9-113" tabindex="-1"></a>  <span class="fu">write.csv</span>(ftir_data, <span class="at">file =</span> output_file, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb9-114"><a href="#cb9-114" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Saved processed integration data to:&quot;</span>, output_file, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-115"><a href="#cb9-115" tabindex="-1"></a>  </span>
+<span id="cb9-116"><a href="#cb9-116" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Integration processing completed successfully.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-117"><a href="#cb9-117" tabindex="-1"></a>  <span class="fu">return</span>(ftir_data)</span>
+<span id="cb9-118"><a href="#cb9-118" tabindex="-1"></a>}</span>
+<span id="cb9-119"><a href="#cb9-119" tabindex="-1"></a><span class="co"># Try to find the most recent processed integration data file</span></span>
+<span id="cb9-120"><a href="#cb9-120" tabindex="-1"></a>ftir_file <span class="ot">&lt;-</span> <span class="fu">find_most_recent_processed_file</span>(outputs_folder)</span>
+<span id="cb9-121"><a href="#cb9-121" tabindex="-1"></a><span class="co">#&gt; Found 1 processed integration files</span></span>
+<span id="cb9-122"><a href="#cb9-122" tabindex="-1"></a><span class="co">#&gt; Using most recent file: processed_int_data_2026-07-10.csv</span></span>
+<span id="cb9-123"><a href="#cb9-123" tabindex="-1"></a></span>
+<span id="cb9-124"><a href="#cb9-124" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(ftir_file) <span class="sc">&amp;&amp;</span> <span class="fu">file.exists</span>(ftir_file)) {</span>
+<span id="cb9-125"><a href="#cb9-125" tabindex="-1"></a>  ftir_data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(ftir_file, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb9-126"><a href="#cb9-126" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Successfully loaded FTIR integration data from:&quot;</span>, <span class="fu">basename</span>(ftir_file), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-127"><a href="#cb9-127" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Dimensions:&quot;</span>, <span class="fu">dim</span>(ftir_data), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-128"><a href="#cb9-128" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Columns:&quot;</span>, <span class="fu">names</span>(ftir_data), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-129"><a href="#cb9-129" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb9-130"><a href="#cb9-130" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;No processed integration data found. Processing raw DPT data to generate integration results...</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-131"><a href="#cb9-131" tabindex="-1"></a>  </span>
+<span id="cb9-132"><a href="#cb9-132" tabindex="-1"></a>  <span class="co"># Check if we have the required dpt_data_roots from previous chunk</span></span>
+<span id="cb9-133"><a href="#cb9-133" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">exists</span>(<span class="st">&quot;dpt_data&quot;</span>) <span class="sc">||</span> <span class="fu">nrow</span>(dpt_data) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb9-134"><a href="#cb9-134" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">&quot;No DPT data available for integration. Please ensure the DPT data import was successful.&quot;</span>)</span>
+<span id="cb9-135"><a href="#cb9-135" tabindex="-1"></a>  }</span>
+<span id="cb9-136"><a href="#cb9-136" tabindex="-1"></a>  </span>
+<span id="cb9-137"><a href="#cb9-137" tabindex="-1"></a>  <span class="co"># Process raw DPT data using the integrated function</span></span>
+<span id="cb9-138"><a href="#cb9-138" tabindex="-1"></a>  ftir_data <span class="ot">&lt;-</span> <span class="fu">perform_spectral_integration</span>(dpt_data)</span>
+<span id="cb9-139"><a href="#cb9-139" tabindex="-1"></a>  </span>
+<span id="cb9-140"><a href="#cb9-140" tabindex="-1"></a>  <span class="co"># Verify the processing was successful</span></span>
+<span id="cb9-141"><a href="#cb9-141" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(ftir_data) <span class="sc">||</span> <span class="fu">nrow</span>(ftir_data) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb9-142"><a href="#cb9-142" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">&quot;Failed to process DPT data for integration.&quot;</span>)</span>
+<span id="cb9-143"><a href="#cb9-143" tabindex="-1"></a>  }</span>
+<span id="cb9-144"><a href="#cb9-144" tabindex="-1"></a>  </span>
+<span id="cb9-145"><a href="#cb9-145" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Successfully processed&quot;</span>, <span class="fu">nrow</span>(ftir_data), <span class="st">&quot;samples from DPT data</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-146"><a href="#cb9-146" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Generated columns:&quot;</span>, <span class="fu">names</span>(ftir_data), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-147"><a href="#cb9-147" tabindex="-1"></a>}</span>
+<span id="cb9-148"><a href="#cb9-148" tabindex="-1"></a><span class="co">#&gt; Successfully loaded FTIR integration data from: processed_int_data_2026-07-10.csv </span></span>
+<span id="cb9-149"><a href="#cb9-149" tabindex="-1"></a><span class="co">#&gt; Dimensions: 10 18 </span></span>
+<span id="cb9-150"><a href="#cb9-150" tabindex="-1"></a><span class="co">#&gt; Columns: sample plant method run_date run_rep int_carbonyl int_microbial int_complex_plant int_sugars aliphatic total_peak_area aliphatic_prop complex_plant_prop carbonyl_prop sugars_prop microbial_prop aliphatic_microbial_prop complex_microbial_prop</span></span></code></pre></div>
+</div>
+<div id="generating-statistics" class="section level2">
+<h2>Generating statistics</h2>
+<p>This code chunk calculates summary statistics (mean and standard
+error) for the derived metrics (aliphatic, carbonyl, microbial, complex
+plant, sugars proportions) grouped by plant, preparation method, and
+plant-method combinations. The results are stored in separate data
+frames for later visualization.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Calculate summary statistics by group</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>plant_stats <span class="ot">&lt;-</span> ftir_data <span class="sc">%&gt;%</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">plant =</span> <span class="fu">factor</span>(plant, <span class="at">levels =</span> <span class="fu">sort</span>(<span class="fu">unique</span>(plant)))) <span class="sc">%&gt;%</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  <span class="fu">group_by</span>(plant) <span class="sc">%&gt;%</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>    <span class="at">Mean_aliphatic_prop =</span> <span class="fu">mean</span>(aliphatic_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>    <span class="at">SE_aliphatic_prop =</span> <span class="fu">sd</span>(aliphatic_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>    <span class="at">Mean_carbonyl_prop =</span> <span class="fu">mean</span>(carbonyl_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>    <span class="at">SE_carbonyl_prop =</span> <span class="fu">sd</span>(carbonyl_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>    <span class="at">Mean_microbial_prop =</span> <span class="fu">mean</span>(microbial_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>    <span class="at">SE_microbial_prop =</span> <span class="fu">sd</span>(microbial_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>    <span class="at">Mean_complex_plant_prop =</span> <span class="fu">mean</span>(complex_plant_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>    <span class="at">SE_complex_plant_prop =</span> <span class="fu">sd</span>(complex_plant_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>    <span class="at">Mean_sugars_prop =</span> <span class="fu">mean</span>(sugars_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>    <span class="at">SE_sugars_prop =</span> <span class="fu">sd</span>(sugars_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&#39;drop&#39;</span></span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>  )</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>method_stats <span class="ot">&lt;-</span> ftir_data <span class="sc">%&gt;%</span></span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>  <span class="fu">group_by</span>(method) <span class="sc">%&gt;%</span></span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a>    <span class="at">Mean_aliphatic_prop =</span> <span class="fu">mean</span>(aliphatic_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a>    <span class="at">SE_aliphatic_prop =</span> <span class="fu">sd</span>(aliphatic_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a>    <span class="at">Mean_carbonyl_prop =</span> <span class="fu">mean</span>(carbonyl_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a>    <span class="at">SE_carbonyl_prop =</span> <span class="fu">sd</span>(carbonyl_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a>    <span class="at">Mean_microbial_prop =</span> <span class="fu">mean</span>(microbial_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a>    <span class="at">SE_microbial_prop =</span> <span class="fu">sd</span>(microbial_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a>    <span class="at">Mean_complex_plant_prop =</span> <span class="fu">mean</span>(complex_plant_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a>    <span class="at">SE_complex_plant_prop =</span> <span class="fu">sd</span>(complex_plant_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-30"><a href="#cb10-30" tabindex="-1"></a>    <span class="at">Mean_sugars_prop =</span> <span class="fu">mean</span>(sugars_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-31"><a href="#cb10-31" tabindex="-1"></a>    <span class="at">SE_sugars_prop =</span> <span class="fu">sd</span>(sugars_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-32"><a href="#cb10-32" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&#39;drop&#39;</span></span>
+<span id="cb10-33"><a href="#cb10-33" tabindex="-1"></a>  )</span>
+<span id="cb10-34"><a href="#cb10-34" tabindex="-1"></a></span>
+<span id="cb10-35"><a href="#cb10-35" tabindex="-1"></a>plant_method_stats <span class="ot">&lt;-</span> ftir_data <span class="sc">%&gt;%</span></span>
+<span id="cb10-36"><a href="#cb10-36" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">plant =</span> <span class="fu">factor</span>(plant, <span class="at">levels =</span> <span class="fu">sort</span>(<span class="fu">unique</span>(plant)))) <span class="sc">%&gt;%</span></span>
+<span id="cb10-37"><a href="#cb10-37" tabindex="-1"></a>  <span class="fu">group_by</span>(plant, method) <span class="sc">%&gt;%</span></span>
+<span id="cb10-38"><a href="#cb10-38" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb10-39"><a href="#cb10-39" tabindex="-1"></a>    <span class="at">Mean_aliphatic_prop =</span> <span class="fu">mean</span>(aliphatic_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-40"><a href="#cb10-40" tabindex="-1"></a>    <span class="at">SE_aliphatic_prop =</span> <span class="fu">sd</span>(aliphatic_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-41"><a href="#cb10-41" tabindex="-1"></a>    <span class="at">Mean_carbonyl_prop =</span> <span class="fu">mean</span>(carbonyl_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-42"><a href="#cb10-42" tabindex="-1"></a>    <span class="at">SE_carbonyl_prop =</span> <span class="fu">sd</span>(carbonyl_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-43"><a href="#cb10-43" tabindex="-1"></a>    <span class="at">Mean_microbial_prop =</span> <span class="fu">mean</span>(microbial_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-44"><a href="#cb10-44" tabindex="-1"></a>    <span class="at">SE_microbial_prop =</span> <span class="fu">sd</span>(microbial_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-45"><a href="#cb10-45" tabindex="-1"></a>    <span class="at">Mean_complex_plant_prop =</span> <span class="fu">mean</span>(complex_plant_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-46"><a href="#cb10-46" tabindex="-1"></a>    <span class="at">SE_complex_plant_prop =</span> <span class="fu">sd</span>(complex_plant_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-47"><a href="#cb10-47" tabindex="-1"></a>    <span class="at">Mean_sugars_prop =</span> <span class="fu">mean</span>(sugars_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb10-48"><a href="#cb10-48" tabindex="-1"></a>    <span class="at">SE_sugars_prop =</span> <span class="fu">sd</span>(sugars_prop, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="fu">n</span>()),</span>
+<span id="cb10-49"><a href="#cb10-49" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&#39;drop&#39;</span></span>
+<span id="cb10-50"><a href="#cb10-50" tabindex="-1"></a>  )</span></code></pre></div>
+</div>
+</div>
 
 
 
