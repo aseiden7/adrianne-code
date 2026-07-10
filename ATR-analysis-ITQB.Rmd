@@ -247,24 +247,28 @@ Integration regions according to Mainka et al. (2022):
 
 Mainka, M., Summerauer, L., Wasner, D., Garland, G., Griepentrog, M., Berhe, A. A., & Doetterl, S. (2022). Soil geochemistry as a driver of soil organic matter composition: Insights from a soil chronosequence. Biogeosciences, 19(6), 1675–1689. https://doi.org/10.5194/bg-19-1675-2022
 
-Plus carbonyl region (1800 - 1700 cm<sup>-1</sup>) added to the analysis.
+Plus carbonyl region (1780 - 1690 cm<sup>-1</sup>) \& sugars region (1200 - 900 cm<sup>-1</sup>) added to the analysis.
 
 <table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Simple plant (aliphatic):</td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Aliphatics (simple plant):</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup></td>
 </tr>
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Carbonyl:</td>
-<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1800 - 1700 cm<sup>-1</sup></td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Carbonyls:</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1780 - 1690 cm<sup>-1</sup></td>
 </tr>
 <tr>
 <td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Microbial:</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1660 - 1580 cm<sup>-1</sup></td>
 </tr>
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Complex plant (aromatic):</td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Aromatics (complex plant):</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1550 - 1500 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Sugars:</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1200 - 900 cm<sup>-1</sup></td>
 </tr>
 </table>
 
@@ -298,16 +302,6 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
                         scale = 3, # overlap scale - 1 is no overlap, >1 is more overlap
                         alpha = 0.25) +
                         
-    geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.23) +
-    geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.23) +
-    geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
-    geom_vline(xintercept = 1660, linetype = "dashed", linewidth = 0.23) +
-    geom_vline(xintercept = 1800, linetype = "dashed", linewidth = 0.23) +
-    geom_vline(xintercept = 1700, linetype = "dashed", linewidth = 0.23) +
-    geom_vline(xintercept = 2839, linetype = "longdash", linewidth = 0.23) +
-    geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
-    geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
-    geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
     scale_x_reverse(
       limits = c(3750, 650),
       breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
@@ -327,12 +321,12 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2900, y = max_y*1.08, label = "Simple Plant", 
+    annotate("text", x = 2900, y = max_y * 1.08, label = "Simple Plant", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add carbonyl region annotation
-    annotate("rect", xmin = 1800, xmax = 1700, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 1780, xmax = 1690, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#83a0e8") +
-    annotate("text", x = 1930, y = max_y*0.9, label = "Carbonyl", 
+    annotate("text", x = 1910, y = max_y * 0.9, label = "Carbonyl", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
@@ -342,8 +336,13 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1300, y = max_y * 1.25, label = "Complex Plant", 
-             size = 3.3, hjust = 0.5, color = annotation_text_color)
+    annotate("text", x = 1300, y = max_y * 1.22, label = "Complex Plant", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    # Add sugars region annotation
+    annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#d987b5") +
+    annotate("text", x = 933, y = max_y * 1.4, label = "Sugars", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) 
   
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -384,20 +383,24 @@ These plots are of normalized absorbance values. The thickness of the opaque lin
 
 <table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Simple plant (aliphatic):</td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Aliphatics (simple plant):</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup></td>
 </tr>
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Carbonyl:</td>
-<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1800 - 1700 cm<sup>-1</sup></td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Carbonyls:</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1780 - 1690 cm<sup>-1</sup></td>
 </tr>
 <tr>
 <td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Microbial:</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1660 - 1580 cm<sup>-1</sup></td>
 </tr>
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Complex plant (aromatic):</td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Aromatics (complex plant):</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1550 - 1500 cm<sup>-1</sup></td>
+</tr>
+<tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Sugars:</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1200 - 900 cm<sup>-1</sup></td>
 </tr>
 </table>
 
@@ -458,9 +461,9 @@ create_plant_faceted_plot <- function(data, current_plant, title = NULL) {
     annotate("text", x = 2900, y = max_y*1.03, label = "Simple Plant", 
              size = 3.33, hjust = 0.5, color = annotation_text_color) +
     # Add carbonyl region annotation
-    annotate("rect", xmin = 1800, xmax = 1700, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 1780, xmax = 1690, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#83a0e8") +
-    annotate("text", x = 1930, y = max_y*0.95, label = "Carbonyl", 
+    annotate("text", x = 1900, y = max_y*0.95, label = "Carbonyl", 
              size = 3.33, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
@@ -470,9 +473,13 @@ create_plant_faceted_plot <- function(data, current_plant, title = NULL) {
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1300, y = max_y * 1.23, label = "Complex Plant", 
-             size = 3.33, hjust = 0.5, color = annotation_text_color)
-  
+    annotate("text", x = 1333, y = max_y * 1.22, label = "Complex Plant", 
+             size = 3.33, hjust = 0.5, color = annotation_text_color) +
+      # Add sugars region annotation
+    annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#d987b5") +
+    annotate("text", x = 933, y = max_y * 1.31, label = "Sugars", 
+             size = 3.3, hjust = 0.5, color = annotation_text_color) 
   return(list(plot = ridge_plot, data = filtered_data))
 }
 
@@ -571,12 +578,12 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2900, y = max_y*0.7, label = "Simple Plant", 
+    annotate("text", x = 2900, y = max_y * 0.7, label = "Simple Plant", 
              size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add carbonyl region annotation
-    annotate("rect", xmin = 1800, xmax = 1700, ymin = -Inf, ymax = Inf, 
+    annotate("rect", xmin = 1780, xmax = 1690, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#83a0e8") +
-    annotate("text", x = 1940, y = max_y*0.5, label = "Carbonyl", 
+    annotate("text", x = 1940, y = max_y * 0.5, label = "Carbonyl", 
              size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
@@ -586,8 +593,13 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1300, y = max_y * 0.88, label = "Complex Plant", 
-             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color)
+    annotate("text", x = 1300, y = max_y * 0.80, label = "Complex Plant", 
+             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
+    # Add sugars region annotation
+    annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
+             alpha = 0.2, fill = "#d987b5") +
+    annotate("text", x = 911, y = max_y * 0.98, label = "Sugars", 
+             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) 
   # Add layers for each plant with average and range
   combined_plot <- base_plot
 
