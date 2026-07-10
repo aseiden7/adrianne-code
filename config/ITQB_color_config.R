@@ -32,8 +32,7 @@ library(colorspace)
 # Okabe-Ito hex swatches (colorblind-safe qualitative set). We drop "#0072B2"
 # because its hue is only ~10 degrees from the sky-blue swatch below, and
 # 6 plants only need 6 hues.
-.base_swatches <- c("#D55E00", "#E69F00", "#F0E442",
-                    "#009E73", "#56B4E9", "#CC79A7")
+.base_swatches <- c("#dc267f", "#4f2bf2", "#009e28", "#ffb000","#2865ff","#fe6100")
 
 # Extract each swatch's true HCL hue angle -- computed here, not hard-coded,
 # so it matches exactly what `colorspace` uses internally on your machine.

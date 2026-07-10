@@ -242,7 +242,6 @@ write.csv(dpt_data, file.path(outputs_folder, "dpt_data_normalized.csv"), row.na
 
 # Plotting ATR spectra
 ## Plotting by preparation method
-### Ridge plots
 These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.
 Integration regions according to Mainka et al. (2022):
 
@@ -298,6 +297,7 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
     geom_density_ridges(stat = "identity",
                         scale = 3, # overlap scale - 1 is no overlap, >1 is more overlap
                         alpha = 0.25) +
+                        
     geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.23) +
     geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.23) +
     geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
@@ -308,7 +308,12 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
     geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
     geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
     geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
-    xlim(3777, 422) +
+    scale_x_reverse(
+      limits = c(3750, 650),
+      breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
+      expand = c(0.001, 0.001) 
+      # Remove padding on x-axis
+    ) +
     scale_y_discrete(expand = expansion(mult = c(0, 0.1), add = c(0, 0))) +  # space below, space above+  # space below, space above
     
     theme(axis.text.y = element_text(size = 12),
@@ -327,7 +332,7 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
     # Add carbonyl region annotation
     annotate("rect", xmin = 1800, xmax = 1700, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#83a0e8") +
-    annotate("text", x = 1940, y = max_y*0.9, label = "Carbonyl", 
+    annotate("text", x = 1930, y = max_y*0.9, label = "Carbonyl", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
@@ -383,6 +388,10 @@ These plots are of normalized absorbance values. The thickness of the opaque lin
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">2976 - 2898 cm<sup>-1</sup> + 2870 - 2839 cm<sup>-1</sup></td>
 </tr>
 <tr>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Carbonyl:</td>
+<td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1800 - 1700 cm<sup>-1</sup></td>
+</tr>
+<tr>
 <td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Microbial:</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1660 - 1580 cm<sup>-1</sup></td>
 </tr>
@@ -392,33 +401,35 @@ These plots are of normalized absorbance values. The thickness of the opaque lin
 </tr>
 </table>
 
-### Ridge plots
-```{r plant-plots, results='asis'}
+```{r facet-plant-plots, results='asis'}
 
-# Generic function to create plant-specific ATR plots
-create_plant_plot <- function(data, plant_name, color_palette) {
-  # Filter data for specific plant
-  plant_data <- data %>%
-    group_by(method) %>%
-    filter(plant == plant_name)
+# Generic function to create ridge plots for any preparation method
+create_plant_faceted_plot <- function(data, current_plant, title = NULL) {
+  # Filter data for specific method
+  filtered_data <- data %>%
+    filter(plant == current_plant)
 
-  max_y <- 4
-  # Ensure absorbance is numeric
-  plant_data$snv_corrected <- as.numeric(plant_data$snv_corrected)
-  plant_data$color_key <- paste(plant_data$plant, plant_data$method, sep = "_")
+  # Create title if not provided
+  if (is.null(title)) {
+    title <- paste(str_to_title(current_plant), "roots", sep = " ")
+  }
+  
+  # Determine y-position for annotations based on data
+  present_levels <- sort(unique(filtered_data$method))  # only levels actually in this week's data, in original order
+
+  max_y <- 7 - length(present_levels)/5
+  
   # Create the plot
-  plant_plot <- ggplot(plant_data,
-                       aes(x = wavenumber,
-                           y = snv_corrected,
-                           color = color_key)) +
-    xlim(3777, 422) +
-    ylim(0, max(plant_data$snv_corrected, na.rm = TRUE) + 0.1) +
-    geom_line() +
-    
-    # scale_color_manual(values = plant_palette) +
-    ggtitle(paste(str_to_title(plant_name), "root ATR")) +
-    labs(x = expression("wavenumber (cm"^-1*")"), 
-         y = "normalized absorbance") +
+  ridge_plot <- filtered_data %>%
+    ggplot(mapping = aes(x = wavenumber,
+                         y = method,
+                         height = snv_corrected,
+                         group = method,
+                         fill = plant_palette[paste(plant, method, sep = "_")],
+                         color = plant_palette[paste(plant, method, sep = "_")])) +
+    geom_density_ridges(stat = "identity",
+                        scale = 3, # overlap scale - 1 is no overlap, >1 is more overlap
+                        alpha = 0.25) +
     geom_vline(xintercept = 1500, linetype = "dotted", linewidth = 0.23) +
     geom_vline(xintercept = 1550, linetype = "dotted", linewidth = 0.23) +
     geom_vline(xintercept = 1580, linetype = "dashed", linewidth = 0.23) +
@@ -429,71 +440,73 @@ create_plant_plot <- function(data, plant_name, color_palette) {
     geom_vline(xintercept = 2870, linetype = "longdash", linewidth = 0.23) +
     geom_vline(xintercept = 2898, linetype = "longdash", linewidth = 0.23) +
     geom_vline(xintercept = 2976, linetype = "longdash", linewidth = 0.23) +
-    xlim(3777, 422) +
-     # Add simple plant region annotation
+   scale_x_reverse(
+      limits = c(3750, 650),
+      breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
+      expand = c(0.001, 0.001) 
+      # Remove padding on x-axis
+    ) +
+    scale_y_discrete(expand = expansion(mult = c(0, 0.1), add = c(0, 0))) +  # space below, space above+  # space below, space above
+    
+    theme(axis.text.y = element_text(size = 12),
+          legend.position = "none") +
+    # scale_fill_manual(values = plant_palette) +
+    # scale_color_manual(values = plant_palette) +
+    ggtitle(title) +
+    labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
+    # Add simple plant region annotation
     annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2900, y = max_y*1.08, label = "Simple Plant", 
-             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    annotate("text", x = 2900, y = max_y*1.03, label = "Simple Plant", 
+             size = 3.33, hjust = 0.5, color = annotation_text_color) +
     # Add carbonyl region annotation
     annotate("rect", xmin = 1800, xmax = 1700, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#83a0e8") +
-    annotate("text", x = 1940, y = max_y*0.9, label = "Carbonyl", 
-             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    annotate("text", x = 1930, y = max_y*0.95, label = "Carbonyl", 
+             size = 3.33, hjust = 0.5, color = annotation_text_color) +
     # Add microbial region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1640, y = max_y * 1.05, label = "Microbial", 
-             size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    annotate("text", x = 1640, y = max_y * 1.07, label = "Microbial", 
+             size = 3.33, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1300, y = max_y * 1.25, label = "Complex Plant", 
-             size = 3.3, hjust = 0.5, color = annotation_text_color)
+    annotate("text", x = 1300, y = max_y * 1.23, label = "Complex Plant", 
+             size = 3.33, hjust = 0.5, color = annotation_text_color)
   
-  return(list(plot = plant_plot, data = plant_data))
+  return(list(plot = ridge_plot, data = filtered_data))
 }
 
-# Generic function to create plant ID tables
-create_plant_id_table <- function(plant_data, plant_name) {
-  combinations <- plant_data %>%
-    select(plant, method) %>%
+# Generic function to create sample count tables
+create_sample_count_table <- function(filtered_data, plant_name) {
+  col_name <- paste(plant_name, "samples")
+  
+  counts <- filtered_data %>%
+    select(filename, method) %>%
     distinct() %>%
-    arrange(plant, method) %>%
-    group_by(method) %>%
-    summarise(pot_ids = {
-      ids <- paste(plant, sep = "")
-      # Group every 3 items and join with line breaks
-      grouped <- split(ids, ceiling(seq_along(ids)/5))
-      lines <- sapply(grouped, function(x) paste(x, collapse = ",&ensp;"))
-      paste(lines, collapse = "<br>")
-    }, .groups = 'drop') %>%
-    pivot_wider(names_from = method, values_from = pot_ids)
+    count(method) %>%
+    mutate(!!col_name := paste(n, "&nbsp;&nbsp;", method)) %>%
+    select(all_of(col_name))
   
-  return(combinations)
+  return(counts)
 }
 
-# Generate plots and tables for each plant
-plants <- sort(unique( dpt_data$plant))
+# Create plots and tables for each plant
+plants <- sort(unique(dpt_data$plant))
 
-for (current_plant in plants) {
-  # Create plot and get data
-  result <- create_plant_plot(
-    dpt_data,
-    current_plant,
-    plant_palette
-)
+for (pt in plants) {
+  # Create plot and get filtered data
+  result <- create_plant_faceted_plot(dpt_data, pt)
   
   # Print the plot
   print(result$plot)
-  cat("<br>")  # Add space between plot and table
   
-  # Create and print ID combinations table
-  id_table <- create_plant_id_table(result$data, current_plant)
-  cat(paste0("<h4>", str_to_title(current_plant), " root samples</h4>"))
-  cat(knitr::kable(id_table, format = "html", escape = FALSE, table.attr = 'style="border-collapse: separate; border-spacing: 35px 0;"'))
+  # Create and print sample count table with results='asis'
+  counts_table <- create_sample_count_table(result$data, pt)
+  cat(knitr::kable(counts_table, format = "html", escape = FALSE))
   cat("<br><br>")  # Add HTML line breaks for spacing
 }
 ```
@@ -523,7 +536,11 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
 
   # Create the base plot with functional region annotations
   base_plot <- ggplot() +
-    xlim(3777, 422) +
+    scale_x_reverse(
+      limits = c(3750, 650),
+      breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
+      expand = c(0.001, 0.001)  # Remove padding on x-axis
+    ) +
 
     labs(x = expression("Wavenumber (cm"^-1*")"),
          y = "Normalized absorbance") +
@@ -548,8 +565,8 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
       expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
     ) +
     scale_x_reverse(
-      limits = c(3770, 415),
-      breaks = seq(3500, 500, -500),  # Ticks every 500 from 3500 down to 500
+      limits = c(3750, 650),
+      breaks = seq(3500, 600, -500),  # Ticks every 500 from 3500 down to 500
       expand = c(0.002, 0.003)  # Remove padding on x-axis
     ) +
     # Add vertical lines for functional regions
