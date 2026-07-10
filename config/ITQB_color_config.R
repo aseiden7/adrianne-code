@@ -32,7 +32,7 @@ library(colorspace)
 # Okabe-Ito hex swatches (colorblind-safe qualitative set). We drop "#0072B2"
 # because its hue is only ~10 degrees from the sky-blue swatch below, and
 # 6 plants only need 6 hues.
-.base_swatches <- c("#dc267f", "#4f2bf2", "#009e28", "#ffb000","#2865ff","#fe6100")
+.base_swatches <- c("#18bbca", "#FFAA48", "#A36ED3", "#E24182", "#5157FF", "#87AF00")
 
 # Extract each swatch's true HCL hue angle -- computed here, not hard-coded,
 # so it matches exactly what `colorspace` uses internally on your machine.
@@ -45,7 +45,7 @@ plant_hues <- setNames(
 )
 
 # ---- 2. Global lightness range + chroma for method ("shade") encoding -----
-L_range         <- c(32, 88)  # min/max HCL luminance used across ALL plants
+L_range         <- c(26, 90)  # min/max HCL luminance used across ALL plants
 chroma_fraction <- 0.82       # fraction of max in-gamut chroma (keeps colors
                                # vivid without clipping near the L extremes)
 
