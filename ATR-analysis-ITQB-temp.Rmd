@@ -340,7 +340,7 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add sugars region annotation
     annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
-             alpha = 0.17, fill = "#c9aac4") +
+             alpha = 0.2, fill = "#d987b5") +
     annotate("text", x = 933, y = max_y * 1.4, label = "Sugars", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) 
   
@@ -476,8 +476,8 @@ create_plant_faceted_plot <- function(data, current_plant, title = NULL) {
              size = 3.33, hjust = 0.5, color = annotation_text_color) +
       # Add sugars region annotation
     annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
-             alpha = 0.16, fill = "#c3aac1") +
-    annotate("text", x = 933, y = max_y * 1.29, label = "Sugars", 
+             alpha = 0.2, fill = "#d987b5") +
+    annotate("text", x = 933, y = max_y * 1.31, label = "Sugars", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) 
   return(list(plot = ridge_plot, data = filtered_data))
 }
@@ -596,7 +596,7 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
              size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add sugars region annotation
     annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
-             alpha = 0.17, fill = "#c9aac7") +
+             alpha = 0.2, fill = "#d987b5") +
     annotate("text", x = 911, y = max_y * 0.98, label = "Sugars", 
              size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) 
   # Add layers for each plant with average and range

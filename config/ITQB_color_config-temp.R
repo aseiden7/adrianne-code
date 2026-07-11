@@ -120,12 +120,13 @@ get_plant_colors <- function(plants = names(plant_hues),
 #     (Currently a placeholder of 3 -- extend to your full list, up to 8.)
 
 method_levels <- c("raw", "h2o20", "h2o30", "naoh20", "naoh30", "h2oFull", "milled")  # EDIT: full canonical method list, in order
-method_swatches = c("#7064BA", "#477DA1", "#479177", "#589248", "#938F45", "#936947", "#94484A", "#924892")
 
+.method_swatches <- c("#473d87", "#3f6a86", "#3f866c", "#4f863f",
+                       "#86833f", "#865f3f", "#863f40", "#863f86")
 
-if (length(method_levels) > length(method_swatches)) {
+if (length(method_levels) > length(.method_swatches)) {
   stop("More methods (", length(method_levels), ") than swatches (",
-       length(method_swatches), "). Add more hex colors to method_swatches.")
+       length(.method_swatches), "). Add more hex colors to .method_swatches.")
 }
 
 # Fixed color per method -- direct lookup, no HCL recomputation, so you get
