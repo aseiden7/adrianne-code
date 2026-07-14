@@ -952,14 +952,15 @@ build_method_region_bar_plot <- function(stats_data, current_plant, title = NULL
   region_palette <- get_method_region_palette(regions = region_order, methods = present_methods)
 
   ggplot(long_data, aes(x = method, y = prop, fill = fill_key, group = region)) +
-    geom_col(position = position_stack(reverse = TRUE), color = "black",
-             linewidth = 0.3, width = 0.75) +
+    geom_col(position = position_stack(reverse = TRUE),
+             linewidth = 0.00, width = 0.88) +
     geom_text(aes(label = paste0(round(pct, 1), "%")),
               position = position_stack(reverse = TRUE, vjust = 0.5),
-              color = "black", size = 3.3) +
+              color = ifelse(long_data$region == "aliphatic","white", ifelse(long_data$region == "microbial", "white", "black")),
+              size = 3.6, fontface = "bold") +
     scale_fill_manual(values = region_palette) +
     scale_y_continuous(labels = scales::percent_format(accuracy = 1),
-                       expand = expansion(mult = c(0, 0.02))) +
+                       expand = expansion(mult = c(0.01, 0.02))) +
     guides(fill = "none") +
     labs(x = NULL, y = "Functional Group Proportion (%)", title = title) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1),

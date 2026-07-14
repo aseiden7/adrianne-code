@@ -623,7 +623,56 @@ knitr::kable(
   )
 ```
 
+# Comparing crops vs no-plant at week 40
+```{r noplant-vs-crops-wk40, results='asis', fig.width=10, fig.height=6}
+# Create generic function to plot a single crop vs noPlant at a specific timepoint
+plot_crop_vs_noplant <- function(data, crop_name, timepoint_week) {
+  # Filter data for specific crop and timepoint
+  filtered_data <- data %>%
+    filter(crop %in% c("noPlant", crop_name), timepoint == timepoint_week) %>%
+    mutate(snv_plusOne = as.numeric(snv_plusOne))
+  
+  # Average + range ribbon for each crop
+  summary_data <- filtered_data %>%
+    group_by(crop, wavenumber) %>%
+    summarise(
+      mean_absorbance = mean(snv_plusOne, na.rm = TRUE),
+      min_absorbance = min(snv_plusOne, na.rm = TRUE),
+      max_absorbance = max(snv_plusOne, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  max_y <- max(summary_data$max_absorbance, na.rm = TRUE) + 0.15
+  
+  plot <- ggplot(summary_data, aes(x = wavenumber, color = crop, fill = crop)) +
+    geom_ribbon(aes(ymin = min_absorbance, ymax = max_absorbance), alpha = 0.3, color = NA) +
+    geom_line(aes(y = mean_absorbance), linewidth = 1) +
+    scale_x_reverse(limits = c(3777, 422)) +
+    scale_color_manual(values = crop_colors) +
+    scale_fill_manual(values = crop_colors) +
+    ggtitle(paste(str_to_title(crop_name), "vs No-Plant Soil DRIFTS at", str_extract(timepoint_week, "\\d+"))) +
+    labs(x = expression("wavenumber (cm"^-1*")"), y = "normalized absorbance",
+         color = "", fill = "") +
+    theme(legend.position = "bottom") +
+    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = "#e3c8b1") +
+    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = "#e3c8b1") +
+    annotate("text", x = 2550, y = max_y, label = "Simple Plant", size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = "#a8cbad") +
+    annotate("text", x = 1850, y = max_y, label = "Microbial", size = 3.3, hjust = 0.5, color = annotation_text_color) +
+    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = "#beb5d5") +
+    annotate("text", x = 1200, y = max_y, label = "Complex Plant", size = 3.3, hjust = 0.5, color = annotation_text_color)
 
+  return(plot)
+}
+
+wheat_vs_noplant_wk40_plot <- plot_crop_vs_noplant(dpt_data_rhizo, "wheat", "wk40")
+rice_vs_noplant_wk40_plot <- plot_crop_vs_noplant(dpt_data_rhizo, "rice", "wk40")
+soy_vs_noplant_wk40_plot <- plot_crop_vs_noplant(dpt_data_rhizo, "soy", "wk40")
+
+print(wheat_vs_noplant_wk40_plot)
+print(rice_vs_noplant_wk40_plot)
+print(soy_vs_noplant_wk40_plot)
+```
 # Combined stacked overlay plot
 These chunks create a single visualization showing all crops and timepoints by stacking the overlay plots vertically with a shared y-axis. Each crop has its own color palette and legend. The plots show the average spectra for each crop-timepoint combination with an opaque line (alpha = 1, width = 0.88) and a shaded ribbon representing the range of the data for each crop-timepoint (alpha = 0.58).
 
