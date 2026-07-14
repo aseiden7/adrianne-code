@@ -27,6 +27,34 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
             border: 1px solid #3e3e42;
         }
+        .site-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 40px;
+            flex-wrap: wrap; /* keeps it responsive on small screens */
+        }
+        .site-logo {
+            width: 110px;
+            height: 110px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        .title-group {
+            text-align: left;
+        }
+        .title-group h1 {
+            margin: 0 0 8px 0;
+            color: #ffffff;
+            font-size: 2.5em;
+            font-weight: 400;
+        }
+        .title-group .subtitle {
+            margin: 0;
+            color: #9d9d9d;
+            font-size: 1.1em;
+        }
         
         h1 {
             color: #ffffff;
@@ -201,8 +229,16 @@
          alt="Adrianne Seiden logo"
          class="hero-logo">
 
+<div class="site-header">
+    <img src="NMR-roots-logo.png"
+         alt="Adrianne Seiden logo"
+         class="site-logo">
+
+    <div class="title-group">
         <h1>Adrianne's Salk Project Code</h1>
-        <p class="subtitle"> Adrianne Seiden 2026 </p>
+        <p class="subtitle">Adrianne Seiden • 2026</p>
+    </div>
+</div>
         
         <div class="theme-section">
             <button class="theme-header" onclick="toggleThemeSection(this)" aria-expanded="false">
