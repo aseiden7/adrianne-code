@@ -1744,4 +1744,407 @@ dpt_data_rhizo %>%
 ```
 
 # Compare soil \& roots
+## Import root data and join with soil data
+This chunk imports the integrated root data and checks that each pot ID and timepoint combination in the root data has a corresponding entry in the soil data. It then creates a combined dataset including only the crop and timepoint combinations that exist in both datasets, summarizes the data, and counts the number of samples for each crop and timepoint in the combined dataset.
 ```{r compare-soil-roots}
+# import root data
+root_data_file <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/integrated_analysis_outputs/processed_int_data_roots.csv") # WILL NEED TO CHANGE THIS
+
+root_data <- read_csv(root_data_file, show_col_types = FALSE)
+
+# Check that each ID and timepoint combination in the root data has a corresponding entry in the soil data
+missing_combinations <- anti_join(root_data, ftir_data, by = c("ID", "timepoint"))
+if (nrow(missing_combinations) > 0) {
+  warning("The following pot ID and timepoint combinations are present in the root data but missing in the soil data:\n",
+          paste(apply(missing_combinations, 1, function(row) paste(row["ID"], row["timepoint"], sep = " - ")), collapse = "\n"))
+} else {
+  cat("All pot ID and timepoint combinations in the root data have corresponding entries in the soil data.\n")
+}
+
+# Create a combined dataset including only the crop and timepoint combinations that exist in both datasets
+combined_data <- inner_join(ftir_data, root_data, by = c("ID", "timepoint", "crop"), suffix = c("_soil", "_root")) %>%
+  select(-starts_with("type_"), -starts_with("int_"), -starts_with("total_peak_area"), -starts_with("aliphatic_")) %>% # remove unnecessary columns
+  mutate(crop_timepoint = paste(crop, timepoint, sep = "_")) # combined crop x timepoint grouping -- matches the keys used in color_map (theme_colors_config.R)
+str(combined_data) # check the structure of the combined dataset
+summary(combined_data) # check the summary statistics of the combined dataset
+
+# save to CSV for reference
+write_csv(combined_data, file.path(outputs_folder, "combined_soil_root_data.csv"))
+# Count the number of samples for each crop and timepoint in the combined dataset and list the IDs for each group
+sample_counts <- combined_data %>%
+  group_by(crop, timepoint) %>%
+  summarise(n_samples = n(), .groups = 'drop') %>%
+  # add list of IDs for each crop and timepoint combination
+  left_join(
+    combined_data %>%
+      group_by(crop, timepoint) %>%
+      summarise(sample_IDs = paste(unique(ID), collapse = ", "), .groups = 'drop'),
+    by = c("crop", "timepoint")
+  )
+print(sample_counts) # check the sample counts for each crop and timepoint
+
+```
+
+## Create function to generate scatterplots comparing soil and root proportions
+This chunk defines a function that takes "region" as it's only variable, and generates a scatterplot comparing the soil and root proportions for that region. The function is then called for each of the three regions: simple plant, complex plant, and microbial.
+```{r soil-v-root-scatterplots}
+# create a function to generate scatterplots comparing soil and root proportions for a given region
+# “region” variable is a proportion to compare (“simple_plant”, “complex_plant”, or “microbial”)
+#Function plots all ID-timepoint combinations as points on a scatterplot: 
+## the x-axis is the root proportion
+## the y-axis is the soil proportion 
+## Points are colored by crop & timepoint as defined by the color_map variable config\theme_colors_config.R 
+
+soil_v_root_plot <- function(region) {
+  # Define the column names for soil and root proportions based on the region
+  soil_col <- paste0(region, "_prop_soil")
+  root_col <- paste0(region, "_prop_root")
+  region_label <- str_to_title(gsub("_", " ", region)) # Convert to title case for labeling
+  
+  # Create a scatterplot comparing soil and root proportions for the specified region
+  plot <- ggplot(combined_data, aes_string(x = root_col, y = soil_col, color = "crop_timepoint")) +
+    geom_point(size = 3, alpha = 0.98) +
+    scale_color_manual(values = color_map) +
+    labs(title = paste("Soil vs Root Proportions for", region_label, "OM"),
+         x = paste(str_to_title(region), "Proportion in Roots"),
+         y = paste(str_to_title(region), "Proportion in Soil")
+         ) +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(size = 11.5, face = "bold"),
+      axis.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 13, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.margin = margin(17, 17, 7, 17)
+    ) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") # Add a reference line (y=x)
+  
+  return(plot)
+}
+soil_v_root_simple_plot <- soil_v_root_plot("simple_plant")
+soil_v_root_complex_plot <- soil_v_root_plot("complex_plant")
+soil_v_root_microbial_plot <- soil_v_root_plot("microbial")
+
+print(soil_v_root_simple_plot)
+print(soil_v_root_complex_plot)
+print(soil_v_root_microbial_plot)
+```
+
+## Root vs. soil regression statistics
+This chunk fits a linear regression of soil proportion on root proportion (`soil ~ root`) for each functional-group region (simple plant, complex plant, microbial), and reports R², slope, and p-value (i) across all data points, (ii) grouped by timepoint, and (iii) grouped by crop.
+```{r soil-root-regression-stats}
+# Human-readable labels for each functional group region
+region_labels <- c(simple_plant = "Simple Plant", complex_plant = "Complex Plant", microbial = "Microbial")
+
+# Helper: fit soil_prop ~ root_prop for a given region, optionally within groups of a
+# grouping variable (e.g. "timepoint" or "crop"). Returns R-squared, slope, and p-value.
+calc_soil_root_regression <- function(data, region, group_var = NULL) {
+  root_col <- paste0(region, "_prop_root")
+  soil_col <- paste0(region, "_prop_soil")
+
+  fit_one <- function(df, group_label) {
+    df <- df[stats::complete.cases(df[, c(root_col, soil_col)]), ]
+    # Need at least 3 points and some spread in x to fit a meaningful regression
+    if (nrow(df) < 3 || stats::sd(df[[root_col]]) == 0) {
+      return(data.frame(group = group_label, n = nrow(df),
+                         r_squared = NA_real_, slope = NA_real_, p_value = NA_real_))
+    }
+    model <- lm(reformulate(root_col, response = soil_col), data = df)
+    model_summary <- summary(model)
+    data.frame(
+      group = group_label,
+      n = nrow(df),
+      r_squared = model_summary$r.squared,
+      slope = unname(coef(model)[2]),
+      p_value = model_summary$coefficients[2, 4]
+    )
+  }
+
+  if (is.null(group_var)) {
+    return(fit_one(data, "All data"))
+  }
+
+  groups <- unique(data[[group_var]])
+  # Order groups sensibly: timepoints numerically, crops in a fixed order, everything else alphabetically
+  if (group_var == "timepoint") {
+    groups <- groups[order(as.numeric(str_extract(groups, "\\d+")))]
+  } else if (group_var == "crop") {
+    crop_order <- c("wheat", "rice", "soy", "noPlant")
+    groups <- groups[order(match(groups, crop_order))]
+  } else {
+    groups <- sort(groups)
+  }
+
+  do.call(rbind, lapply(groups, function(g) fit_one(data[data[[group_var]] == g, ], as.character(g))))
+}
+
+# Calculate stats for each region: (i) all data, (ii) by timepoint, (iii) by crop
+soil_root_regression_stats <- do.call(rbind, lapply(names(region_labels), function(region) {
+  stats_region <- rbind(
+    calc_soil_root_regression(combined_data, region, group_var = NULL),
+    calc_soil_root_regression(combined_data, region, group_var = "timepoint"),
+    calc_soil_root_regression(combined_data, region, group_var = "crop")
+  )
+  stats_region$region <- region_labels[[region]]
+  stats_region
+}))
+
+# Tidy up for display
+soil_root_regression_stats <- soil_root_regression_stats %>%
+  select(region, group, n, r_squared, slope, p_value) %>%
+  mutate(
+    r_squared = round(r_squared, 3),
+    slope = round(slope, 3),
+    p_value = case_when(
+      is.na(p_value) ~ NA_character_,
+      p_value < 0.001 ~ "< 0.001",
+      TRUE ~ format(round(p_value, 3), nsmall = 3)
+    )
+  )
+
+knitr::kable(soil_root_regression_stats,
+             col.names = c("Region", "Group", "n", "R\u00b2", "Slope", "p-value"),
+             row.names = FALSE)
+```
+# Root vs. soil: percent change (wk0 -> wk40)
+Raw proportions put root and soil on different baselines, which makes it hard to tell whether a shift in one is mirrored in the other. To put both on the same scale, this section expresses each wk40 pot's proportion as a **percent change relative to its crop's wk0 mean** (for that region), for both root and soil.
+
+Note: pots appear to be destructively sampled once per timepoint (each ID shows up at only one timepoint), so there's no way to track an individual pot's own change over time. Percent change is therefore calculated relative to the crop-level wk0 mean, not a paired before/after value for the same pot. If your pots actually are tracked longitudinally (the same ID re-sampled at wk0 and wk40), let me know and I can switch this to a true paired per-pot change instead.
+
+## Calculate percent change relative to each crop's wk0 mean
+```{r soil-root-percent-change-data}
+regions <- c("simple_plant", "complex_plant", "microbial")
+root_cols <- paste0(regions, "_prop_root")
+soil_cols <- paste0(regions, "_prop_soil")
+
+# wk0 baseline mean proportion, per crop and region
+baseline_wk0 <- combined_data %>%
+  filter(timepoint == "wk0") %>%
+  group_by(crop) %>%
+  summarise(across(all_of(c(root_cols, soil_cols)), ~ mean(.x, na.rm = TRUE)), .groups = "drop")
+
+cat("wk0 baseline means by crop:\n")
+print(baseline_wk0)
+
+# Express each wk40 pot's proportions as a % change relative to its crop's wk0 baseline
+change_data <- combined_data %>%
+  filter(timepoint == "wk40") %>%
+  left_join(baseline_wk0, by = "crop", suffix = c("", "_wk0_mean"))
+
+for (region in regions) {
+  root_col      <- paste0(region, "_prop_root")
+  soil_col      <- paste0(region, "_prop_soil")
+  root_base_col <- paste0(root_col, "_wk0_mean")
+  soil_base_col <- paste0(soil_col, "_wk0_mean")
+
+  change_data[[paste0(region, "_root_pct_change")]] <-
+    (change_data[[root_col]] - change_data[[root_base_col]]) / change_data[[root_base_col]] * 100
+  change_data[[paste0(region, "_soil_pct_change")]] <-
+    (change_data[[soil_col]] - change_data[[soil_base_col]]) / change_data[[soil_base_col]] * 100
+}
+
+change_data <- change_data %>%
+  select(crop, timepoint, ID, ends_with("_pct_change"))
+
+str(change_data) # check the structure of the change dataset
+```
+
+## Create function to generate percent-change scatterplots
+Same idea as `soil_v_root_plot()`, but plotting each wk40 pot's percent change (root vs. soil) instead of the raw proportion. Dashed reference lines at x = 0 and y = 0 divide the plot into quadrants -- e.g. points in the lower-right quadrant (root % change > 0, soil % change < 0) show a region increasing in roots while decreasing in the rhizosphere soil, and vice versa for the upper-left quadrant. Points are colored by crop (`crop_colors`, theme_colors_config.R) rather than crop_timepoint, since timepoint is now fixed (wk0 -> wk40 change).
+```{r soil-root-percent-change-scatterplots}
+soil_v_root_change_plot <- function(region) {
+  root_col <- paste0(region, "_root_pct_change")
+  soil_col <- paste0(region, "_soil_pct_change")
+
+  plot <- ggplot(change_data, aes_string(x = root_col, y = soil_col, color = "crop")) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+    geom_point(size = 3, alpha = 0.98) +
+    scale_color_manual(values = crop_colors) +
+    labs(title = paste("Percent Change in", str_to_title(region), "OM Proportion (wk0 to wk40)"),
+         x = paste(str_to_title(region), "% Change in Roots"),
+         y = paste(str_to_title(region), "% Change in Rhizosphere Soil")) +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(size = 11.5, face = "bold"),
+      axis.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 13, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.margin = margin(17, 17, 7, 17)
+    )
+
+  return(plot)
+}
+
+soil_v_root_change_simple_plot    <- soil_v_root_change_plot("simple_plant")
+soil_v_root_change_complex_plot   <- soil_v_root_change_plot("complex_plant")
+soil_v_root_change_microbial_plot <- soil_v_root_change_plot("microbial")
+
+print(soil_v_root_change_simple_plot)
+print(soil_v_root_change_complex_plot)
+print(soil_v_root_change_microbial_plot)
+```
+
+# Root vs. soil: percent change (wk10 -> wk40, within-pot)
+Since pot IDs are tracked longitudinally starting at wk10 (wk0 pots were destroyed and not resampled), this section calculates a **true within-pot percent change** from wk10 to wk40, instead of comparing against a crop-level baseline. Each pot's own wk10 measurement is the denominator, for both root and soil, so the two are directly comparable and the pairing is exact (same physical pot at both timepoints).
+
+## Calculate within-pot percent change (wk10 -> wk40)
+```{r soil-root-percent-change-data-wk10-wk40}
+regions <- c("simple_plant", "complex_plant", "microbial")
+root_cols <- paste0(regions, "_prop_root")
+soil_cols <- paste0(regions, "_prop_soil")
+
+wk10_vals <- combined_data %>%
+  filter(timepoint == "wk10") %>%
+  select(crop, ID, all_of(c(root_cols, soil_cols))) %>%
+  rename_with(~ paste0(.x, "_wk10"), all_of(c(root_cols, soil_cols)))
+
+wk40_vals <- combined_data %>%
+  filter(timepoint == "wk40") %>%
+  select(crop, ID, all_of(c(root_cols, soil_cols))) %>%
+  rename_with(~ paste0(.x, "_wk40"), all_of(c(root_cols, soil_cols)))
+
+# Check that each pot ID present at one timepoint is also present at the other
+missing_wk40 <- anti_join(wk10_vals, wk40_vals, by = c("crop", "ID"))
+missing_wk10 <- anti_join(wk40_vals, wk10_vals, by = c("crop", "ID"))
+
+if (nrow(missing_wk40) > 0) {
+  cat("Pot IDs with wk10 data but no matching wk40 data (excluded from within-pot comparison):\n")
+  print(as.data.frame(missing_wk40 %>% select(crop, ID)))
+}
+if (nrow(missing_wk10) > 0) {
+  cat("Pot IDs with wk40 data but no matching wk10 data (excluded from within-pot comparison):\n")
+  print(as.data.frame(missing_wk10 %>% select(crop, ID)))
+}
+
+# Pair each pot ID's wk10 and wk40 measurements -- true within-pot comparison
+change_data_wk10_wk40 <- inner_join(wk10_vals, wk40_vals, by = c("crop", "ID"))
+
+for (region in regions) {
+  root_wk10 <- paste0(region, "_prop_root_wk10")
+  root_wk40 <- paste0(region, "_prop_root_wk40")
+  soil_wk10 <- paste0(region, "_prop_soil_wk10")
+  soil_wk40 <- paste0(region, "_prop_soil_wk40")
+
+  change_data_wk10_wk40[[paste0(region, "_root_pct_change")]] <-
+    (change_data_wk10_wk40[[root_wk40]] - change_data_wk10_wk40[[root_wk10]]) / change_data_wk10_wk40[[root_wk10]] * 100
+  change_data_wk10_wk40[[paste0(region, "_soil_pct_change")]] <-
+    (change_data_wk10_wk40[[soil_wk40]] - change_data_wk10_wk40[[soil_wk10]]) / change_data_wk10_wk40[[soil_wk10]] * 100
+}
+
+change_data_wk10_wk40 <- change_data_wk10_wk40 %>%
+  select(crop, ID, ends_with("_pct_change"))
+
+cat("\nWithin-pot wk10 -> wk40 change dataset:", nrow(change_data_wk10_wk40), "pots\n")
+str(change_data_wk10_wk40)
+```
+
+## Create function to generate within-pot percent-change scatterplots
+Same structure as the earlier change-plot function, but now each point is one pot's own wk10 -> wk40 change (true pairing, not a crop average). Dashed reference lines at x = 0 and y = 0 mark no change; points colored by crop.
+```{r soil-root-percent-change-scatterplots-wk10-wk40}
+soil_v_root_change_plot_wk10_wk40 <- function(region) {
+  root_col <- paste0(region, "_root_pct_change")
+  soil_col <- paste0(region, "_soil_pct_change")
+
+  plot <- ggplot(change_data_wk10_wk40, aes_string(x = root_col, y = soil_col, color = "crop")) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+    geom_point(size = 3, alpha = 0.98) +
+    scale_color_manual(values = crop_colors) +
+    labs(title = paste("Percent Change in", str_to_title(region), "OM Proportion (wk10 to wk40, within-pot)"),
+         x = paste(str_to_title(region), "% Change in Roots"),
+         y = paste(str_to_title(region), "% Change in Rhizosphere Soil")) +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text = element_text(size = 11.5, face = "bold"),
+      axis.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 13, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.margin = margin(17, 17, 7, 17)
+    )
+
+  return(plot)
+}
+
+soil_v_root_change_wk10_wk40_simple_plot    <- soil_v_root_change_plot_wk10_wk40("simple_plant")
+soil_v_root_change_wk10_wk40_complex_plot   <- soil_v_root_change_plot_wk10_wk40("complex_plant")
+soil_v_root_change_wk10_wk40_microbial_plot <- soil_v_root_change_plot_wk10_wk40("microbial")
+
+print(soil_v_root_change_wk10_wk40_simple_plot)
+print(soil_v_root_change_wk10_wk40_complex_plot)
+print(soil_v_root_change_wk10_wk40_microbial_plot)
+```
+
+## Within-pot percent change regression statistics
+Since this data is a true within-pot pairing (not a crop average), the root vs. soil regression is meaningful here. This chunk fits `soil_pct_change ~ root_pct_change` for each region, (i) across all pots and (ii) grouped by crop. (There's no "by timepoint" grouping this time, since wk10 -> wk40 is a single fixed period rather than multiple timepoints.)
+```{r soil-root-percent-change-regression-stats-wk10-wk40}
+# Generic helper: fit y_col ~ x_col, optionally within groups of group_var.
+# Returns n, R-squared, slope, and p-value for each group (or one row if group_var is NULL).
+calc_regression_stats <- function(data, x_col, y_col, group_var = NULL) {
+  fit_one <- function(df, group_label) {
+    df <- df[stats::complete.cases(df[, c(x_col, y_col)]), ]
+    if (nrow(df) < 3 || stats::sd(df[[x_col]]) == 0) {
+      return(data.frame(group = group_label, n = nrow(df),
+                         r_squared = NA_real_, slope = NA_real_, p_value = NA_real_))
+    }
+    model <- lm(reformulate(x_col, response = y_col), data = df)
+    model_summary <- summary(model)
+    data.frame(
+      group = group_label,
+      n = nrow(df),
+      r_squared = model_summary$r.squared,
+      slope = unname(coef(model)[2]),
+      p_value = model_summary$coefficients[2, 4]
+    )
+  }
+
+  if (is.null(group_var)) {
+    return(fit_one(data, "All data"))
+  }
+
+  groups <- unique(data[[group_var]])
+  if (group_var == "crop") {
+    crop_order <- c("wheat", "rice", "soy", "noPlant")
+    groups <- groups[order(match(groups, crop_order))]
+  } else {
+    groups <- sort(groups)
+  }
+
+  do.call(rbind, lapply(groups, function(g) fit_one(data[data[[group_var]] == g, ], as.character(g))))
+}
+
+region_labels <- c(simple_plant = "Simple Plant", complex_plant = "Complex Plant", microbial = "Microbial")
+
+# Calculate stats for each region: (i) all pots, (ii) by crop
+change_regression_stats_wk10_wk40 <- do.call(rbind, lapply(names(region_labels), function(region) {
+  x_col <- paste0(region, "_root_pct_change")
+  y_col <- paste0(region, "_soil_pct_change")
+
+  stats_region <- rbind(
+    calc_regression_stats(change_data_wk10_wk40, x_col, y_col, group_var = NULL),
+    calc_regression_stats(change_data_wk10_wk40, x_col, y_col, group_var = "crop")
+  )
+  stats_region$region <- region_labels[[region]]
+  stats_region
+}))
+
+# Tidy up for display
+change_regression_stats_wk10_wk40 <- change_regression_stats_wk10_wk40 %>%
+  select(region, group, n, r_squared, slope, p_value) %>%
+  mutate(
+    r_squared = round(r_squared, 3),
+    slope = round(slope, 3),
+    p_value = case_when(
+      is.na(p_value) ~ NA_character_,
+      p_value < 0.001 ~ "< 0.001",
+      TRUE ~ format(round(p_value, 3), nsmall = 3)
+    )
+  )
+
+knitr::kable(change_regression_stats_wk10_wk40,
+             col.names = c("Region", "Group", "n", "R\u00b2", "Slope", "p-value"),
+             row.names = FALSE)
+```

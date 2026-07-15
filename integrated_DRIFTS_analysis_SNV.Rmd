@@ -1268,6 +1268,9 @@ perform_spectral_integration <- function(dpt_data) {
   ftir_data$microbial_prop <- ftir_data$int_microbial / ftir_data$total_peak_area
   ftir_data$simple_microbial_prop <- ftir_data$simple_plant_prop / ftir_data$microbial_prop
   ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_prop
+  ftir_data$total_plant_prop <- ftir_data$simple_plant_prop + ftir_data$complex_plant_prop
+  ftir_data$total_plant_microbial_prop <- ftir_data$total_plant_prop / ftir_data$microbial_prop
+  ftir_data$simple_complex_prop <- ftir_data$simple_plant_prop / ftir_data$complex_plant_prop
   
   # Remove individual aliphatic integration columns (keep only derived metrics)
   ftir_data <- ftir_data %>%
