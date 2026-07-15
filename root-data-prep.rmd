@@ -1,0 +1,176 @@
+---
+title: "Checking compatibility of root & soil data files"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+# Install and load required packages for integration if needed
+required_packages <- c("pracma", "nc","ggplot2","ggridges","readr","stringr","viridis","dplyr","cowplot","ggsignif","tidyr","rmarkdown","knitr","grid")
+for (pkg in required_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    cat("Installing package:", pkg, "\n")
+    install.packages(pkg)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# Source centralized theme and color configuration
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))
+# # Ensure theme is set and variables are initialized
+# # theme_set(theme_dark_custom())
+timepoint_colors <- c("#50478A", "#3D6988", "#3D8770", "#75873D", "#876B3D")
+
+#set labels for figures
+crop_labels <- c(
+    noPlant = "No Plant",
+    wheat   = "Wheat",
+    rice    = "Rice",
+    soy     = "Soy"
+)
+
+# Set Box path
+# I use the BOX_BASE environment variable to define the base path for Box files. Make sure to set this variable in your system environment before running the code, or use a direct path if you are not using Box.
+box_base <- Sys.getenv("BOX_BASE") # Delete if not using Box
+if (box_base == "") stop("BOX_BASE environment variable is not set!") # Delete if not using Box
+
+# Set path to outputs folder
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/integrated_analysis_outputs")    # path to save outputs
+
+# Create output directory if it doesn't exist
+if (!dir.exists(outputs_folder)) {
+  dir.create(outputs_folder, recursive = TRUE)
+}
+
+# Helper function to find the most recent integration data file
+find_most_recent_int_file <- function(data_dir) {
+  pattern <- "integrated_peak_data_.*\\.csv$"
+  files <- list.files(data_dir, pattern = pattern, full.names = TRUE)
+  
+  if (length(files) == 0) {
+    return(NULL)
+  }
+  
+  # Extract dates from filenames and find the most recent
+  dates <- stringr::str_extract(basename(files), "\\d{4}-\\d{2}-\\d{2}")
+  most_recent_idx <- which.max(as.Date(dates))
+  
+  cat("Found", length(files), "processed integration files\n")
+  cat("Using most recent file:", basename(files[most_recent_idx]), "\n")
+  
+  return(files[most_recent_idx])
+}
+# Helper function to find the most recent processed integration data file
+find_most_recent_processed_file <- function(data_dir) {
+  pattern <- "processed_int_data_.*\\.csv$"
+  files <- list.files(data_dir, pattern = pattern, full.names = TRUE)
+  
+  if (length(files) == 0) {
+    return(NULL)
+  }
+  
+  # Extract dates from filenames and find the most recent
+  dates <- stringr::str_extract(basename(files), "\\d{4}-\\d{2}-\\d{2}")
+  most_recent_idx <- which.max(as.Date(dates))
+  
+  cat("Found", length(files), "processed integration files\n")
+  cat("Using most recent file:", basename(files[most_recent_idx]), "\n")
+  
+  return(files[most_recent_idx])
+}
+
+```
+
+
+# Investigate existing root data files
+```{r root-data-structures}
+dpt_root_data <- read_csv(file.path(outputs_folder, "dpt_data_normalized_roots.csv"))
+print("DPT data structure:")
+str(dpt_root_data)
+print("DPT data summary:")
+summary(dpt_root_data)
+
+integrated_peak_data_file <- find_most_recent_int_file(outputs_folder)
+integrated_peak_data <- read_csv(integrated_peak_data_file)
+print("Integrated peak data structure:")
+str(integrated_peak_data)
+print("Integrated peak data summary:")
+summary(integrated_peak_data)
+
+processed_int_data_file <- find_most_recent_processed_file(outputs_folder)
+processed_int_data <- read_csv(processed_int_data_file)
+print("Processed integration data structure:")
+str(processed_int_data)
+print("Processed integration data summary:")
+summary(processed_int_data)
+```
+
+# Investigate existing soil data files
+```{r soil-data-structures}
+camryn_outputs <- file.path(box_base, "Salk Institute Project/AKS Salk files/Camryn_DRIFTSdata/code_outputs")
+
+dpt_soil_data <- read_csv(file.path(camryn_outputs, "dpt_data_normalized.csv"))
+print("DPT soil data structure:") 
+str(dpt_soil_data)
+print("DPT soil data summary:")
+summary(dpt_soil_data)
+
+processed_int_soil_data_file <- find_most_recent_processed_file(camryn_outputs)
+# print("Most recent processed integration soil data file:", processed_int_soil_data_file)
+processed_int_soil_data <- read_csv(processed_int_soil_data_file)
+print("Processed integration soil data structure:")
+str(processed_int_soil_data)
+print("Processed integration soil data summary:")
+summary(processed_int_soil_data)
+```
+
+# Check compatibility of root and soil data files
+```{r check-compatibility}
+# Check if the column names of the root and soil data files match
+# dpt_data files
+print("Checking compatibility of DPT data files...")
+dpt_root_columns <- colnames(dpt_root_data)
+dpt_soil_columns <- colnames(dpt_soil_data)
+if (length(dpt_root_columns) != length(dpt_soil_columns)) {
+  cat("Incompatible data files: different number of columns\n")
+} else {
+  if (all(dpt_root_columns == dpt_soil_columns)) {
+    cat("DPT data files are compatible: column names match\n")
+  } else {
+    cat("DPT data files are incompatible: column names do not match\n")
+  }
+}
+
+
+# processed_int_data files
+print("Checking compatibility of processed integration data files...")
+processed_root_columns <- colnames(processed_int_data)
+processed_soil_columns <- colnames(processed_int_soil_data)
+
+if (length(processed_root_columns) != length(processed_soil_columns)) {
+  cat("Incompatible data files: different number of columns\n")
+} else {
+  if (all(processed_root_columns == processed_soil_columns)) {
+    cat("Processed integration data files are compatible: column names match\n")
+  } else {
+    cat("Processed integration data files are incompatible: column names do not match\n")
+  }
+}
+```

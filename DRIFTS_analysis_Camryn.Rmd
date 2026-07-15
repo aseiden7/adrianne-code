@@ -923,8 +923,8 @@ perform_spectral_integration <- function(dpt_data) {
   # Prepare the data in the format needed for integration
   # Rename columns to match expected format
   comb <- dpt_data %>%
-    select(filename, wavenumber, absorbance) %>%
-    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
+    select(filename, wavenumber, snv_corrected) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = snv_corrected)
   
   # Define spectral windows of interest (same as Leila's code)
   red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1

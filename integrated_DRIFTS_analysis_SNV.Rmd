@@ -27,7 +27,6 @@ if (box_base == "") stop("BOX_BASE environment variable is not set!")
 
 # Set paths
 dpt_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/DPT_files")
-integrated_ftir_data <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/leila_code_output_csv")
 outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/Adrianne_FTIRdata/integrated_analysis_outputs")
 
 # Create output directory if it doesn't exist
@@ -233,11 +232,6 @@ dpt_data <- dpt_data %>%
                           "DRIFTS_pot030_13Csoy_wk10_root_250725.0.dpt"))
 # save as csv for record-keeping
 write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE)
-
-# Filter for root samples only
-dpt_data_roots <- dpt_data %>% 
-  filter(sample_type == "root") %>%
-  filter(!is.na(crop))
   
 ```
 
@@ -245,7 +239,7 @@ dpt_data_roots <- dpt_data %>%
 This code is modified to use baseline correction (subtracting the minimum) and standard normal variate (SNV) normalization.
 ```{r normalize-data}
 # Normalize absorbance data by sample (same approach as OPUSprocessing.Rmd)
-dpt_data_roots <- dpt_data_roots %>%
+dpt_data <- dpt_data %>%
   group_by(filename) %>%
   mutate(
     # Baseline correction - subtract minimum
@@ -257,6 +251,32 @@ dpt_data_roots <- dpt_data_roots %>%
   ) %>%
   select(-mean_abs, -sd_abs) %>%
   ungroup()
+dpt_data <- dpt_data %>%
+  group_by(filename) %>%
+  mutate(
+    # Baseline correction - subtract minimum
+    snv_corrected = normalized_absorbance - min(normalized_absorbance, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+dpt_data <- dpt_data %>%
+  group_by(filename) %>%
+  mutate(
+    # Baseline correction + 1
+    snv_plusOne = normalized_absorbance + 1
+  ) %>%
+  ungroup()
+
+## Save normalized data for record-keeping
+write.csv(dpt_data, file.path(outputs_folder, "dpt_data_normalized.csv"), row.names = FALSE)
+
+# Filter for root samples only
+dpt_data_roots <- dpt_data %>% 
+  filter(sample_type == "root") %>%
+  filter(!is.na(crop))
+
+## save as csv for record-keeping
+write.csv(dpt_data_roots, file.path(outputs_folder, "dpt_data_normalized_roots.csv"), row.names = FALSE)
 ```
 
 
@@ -1175,8 +1195,8 @@ perform_spectral_integration <- function(dpt_data) {
   # Prepare the data in the format needed for integration
   # Rename columns to match expected format
   comb <- dpt_data %>%
-    select(filename, wavenumber, absorbance) %>%
-    rename(sample = filename, wavelength = wavenumber, abs = absorbance)
+    select(filename, wavenumber, snv_corrected) %>%
+    rename(sample = filename, wavelength = wavenumber, abs = snv_corrected)
   
   # Define spectral windows of interest (same as Leila's code)
   red1 <- comb[comb$wavelength > 2839 & comb$wavelength < 2870, ]  # Aliphatic 1
@@ -1267,7 +1287,7 @@ perform_spectral_integration <- function(dpt_data) {
 ## Generating statistics
 ```{r import-integration-data}
 # Try to find the most recent processed integration data file
-ftir_file <- find_most_recent_processed_file(integrated_ftir_data)
+ftir_file <- find_most_recent_processed_file(outputs_folder)
 
 if (!is.null(ftir_file) && file.exists(ftir_file)) {
   ftir_data <- read_csv(ftir_file, show_col_types = FALSE)
@@ -2877,7 +2897,7 @@ most_recent_suberin_file <- function(data_dir) {
   return(files[most_recent_idx])
 }
 # Try to find the most recent processed integration data file
-suber_ftir_file <- most_recent_suberin_file(integrated_ftir_data)
+suber_ftir_file <- most_recent_suberin_file(outputs_folder)
 
 if (!is.null(suber_ftir_file) && file.exists(suber_ftir_file)) {
   ftir_suber <- read_csv(suber_ftir_file, show_col_types = FALSE)
