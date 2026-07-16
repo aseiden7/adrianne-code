@@ -84,7 +84,7 @@ find_most_recent_processed_file <- function(data_dir) {
 }
 
 # Source centralized theme and color configuration
-source(file.path(dirname(knitr::current_input()), "config/ITQB_color_config-temp.R"))
+source(file.path(dirname(knitr::current_input()), "config/ITQB_color_config.R"))
 
 ```
 
@@ -162,7 +162,7 @@ extract_filename_fields <- function(filename) {
     return(tibble(
       plant = NA_character_,
       method = NA_character_,
-      run_date = NA_character_,
+      run_date = as.Date(NA),
       run_rep = NA_integer_
     ))
   }
@@ -174,6 +174,16 @@ extract_filename_fields <- function(filename) {
     run_rep = as.integer(matches[1, 5])
   )
 }
+
+# Check for problems in filename parsing
+bad_files <- dpt_data$filename[
+  !stringr::str_detect(
+    basename(dpt_data$filename),
+    "^AKS_suberin_[^_]+_[^_]+_[0-9]{6}-[0-9]+\\.dpt$"
+  )
+]
+
+bad_files
 
 file_metadata <- bind_rows(lapply(dpt_data$filename, extract_filename_fields))
 dpt_data <- bind_cols(dpt_data, file_metadata)
@@ -376,6 +386,15 @@ for (mt in methods) {
   cat(knitr::kable(counts_table, format = "html", escape = FALSE))
   cat("<br><br>")  # Add HTML line breaks for spacing
 }
+
+# troubleshooting method colors
+method_levels <- sort(unique(dpt_data$method))
+
+if (!all(method_levels %in% names(method_colors))) {
+  missing_colors <- setdiff(method_levels, names(method_colors))
+  cat(missing_colors," do not have defined colors in method_colors.")
+}
+
 ```
 
 ## Plotting by plant
@@ -405,6 +424,7 @@ These plots are of normalized absorbance values. The thickness of the opaque lin
 </table>
 
 ```{r facet-plant-plots, results='asis'}
+# check which methods do not have defined colors
 
 # Generic function to create ridge plots for any preparation method
 create_plant_faceted_plot <- function(data, current_plant, title = NULL) {
