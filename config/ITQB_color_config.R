@@ -119,9 +119,9 @@ get_plant_colors <- function(plants = names(plant_hues),
 #     never changes no matter which subset of methods is shown in a plot.
 #     (Currently a placeholder of 3 -- extend to your full list, up to 8.)
 
-method_levels <- c("raw", "h2o20", "h2o30", "naoh20", "naoh30", "h2oinsol-milled", "raw-milled")  # EDIT: full canonical method list, in order
+method_levels <- c("raw", "raw-milled","h2oinsol-milled","h2o20", "h2o30", "naoh20", "naoh30")  # EDIT: full canonical method list, in order
 method_swatches = c("#473d87", "#3f6a86", "#3f866c", "#4f863f",
-                       "#86833f", "#865f3f", "#863f40", "#863f86")
+                       "#86833f", "#7e5d43", "#6d393a", "#7a437a")
 
 
 if (length(method_levels) > length(method_swatches)) {
@@ -180,7 +180,7 @@ region_lightness_ranks <- function(n) {
 #'   the .Rmd). This order determines the color assignment.
 #' @param methods character vector of methods present (subset of names(method_hues)).
 #' @return named character vector of hex colors, names like "raw_aliphatic"
-method_region_L_range <- c(22, 79)  # narrower than L_range -- see NOTE above
+method_region_L_range <- c(21, 80)  # narrower than L_range -- see NOTE above
 get_method_region_palette <- function(regions, methods,
                                        l_range = method_region_L_range, chroma_frac = chroma_fraction) {
   stopifnot(all(methods %in% names(method_hues)))
@@ -214,7 +214,7 @@ build_region_key <- function(regions, labels, l_range = method_region_L_range) {
     L      = l_vals
   )
   key_df$fill <- gray(key_df$L / 100)
-  key_df$text_color <- ifelse(key_df$L > 55, "black", "white") # use dark text on light tiles, light text on dark tiles
+  key_df$text_color <- ifelse(key_df$L > 51, "black", "white") # use dark text on light tiles, light text on dark tiles
 
   # NOTE: no scale_y_discrete(limits = rev(...)) here -- ggplot's default
   # discrete y-scale already puts the FIRST factor level (regions[1], e.g.

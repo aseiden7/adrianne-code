@@ -846,15 +846,35 @@ perform_spectral_integration <- function(dpt_data) {
 # Try to find the most recent processed integration data file
 ftir_file <- find_most_recent_processed_file(outputs_folder)
 
+use_cache <- FALSE
+
 if (!is.null(ftir_file) && file.exists(ftir_file)) {
-  ftir_data <- read_csv(ftir_file, show_col_types = FALSE)
-  cat("Successfully loaded FTIR integration data from:", basename(ftir_file), "\n")
-  cat("Dimensions:", dim(ftir_data), "\n")
-  cat("Columns:", names(ftir_data), "\n")
+  cached_ftir_data <- read_csv(ftir_file, show_col_types = FALSE)
+
+  # ftir_data$sample is just dpt_data$filename renamed (see basic_meta above),
+  # so we can directly compare the DPT files just loaded against the files
+  # already represented in the cached integration results.
+  current_files <- unique(dpt_data$filename)
+  cached_files  <- unique(cached_ftir_data$sample)
+  new_files     <- setdiff(current_files, cached_files)
+
+  if (length(new_files) == 0) {
+    ftir_data <- cached_ftir_data
+    use_cache <- TRUE
+    cat("No new DPT files since cache was generated -- reusing cached integration data from:", basename(ftir_file), "\n")
+    cat("Dimensions:", dim(ftir_data), "\n")
+    cat("Columns:", names(ftir_data), "\n")
+  } else {
+    cat("Found", length(new_files), "new DPT file(s) not in the cached data:\n")
+    cat(paste(" -", new_files), sep = "\n")
+    cat("\nReprocessing all DPT data to include the new file(s)...\n")
+  }
 } else {
   cat("No processed integration data found. Processing raw DPT data to generate integration results...\n")
-  
-  # Check if we have the required dpt_data_roots from previous chunk
+}
+
+if (!use_cache) {
+  # Check if we have the required dpt_data from previous chunk
   if (!exists("dpt_data") || nrow(dpt_data) == 0) {
     stop("No DPT data available for integration. Please ensure the DPT data import was successful.")
   }
