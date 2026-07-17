@@ -252,7 +252,7 @@ write.csv(dpt_data, file.path(outputs_folder, "dpt_data_normalized.csv"), row.na
 
 # Plotting ATR spectra
 ## Plotting by preparation method
-These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.
+These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, carbonyl, protein/amide, and carbohydrate ("sugars") organic matter proportions.
 Integration regions according to Mainka et al. (2022):
 
 Mainka, M., Summerauer, L., Wasner, D., Garland, G., Griepentrog, M., Berhe, A. A., & Doetterl, S. (2022). Soil geochemistry as a driver of soil organic matter composition: Insights from a soil chronosequence. Biogeosciences, 19(6), 1675–1689. https://doi.org/10.5194/bg-19-1675-2022
@@ -269,7 +269,7 @@ Plus carbonyl region (1780 - 1690 cm<sup>-1</sup>) \& sugars region (1200 - 900 
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1780 - 1690 cm<sup>-1</sup></td>
 </tr>
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Microbial:</td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Protein/amide:</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1660 - 1580 cm<sup>-1</sup></td>
 </tr>
 <tr>
@@ -338,10 +338,10 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
              alpha = 0.2, fill = "#83a0e8") +
     annotate("text", x = 1910, y = max_y * 0.9, label = "Carbonyl", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
-    # Add microbial region annotation
+    # Add protein/amide region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1640, y = max_y * 1.05, label = "Microbial", 
+    annotate("text", x = 1640, y = max_y * 1.05, label = "Protein/amide", 
              size = 3.3, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
@@ -398,7 +398,7 @@ if (!all(method_levels %in% names(method_colors))) {
 ```
 
 ## Plotting by plant
-These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and microbial organic matter proportions.  
+These plots are of normalized absorbance values. The thickness of the opaque line represents the range of the data. Annotations indicate integration regions used for calculations of simple plant, complex plant, and protein/amide organic matter proportions.  
 
 <table style="width: auto; border-collapse: collapse; border: 0.1px solid #f5f5f5;">
 <tr>
@@ -410,7 +410,7 @@ These plots are of normalized absorbance values. The thickness of the opaque lin
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1780 - 1690 cm<sup>-1</sup></td>
 </tr>
 <tr>
-<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Microbial:</td>
+<td style="padding: 5px; white-space: nowrap; border: 0.1px dotted #f5f5f5;">Protein/Amide:</td>
 <td style="padding: 5px; border: 0.1px dotted #f5f5f5;">1660 - 1580 cm<sup>-1</sup></td>
 </tr>
 <tr>
@@ -484,10 +484,10 @@ create_plant_faceted_plot <- function(data, current_plant, title = NULL) {
              alpha = 0.2, fill = "#83a0e8") +
     annotate("text", x = 1900, y = max_y*0.95, label = "Carbonyl", 
              size = 3.33, hjust = 0.5, color = annotation_text_color) +
-    # Add microbial region annotation
+    # Add protein/amide region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1640, y = max_y * 1.07, label = "Microbial", 
+    annotate("text", x = 1640, y = max_y * 1.07, label = "Protein/Amide", 
              size = 3.33, hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
@@ -604,10 +604,10 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
              alpha = 0.2, fill = "#83a0e8") +
     annotate("text", x = 1940, y = max_y * 0.5, label = "Carbonyl", 
              size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
-    # Add microbial region annotation
+    # Add protein/amide region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
              alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1640, y = max_y * 0.67, label = "Microbial", 
+    annotate("text", x = 1640, y = max_y * 0.67, label = "Protein/amide", 
              size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
@@ -720,8 +720,14 @@ stacked_plot <- build_stacked_range_plot(
 print(stacked_plot$plot)
 ggsave_themed("combined_overlay_range_all_plants.png", stacked_plot$plot, width = 13, height = 9, dpi = 300)
 ```
+
+### Version of the stacked range plot with only the methods in common across all plants
+```{r stacked-range-plot-common-methods}
+
+```
+
 # Integration of functional regions
-Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts by calculating aliphatic and aromatic indices, then deriving simple and complex plant and microbial proportions before visualizing everything. This procedure sums non-normalized absorbance values over a specified range, and divides by the total peak area in the ranges of interest to get the proportions.
+Modified from "Berhe_Ghezzehei_Lab/DRIFTS Data Analysis/Visualizing_FTIR_w_Elemental_Data.R" which starts by calculating aliphatic and aromatic indices, then deriving simple and complex plant and protein/amide proportions before visualizing everything. This procedure sums non-normalized absorbance values over a specified range, and divides by the total peak area in the ranges of interest to get the proportions.
 
 ## Performing the integration
 ```{r spectral-integration-function}
@@ -745,7 +751,7 @@ perform_spectral_integration <- function(dpt_data) {
   red1 <- comb[comb$wavenumber > 2839 & comb$wavenumber < 2870, ]  # Aliphatic 1
   red2 <- comb[comb$wavenumber > 2898 & comb$wavenumber < 2976, ]  # Aliphatic 2  
   red3 <- comb[comb$wavenumber > 1690 & comb$wavenumber < 1780, ]  # Carbonyl
-  red4 <- comb[comb$wavenumber > 1580 & comb$wavenumber < 1660, ]  # Microbial
+  red4 <- comb[comb$wavenumber > 1580 & comb$wavenumber < 1660, ]  # Protein/amide
   red5 <- comb[comb$wavenumber > 1500 & comb$wavenumber < 1550, ]  # Complex plant
   red6 <- comb[comb$wavenumber > 900 & comb$wavenumber < 1200, ]   # Sugars
   
@@ -829,7 +835,9 @@ perform_spectral_integration <- function(dpt_data) {
   ftir_data$microbial_prop <- ftir_data$int_microbial / ftir_data$total_peak_area
   ftir_data$aliphatic_microbial_prop <- ftir_data$aliphatic_prop / ftir_data$microbial_prop
   ftir_data$complex_microbial_prop <- ftir_data$complex_plant_prop / ftir_data$microbial_prop
-  
+  ftir_data$total_area_no_sugars <- ftir_data$total_peak_area - ftir_data$int_sugars
+  ftir_data$aliphatic_prop_no_sugars <- ftir_data$aliphatic / ftir_data$total_area_no_sugars
+  ftir_data$complex_plant_prop_no_sugars <- ftir_data$int_complex_plant / ftir_data$total_area_no_sugars
   # Remove individual aliphatic integration columns (keep only derived metrics)
   ftir_data <- ftir_data %>%
     select(-int_2839_2870, -int_2898_2976)
@@ -893,7 +901,7 @@ if (!use_cache) {
 ```
 
 ## Generating statistics
-This code chunk calculates summary statistics (mean and standard error) for the derived metrics (aliphatic, carbonyl, microbial, complex plant, sugars proportions) grouped by plant, preparation method, and plant-method combinations. The results are stored in separate data frames for later visualization.
+This code chunk calculates summary statistics (mean and standard error) for the derived metrics (aliphatic, carbonyl, protein/amide, complex plant, sugars proportions) grouped by plant, preparation method, and plant-method combinations. The results are stored in separate data frames for later visualization.
 
 ```{r integration-statistics}
 # Calculate summary statistics by group
@@ -911,6 +919,14 @@ plant_stats <- ftir_data %>%
     SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
     Mean_sugars_prop = mean(sugars_prop, na.rm = TRUE),
     SE_sugars_prop = sd(sugars_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_aliphatic_prop_no_sugars = mean(aliphatic_prop_no_sugars, na.rm = TRUE),
+    SE_aliphatic_prop_no_sugars = sd(aliphatic_prop_no_sugars, na.rm = TRUE) / sqrt(n()),
+    Mean_carbonyl_prop_no_sugars = mean(carbonyl_prop, na.rm = TRUE),
+    SE_carbonyl_prop_no_sugars = sd(carbonyl_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_microbial_prop_no_sugars = mean(microbial_prop, na.rm = TRUE),
+    SE_microbial_prop_no_sugars = sd(microbial_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_complex_plant_prop_no_sugars = mean(complex_plant_prop_no_sugars, na.rm = TRUE),
+    SE_complex_plant_prop_no_sugars = sd(complex_plant_prop_no_sugars, na.rm = TRUE) / sqrt(n()),
     .groups = 'drop'
   )
 
@@ -927,6 +943,14 @@ method_stats <- ftir_data %>%
     SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
     Mean_sugars_prop = mean(sugars_prop, na.rm = TRUE),
     SE_sugars_prop = sd(sugars_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_aliphatic_prop_no_sugars = mean(aliphatic_prop_no_sugars, na.rm = TRUE),
+    SE_aliphatic_prop_no_sugars = sd(aliphatic_prop_no_sugars, na.rm = TRUE) / sqrt(n()),
+    Mean_carbonyl_prop_no_sugars = mean(carbonyl_prop, na.rm = TRUE),
+    SE_carbonyl_prop_no_sugars = sd(carbonyl_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_microbial_prop_no_sugars = mean(microbial_prop, na.rm = TRUE),
+    SE_microbial_prop_no_sugars = sd(microbial_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_complex_plant_prop_no_sugars = mean(complex_plant_prop_no_sugars, na.rm = TRUE),
+    SE_complex_plant_prop_no_sugars = sd(complex_plant_prop_no_sugars, na.rm = TRUE) / sqrt(n()),
     .groups = 'drop'
   )
 
@@ -944,12 +968,20 @@ plant_method_stats <- ftir_data %>%
     SE_complex_plant_prop = sd(complex_plant_prop, na.rm = TRUE) / sqrt(n()),
     Mean_sugars_prop = mean(sugars_prop, na.rm = TRUE),
     SE_sugars_prop = sd(sugars_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_aliphatic_prop_no_sugars = mean(aliphatic_prop_no_sugars, na.rm = TRUE),
+    SE_aliphatic_prop_no_sugars = sd(aliphatic_prop_no_sugars, na.rm = TRUE) / sqrt(n()),
+    Mean_carbonyl_prop_no_sugars = mean(carbonyl_prop, na.rm = TRUE),
+    SE_carbonyl_prop_no_sugars = sd(carbonyl_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_microbial_prop_no_sugars = mean(microbial_prop, na.rm = TRUE),
+    SE_microbial_prop_no_sugars = sd(microbial_prop, na.rm = TRUE) / sqrt(n()),
+    Mean_complex_plant_prop_no_sugars = mean(complex_plant_prop_no_sugars, na.rm = TRUE),
+    SE_complex_plant_prop_no_sugars = sd(complex_plant_prop_no_sugars, na.rm = TRUE) / sqrt(n()),
     .groups = 'drop'
   )
 ```
 
 # Visualizing functional group proportions by method
-Percentage stacked bar charts comparing preparation methods within each plant. Each bar is one method; segments are the five functional-group region proportions (aliphatic/simple plant, carbonyl, microbial, complex plant, sugars) from `plant_method_stats`. Colors come from `get_method_region_palette()`: each method keeps its own fixed hue (from `method_colors`/`method_hues` in the config), and region is encoded as a lightness shade within that hue, ordered so adjacent segments in the stack are never two similar shades.
+Percentage stacked bar charts comparing preparation methods within each plant. Each bar is one method; segments are the five functional-group region proportions (aliphatic/simple plant, carbonyl, protein/amide, complex plant, sugars) from `plant_method_stats`. Colors come from `get_method_region_palette()`: each method keeps its own fixed hue (from `method_colors`/`method_hues` in the config), and region is encoded as a lightness shade within that hue, ordered so adjacent segments in the stack are never two similar shades.
 
 ```{r method-region-bar-function}
 # Region display/stacking order -- bottom to top. This order also drives the
@@ -958,7 +990,7 @@ region_order <- c("aliphatic", "carbonyl", "microbial", "complex", "sugar")
 region_labels <- c(
   aliphatic = "Simple Plant",
   carbonyl  = "Carbonyl",
-  microbial = "Microbial",
+  microbial = "Protein/amide",
   complex   = "Complex Plant",
   sugar     = "Sugars"
 )
@@ -1107,3 +1139,7 @@ print(combined_bar_plot)
 ggsave_themed("method_region_stackedbar_all_plants.png", combined_bar_plot,
               width = 13, height = 6, dpi = 300)
 ```
+
+### Version of the combined figure without sugars
+This version of the combined figure excludes the sugars region from the stacked bars, so the remaining four regions (aliphatic/simple plant, carbonyl, protein/amide, complex plant) are scaled to sum to 100% for each method. This allows for a more direct comparison of the non-sugar functional groups across methods and plants.
+```{r method-region-bar-combined-no-sugars, fig.width=13, fig.height=6}
