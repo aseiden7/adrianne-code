@@ -963,6 +963,12 @@ region_labels <- c(
   sugar     = "Sugars"
 )
 
+# Lightness assigned to each region -- the SAME values used to build the fill
+# colors (get_method_region_palette()) and the grayscale key (build_region_key()).
+# Reused below to pick label text color, so labels always match the key's logic
+# even if region_order or method_region_L_range change.
+region_lightness <- get_region_lightness(region_order)
+
 # Builds one plant's % stacked bar chart, one bar per method.
 build_method_region_bar_plot <- function(stats_data, current_plant, title = NULL) {
   plant_data <- stats_data %>%
@@ -986,7 +992,8 @@ build_method_region_bar_plot <- function(stats_data, current_plant, title = NULL
       region   = factor(region, levels = region_order),
       method   = factor(method, levels = present_methods),
       pct      = prop * 100,
-      fill_key = paste(method, region, sep = "_")
+      fill_key = paste(method, region, sep = "_"),
+      text_color = ifelse(region_lightness[as.character(region)] > text_color_L_threshold, "black", "white")
     )
 
   region_palette <- get_method_region_palette(regions = region_order, methods = present_methods)
@@ -996,7 +1003,7 @@ build_method_region_bar_plot <- function(stats_data, current_plant, title = NULL
              linewidth = 0.00, width = 0.88) +
     geom_text(aes(label = paste0(round(pct, 1), "%")),
               position = position_stack(reverse = TRUE, vjust = 0.5),
-              color = ifelse(long_data$region == "aliphatic","white", ifelse(long_data$region == "microbial", "white", "black")),
+              color = long_data$text_color,
               size = 3.6, fontface = "bold") +
     scale_fill_manual(values = region_palette) +
     scale_y_continuous(labels = scales::percent_format(accuracy = 1),
@@ -1004,6 +1011,7 @@ build_method_region_bar_plot <- function(stats_data, current_plant, title = NULL
     guides(fill = "none") +
     labs(x = NULL, y = "Functional Group Proportion (%)", title = title) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
           legend.position = "none")
 }
 ```
@@ -1030,11 +1038,69 @@ print(region_key_plot)
 ```
 
 ### Combined figure (all plants side-by-side)
+Unlike the individual per-plant plots above (each a separate ggplot, combined via `cowplot::plot_grid`), this version builds ONE ggplot across all plants and uses `facet_grid(~ plant, scales = "free_x", space = "free_x")` so every panel shares a single y-axis, panel widths scale with each plant's actual method count (so panels sit close together instead of getting equal width regardless of bar count), and the plant name (the facet strip) is centered over its panel automatically. Only methods present for **every** plant are shown, so each panel is directly comparable method-for-method; any method missing from even one plant is dropped and reported in the console output.
 ```{r method-region-bar-combined, fig.width=13, fig.height=6}
+# Only include methods present in EVERY selected plant (intersect, not union) --
+# a method missing from even one plant is dropped from the combined figure
+# entirely, so panels are directly comparable method-for-method.
+methods_by_plant <- lapply(plants_for_bar, function(pt) {
+  unique(plant_method_stats$method[plant_method_stats$plant == pt])
+})
+present_methods_all <- sort(Reduce(intersect, methods_by_plant))
+
+all_methods_seen <- sort(unique(plant_method_stats$method[plant_method_stats$plant %in% plants_for_bar]))
+dropped_methods <- setdiff(all_methods_seen, present_methods_all)
+if (length(dropped_methods) > 0) {
+  cat("Methods not present for every plant (excluded from combined figure):",
+      paste(dropped_methods, collapse = ", "), "\n")
+}
+
+combined_region_palette <- get_method_region_palette(regions = region_order, methods = present_methods_all)
+
+combined_long_data <- plant_method_stats %>%
+  filter(plant %in% plants_for_bar, method %in% present_methods_all) %>%
+  mutate(plant = factor(str_to_title(as.character(plant)),
+                        levels = str_to_title(plants_for_bar))) %>%
+  select(plant, method,
+         aliphatic = Mean_aliphatic_prop,
+         carbonyl  = Mean_carbonyl_prop,
+         microbial = Mean_microbial_prop,
+         complex   = Mean_complex_plant_prop,
+         sugar     = Mean_sugars_prop) %>%
+  pivot_longer(cols = -c(plant, method), names_to = "region", values_to = "prop") %>%
+  mutate(
+    region     = factor(region, levels = region_order),
+    method     = factor(method, levels = present_methods_all),
+    pct        = prop * 100,
+    fill_key   = paste(method, region, sep = "_"),
+    text_color = ifelse(region_lightness[as.character(region)] > text_color_L_threshold,
+                         "black", "white")
+  )
+
+combined_bars <- ggplot(combined_long_data, aes(x = method, y = prop, fill = fill_key, group = region)) +
+  geom_col(position = position_stack(reverse = TRUE), linewidth = 0.00, width = 0.88) +
+  geom_text(aes(label = paste0(round(pct, 1), "%"), color = text_color),
+            position = position_stack(reverse = TRUE, vjust = 0.5),
+            size = 3.6, fontface = "bold") +
+  scale_fill_manual(values = combined_region_palette) +
+  scale_color_identity() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     expand = expansion(mult = c(0.01, 0.02))) +
+  facet_grid(~ plant, scales = "free_x", space = "free_x") +
+  guides(fill = "none") +
+  labs(x = NULL, y = "Functional Group Proportion (%)") +
+  theme(
+    axis.text.x     = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.spacing   = unit(4, "pt"),
+    strip.text      = element_text(face = "bold", size = 12, hjust = 0.5)
+  )
+
 combined_bar_plot <- cowplot::plot_grid(
-  plotlist = c(bar_plots, list(region_key_plot)),
+  combined_bars, region_key_plot,
   nrow = 1,
-  rel_widths = c(rep(1, length(bar_plots)), 0.45)
+  align = "h", axis = "tb", # make the key's y-axis line up with the bars' y-axis
+  rel_widths = c(length(plants_for_bar), 0.45)
 )
 
 print(combined_bar_plot)

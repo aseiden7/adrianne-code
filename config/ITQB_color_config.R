@@ -159,6 +159,25 @@ region_lightness_ranks <- function(n) {
   ((seq_len(n) - 1) * step) %% n + 1
 }
 
+#' Get the lightness (L) value assigned to each region -- the SAME values
+#' used both to build method x region fill colors (get_method_region_palette())
+#' and the grayscale key (build_region_key()). Pull this out separately
+#' whenever you need to know how light/dark a region's fill will be -- e.g.
+#' to decide black vs. white text on top of it (see text_color_L_threshold
+#' below) -- without duplicating the ranking math.
+#' @param regions character vector of region names, in stacking order.
+#' @return named numeric vector, region -> L (0-100).
+get_region_lightness <- function(regions, l_range = method_region_L_range) {
+  n <- length(regions)
+  l_sorted <- seq(l_range[1], l_range[2], length.out = n)
+  setNames(l_sorted[region_lightness_ranks(n)], regions)
+}
+
+#' Threshold used everywhere we need to pick readable text color (black vs.
+#' white) against a region's fill: L above this -> black text, at/below -> white.
+#' Change this once here rather than in each place that draws text on a fill.
+text_color_L_threshold <- 52  # lightness threshold for black vs. white text on top of a fill
+
 #' Get a named hex color vector for every method x region combination.
 #'
 #' Region is the shade dimension: instead of a plain light-to-dark ramp,
@@ -166,7 +185,7 @@ region_lightness_ranks <- function(n) {
 #' next to each other in a stacked bar are never two similar shades -- this
 #' holds regardless of how many regions you pass in.
 #' NOTE on l_range: this deliberately does NOT default to the shared L_range
-#' (26-90) used for the plant palette. Near the very top of that range, the
+#' used for the plant palette. Near the very top of that range, the
 #' sRGB gamut's max in-gamut chroma shrinks a lot and UNEVENLY across hues
 #' (worse for blue/purple), so two colors at nominally the same L can look
 #' like different lightness depending on hue, and adjacent ranks (e.g. the
@@ -180,9 +199,10 @@ region_lightness_ranks <- function(n) {
 #'   the .Rmd). This order determines the color assignment.
 #' @param methods character vector of methods present (subset of names(method_hues)).
 #' @return named character vector of hex colors, names like "raw_aliphatic"
-method_region_L_range <- c(21, 80)  # narrower than L_range -- see NOTE above
+method_region_L_range <- c(19, 82)  # lower than L_range -- see NOTE above
+method_region_chroma_fraction <- 0.70  # higher value = more saturated, lower = more muted
 get_method_region_palette <- function(regions, methods,
-                                       l_range = method_region_L_range, chroma_frac = chroma_fraction) {
+                                       l_range = method_region_L_range, chroma_frac = method_region_chroma_fraction) {
   stopifnot(all(methods %in% names(method_hues)))
   n <- length(regions)
   l_sorted <- seq(l_range[1], l_range[2], length.out = n)
@@ -214,7 +234,7 @@ build_region_key <- function(regions, labels, l_range = method_region_L_range) {
     L      = l_vals
   )
   key_df$fill <- gray(key_df$L / 100)
-  key_df$text_color <- ifelse(key_df$L > 51, "black", "white") # use dark text on light tiles, light text on dark tiles
+  key_df$text_color <- ifelse(key_df$L > text_color_L_threshold, "black", "white") # use dark text on light tiles, light text on dark tiles
 
   # NOTE: no scale_y_discrete(limits = rev(...)) here -- ggplot's default
   # discrete y-scale already puts the FIRST factor level (regions[1], e.g.
