@@ -179,7 +179,7 @@ data_test <- read_opus(dsn = corr_spectra)
 
 # Helper to extract sample number from filename (e.g., "pot094")
 extract_sample_number <- function(filename) {
-  m <- regexpr("[a-z]{3}[0-9]+", filename)
+  m <- regexpr("[A-Za-z]{3}[0-9]+", filename)
   if (m[1] != -1) {
     regmatches(filename, m)
   } else {

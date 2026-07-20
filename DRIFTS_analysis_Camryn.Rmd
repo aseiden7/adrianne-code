@@ -1881,8 +1881,7 @@ soil_v_root_plot <- function(region, crops_ordered = c("soy", "rice", "wheat")) 
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = annotation_line_color) # Add a reference line (y=x)
  # Build one legend block per crop using invisible dummy layers + ggnewscale, so each
   # crop keeps its own color palette in its own titled legend block (same approach as
-  # build_stacked_range_plot()). Built in reverse order so the first crop in
-  # crops_ordered ends up as the top-most legend block.
+  # build_stacked_range_plot()).
   if (!require(ggnewscale, quietly = TRUE)) {
     install.packages("ggnewscale")
     library(ggnewscale)
@@ -1911,21 +1910,6 @@ soil_v_root_plot <- function(region, crops_ordered = c("soy", "rice", "wheat")) 
         guide = guide_legend(override.aes = list(size = 4, alpha = 1), order = i)
       )
    }
-  #   plot <- plot +
-  #     geom_point(data = dummy_data, aes(x = x, y = y, color = tp), size = 0, alpha = 0) +
-  #     scale_color_manual(
-  #       name = str_to_title(crop_name),
-  #       values = color_map_all_sep[[crop_name]][present_tps],
-  #       breaks = present_tps,
-  #       labels = present_tps,
-  #       guide = guide_legend(override.aes = list(size = 4, alpha = 1), order = i)
-  #     )
-
-  #   if (i < length(crops_ordered)) {
-  #     plot <- plot + ggnewscale::new_scale_color()
-  #   }
-  # }
-  
   return(plot)
 }
 soil_v_root_simple_plot <- soil_v_root_plot("simple_plant")
@@ -2015,7 +1999,7 @@ knitr::kable(soil_root_regression_stats,
 ```
 
 # Root vs. soil: percent change (wk10 -> wk40, within-pot)
-Since pot IDs are tracked longitudinally starting at wk10 (wk0 pots were destroyed and not resampled), this section calculates a **true within-pot percent change** from wk10 to wk40, instead of comparing against a crop-level baseline. Each pot's own wk10 measurement is the denominator, for both root and soil, so the two are directly comparable and the pairing is exact (same physical pot at both timepoints).
+Since pot IDs are tracked longitudinally starting at wk10 (wk0 pots were destroyed and not resampled), this section calculates a within-pot percent change from wk10 to wk40, instead of comparing against a crop-level baseline. Each pot's own wk10 measurement is the denominator, for both root and soil, so the two are directly comparable and the pairing is exact (same physical pot at both timepoints).
 
 ## Calculate within-pot percent change (wk10 -> wk40)
 ```{r soil-root-percent-change-data-wk10-wk40}
@@ -2025,6 +2009,7 @@ soil_cols <- paste0(regions, "_prop_soil")
 
 wk10_vals <- combined_data %>%
   filter(timepoint == "wk10") %>%
+  filter(!sample_soil %in% c("DRIFTS_Pot055_13Crice_wk10_rhizoSoil_260624A.0.dpt", "DRIFTS_Pot119_13Crice_wk10_rhizoSoil_260624B.0.dpt")) %>% # filter out rice duplicates
   select(crop, ID, all_of(c(root_cols, soil_cols))) %>%
   rename_with(~ paste0(.x, "_wk10"), all_of(c(root_cols, soil_cols)))
 
@@ -2045,9 +2030,6 @@ if (nrow(missing_wk10) > 0) {
   cat("Pot IDs with wk40 data but no matching wk10 data (excluded from within-pot comparison):\n")
   print(as.data.frame(missing_wk10 %>% select(crop, ID)))
 }
-# filter out "DRIFTS_Pot055_13Crice_wk10_rhizoSoil_260624A.0.dpt" and "DRIFTS_Pot119_13Crice_wk10_rhizoSoil_260624B.0.dpt"
-wk10_vals <- wk10_vals %>%
-  filter(!ID %in% c("DRIFTS_Pot055_13Crice_wk10_rhizoSoil_260624A.0.dpt", "DRIFTS_Pot119_13Crice_wk10_rhizoSoil_260624B.0.dpt"))
 
 # Pair each pot ID's wk10 and wk40 measurements -- true within-pot comparison
 change_data_wk10_wk40 <- inner_join(wk10_vals, wk40_vals, by = c("crop", "ID"))
