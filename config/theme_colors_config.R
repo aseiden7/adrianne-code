@@ -51,7 +51,7 @@ theme_suffix <- "-dark"
 # Text color for annotations based on theme
 # Use "white" when theme_suffix == "-dark", "black" when theme_suffix == "-light"
 annotation_text_color <- ifelse(theme_suffix == "-dark", "white", "black")
-annotation_line_color <- ifelse(theme_suffix == "-dark", "#707070", "#555555")
+annotation_line_color <- ifelse(theme_suffix == "-dark", "#707070", "#444444")
 # Fill color for annotations based on theme
 # Use "black" when theme_suffix == "-dark", "white" when theme_suffix == "-light"
 annotation_fill_color <- ifelse(theme_suffix == "-dark", "black", "white")

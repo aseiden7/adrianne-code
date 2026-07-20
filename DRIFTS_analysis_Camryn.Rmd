@@ -83,7 +83,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
 
 # Install and load required packages for integration if needed
-required_packages <- c("pracma", "nc","ggplot2","ggridges","readr","stringr","viridis","dplyr","cowplot","ggsignif","tidyr","rmarkdown","knitr","grid")
+required_packages <- c("pracma", "nc","ggplot2","ggridges","readr","stringr","viridis","dplyr","cowplot","ggsignif","tidyr","rmarkdown","knitr","grid","ggpubr")
 for (pkg in required_packages) {
   if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
     cat("Installing package:", pkg, "\n")
@@ -245,7 +245,8 @@ ID = case_when(
   filter(!str_detect(filename, "KBr")) %>%  # Remove KBr files if needed
   # Filter out anomalous spectra if needed
   filter(!filename %in% c("DRIFTS_Pot109_13Cwheat_wk10_rhizoSoil_260624a.0.dpt",
-                          "DRIFTS_pot047_13Crice_wk0_root_250725.0.dpt")) # examples of bad spectra
+                          "DRIFTS_pot047_13Crice_wk0_root_250725.0.dpt",
+                          "DRIFTS_Pot072_12CnoPlant_wk40_rhizoSoil_260617.0.dpt"))
 # save as csv for record-keeping
 write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE)
 
@@ -672,7 +673,44 @@ soy_vs_noplant_wk40_plot <- plot_crop_vs_noplant(dpt_data_rhizo, "soy", "wk40")
 print(wheat_vs_noplant_wk40_plot)
 print(rice_vs_noplant_wk40_plot)
 print(soy_vs_noplant_wk40_plot)
+
+# Create generic function to plot a single crop vs noPlant at a specific timepoint
+plot_crops_by_week <- function(data, timepoint_week) {
+  # Filter data for specific crop and timepoint
+  filtered_data <- data %>%
+    filter(timepoint == timepoint_week) %>%
+    mutate(snv_plusOne = as.numeric(snv_plusOne))
+  
+  # Average + range ribbon for each crop
+  summary_data <- filtered_data %>%
+    group_by(crop, wavenumber) %>%
+    summarise(
+      mean_absorbance = mean(snv_plusOne, na.rm = TRUE),
+      min_absorbance = min(snv_plusOne, na.rm = TRUE),
+      max_absorbance = max(snv_plusOne, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  max_y <- max(summary_data$max_absorbance, na.rm = TRUE) + 0.15
+  
+  plot <- ggplot(summary_data, aes(x = wavenumber, color = crop, fill = crop)) +
+    geom_ribbon(aes(ymin = min_absorbance, ymax = max_absorbance), alpha = 0.3, color = NA) +
+    geom_line(aes(y = mean_absorbance), linewidth = 1) +
+    scale_x_reverse(limits = c(3777, 422), breaks = seq(400, 3800, by = 200)) +
+    scale_color_manual(values = crop_colors) +
+    scale_fill_manual(values = crop_colors) +
+    ggtitle(paste("All crops at", str_extract(timepoint_week, "\\d+"))) +
+    labs(x = expression("wavenumber (cm"^-1*")"), y = "normalized absorbance",
+         color = "", fill = "") +
+    theme(legend.position = "bottom") 
+
+  return(plot)
+}
+
+wk40_all_crops_plot <- plot_crops_by_week(dpt_data_rhizo, "wk40")
+print(wk40_all_crops_plot)
 ```
+
 # Combined stacked overlay plot
 These chunks create a single visualization showing all crops and timepoints by stacking the overlay plots vertically with a shared y-axis. Each crop has its own color palette and legend. The plots show the average spectra for each crop-timepoint combination with an opaque line (alpha = 1, width = 0.88) and a shaded ribbon representing the range of the data for each crop-timepoint (alpha = 0.58).
 
@@ -1800,14 +1838,19 @@ soil_v_root_plot <- function(region) {
   soil_col <- paste0(region, "_prop_soil")
   root_col <- paste0(region, "_prop_root")
   region_label <- str_to_title(gsub("_", " ", region)) # Convert to title case for labeling
-  
+    # find the minimum and maximum values for the whole dataset to set the limits of the plot
+  min_val <- min(combined_data[[root_col]], combined_data[[soil_col]], na.rm = TRUE)
+  max_val <- max(combined_data[[root_col]], combined_data[[soil_col]], na.rm = TRUE)
+  range <- max_val - min_val
   # Create a scatterplot comparing soil and root proportions for the specified region
   plot <- ggplot(combined_data, aes_string(x = root_col, y = soil_col, color = "crop_timepoint")) +
     geom_point(size = 3, alpha = 0.98) +
     scale_color_manual(values = color_map) +
-    labs(title = paste("Soil vs Root Proportions for", region_label, "OM"),
-         x = paste(str_to_title(region), "Proportion in Roots"),
-         y = paste(str_to_title(region), "Proportion in Soil")
+    xlim(min_val - 0.05 * range, max_val + 0.05 * range) +
+    ylim(min_val - 0.05 * range, max_val + 0.05 * range) +
+    labs(title = paste("Soil vs Root ", region_label, "OM Proportions"),
+         x = "Proportion in Roots",
+         y = "Proportion in Soil"
          ) +
     theme(
       legend.position = "bottom",
@@ -1818,7 +1861,7 @@ soil_v_root_plot <- function(region) {
       plot.title = element_text(size = 14, face = "bold"),
       plot.margin = margin(17, 17, 7, 17)
     ) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") # Add a reference line (y=x)
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = annotation_line_color) # Add a reference line (y=x)
   
   return(plot)
 }
@@ -1907,85 +1950,6 @@ knitr::kable(soil_root_regression_stats,
              col.names = c("Region", "Group", "n", "R\u00b2", "Slope", "p-value"),
              row.names = FALSE)
 ```
-# Root vs. soil: percent change (wk0 -> wk40)
-Raw proportions put root and soil on different baselines, which makes it hard to tell whether a shift in one is mirrored in the other. To put both on the same scale, this section expresses each wk40 pot's proportion as a **percent change relative to its crop's wk0 mean** (for that region), for both root and soil.
-
-Note: pots appear to be destructively sampled once per timepoint (each ID shows up at only one timepoint), so there's no way to track an individual pot's own change over time. Percent change is therefore calculated relative to the crop-level wk0 mean, not a paired before/after value for the same pot. If your pots actually are tracked longitudinally (the same ID re-sampled at wk0 and wk40), let me know and I can switch this to a true paired per-pot change instead.
-
-## Calculate percent change relative to each crop's wk0 mean
-```{r soil-root-percent-change-data}
-regions <- c("simple_plant", "complex_plant", "microbial")
-root_cols <- paste0(regions, "_prop_root")
-soil_cols <- paste0(regions, "_prop_soil")
-
-# wk0 baseline mean proportion, per crop and region
-baseline_wk0 <- combined_data %>%
-  filter(timepoint == "wk0") %>%
-  group_by(crop) %>%
-  summarise(across(all_of(c(root_cols, soil_cols)), ~ mean(.x, na.rm = TRUE)), .groups = "drop")
-
-cat("wk0 baseline means by crop:\n")
-print(baseline_wk0)
-
-# Express each wk40 pot's proportions as a % change relative to its crop's wk0 baseline
-change_data <- combined_data %>%
-  filter(timepoint == "wk40") %>%
-  left_join(baseline_wk0, by = "crop", suffix = c("", "_wk0_mean"))
-
-for (region in regions) {
-  root_col      <- paste0(region, "_prop_root")
-  soil_col      <- paste0(region, "_prop_soil")
-  root_base_col <- paste0(root_col, "_wk0_mean")
-  soil_base_col <- paste0(soil_col, "_wk0_mean")
-
-  change_data[[paste0(region, "_root_pct_change")]] <-
-    (change_data[[root_col]] - change_data[[root_base_col]]) / change_data[[root_base_col]] * 100
-  change_data[[paste0(region, "_soil_pct_change")]] <-
-    (change_data[[soil_col]] - change_data[[soil_base_col]]) / change_data[[soil_base_col]] * 100
-}
-
-change_data <- change_data %>%
-  select(crop, timepoint, ID, ends_with("_pct_change"))
-
-str(change_data) # check the structure of the change dataset
-```
-
-## Create function to generate percent-change scatterplots
-Same idea as `soil_v_root_plot()`, but plotting each wk40 pot's percent change (root vs. soil) instead of the raw proportion. Dashed reference lines at x = 0 and y = 0 divide the plot into quadrants -- e.g. points in the lower-right quadrant (root % change > 0, soil % change < 0) show a region increasing in roots while decreasing in the rhizosphere soil, and vice versa for the upper-left quadrant. Points are colored by crop (`crop_colors`, theme_colors_config.R) rather than crop_timepoint, since timepoint is now fixed (wk0 -> wk40 change).
-```{r soil-root-percent-change-scatterplots}
-soil_v_root_change_plot <- function(region) {
-  root_col <- paste0(region, "_root_pct_change")
-  soil_col <- paste0(region, "_soil_pct_change")
-
-  plot <- ggplot(change_data, aes_string(x = root_col, y = soil_col, color = "crop")) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
-    geom_point(size = 3, alpha = 0.98) +
-    scale_color_manual(values = crop_colors) +
-    labs(title = paste("Percent Change in", str_to_title(gsub("_", " ", region)), "OM Proportion (wk0 to wk40)"),
-         x = "% Change in Roots",
-         y = "% Change in Rhizosphere Soil") +
-    theme(
-      legend.position = "bottom",
-      legend.title = element_blank(),
-      legend.text = element_text(size = 11.5, face = "bold"),
-      axis.text = element_text(size = 12, face = "bold"),
-      axis.title = element_text(size = 13, face = "bold"),
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.margin = margin(17, 17, 7, 17)
-    )
-
-  return(plot)
-}
-
-soil_v_root_change_simple_plot    <- soil_v_root_change_plot("simple_plant")
-soil_v_root_change_complex_plot   <- soil_v_root_change_plot("complex_plant")
-soil_v_root_change_microbial_plot <- soil_v_root_change_plot("microbial")
-
-print(soil_v_root_change_simple_plot)
-print(soil_v_root_change_complex_plot)
-print(soil_v_root_change_microbial_plot)
-```
 
 # Root vs. soil: percent change (wk10 -> wk40, within-pot)
 Since pot IDs are tracked longitudinally starting at wk10 (wk0 pots were destroyed and not resampled), this section calculates a **true within-pot percent change** from wk10 to wk40, instead of comparing against a crop-level baseline. Each pot's own wk10 measurement is the denominator, for both root and soil, so the two are directly comparable and the pairing is exact (same physical pot at both timepoints).
@@ -2018,6 +1982,9 @@ if (nrow(missing_wk10) > 0) {
   cat("Pot IDs with wk40 data but no matching wk10 data (excluded from within-pot comparison):\n")
   print(as.data.frame(missing_wk10 %>% select(crop, ID)))
 }
+# filter out "DRIFTS_Pot055_13Crice_wk10_rhizoSoil_260624A.0.dpt" and "DRIFTS_Pot119_13Crice_wk10_rhizoSoil_260624B.0.dpt"
+wk10_vals <- wk10_vals %>%
+  filter(!ID %in% c("DRIFTS_Pot055_13Crice_wk10_rhizoSoil_260624A.0.dpt", "DRIFTS_Pot119_13Crice_wk10_rhizoSoil_260624B.0.dpt"))
 
 # Pair each pot ID's wk10 and wk40 measurements -- true within-pot comparison
 change_data_wk10_wk40 <- inner_join(wk10_vals, wk40_vals, by = c("crop", "ID"))
@@ -2039,6 +2006,11 @@ change_data_wk10_wk40 <- change_data_wk10_wk40 %>%
 
 cat("\nWithin-pot wk10 -> wk40 change dataset:", nrow(change_data_wk10_wk40), "pots\n")
 str(change_data_wk10_wk40)
+summary(change_data_wk10_wk40)
+
+# save as CSV for reference
+write_csv(change_data_wk10_wk40, file.path(outputs_folder, "within_pot_change_data_wk10_wk40.csv"))
+
 ```
 
 ## Create function to generate within-pot percent-change scatterplots
@@ -2047,12 +2019,20 @@ Same structure as the earlier change-plot function, but now each point is one po
 soil_v_root_change_plot_wk10_wk40 <- function(region) {
   root_col <- paste0(region, "_root_pct_change")
   soil_col <- paste0(region, "_soil_pct_change")
+  # find the minimum and maximum values for the whole dataset to set the limits of the plot
+  min_val <- min(change_data_wk10_wk40[[root_col]], change_data_wk10_wk40[[soil_col]], na.rm = TRUE)
+  max_val <- max(change_data_wk10_wk40[[root_col]], change_data_wk10_wk40[[soil_col]], na.rm = TRUE)
+  range <- max_val - min_val
+
 
   plot <- ggplot(change_data_wk10_wk40, aes_string(x = root_col, y = soil_col, color = "crop")) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "gray") +
+    geom_hline(yintercept = 0, linetype = "dashed", color = annotation_line_color) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = annotation_line_color) +
     geom_point(size = 3, alpha = 0.98) +
     scale_color_manual(values = crop_colors) +
+    # set the limits of the plot to be slightly larger than the min and max values to avoid cutting off points at the edges
+    xlim(min_val - 0.05 * range, max_val + 0.05 * range) +
+    ylim(min_val - 0.05 * range, max_val + 0.05 * range) +
     labs(title = paste("Percent Change in", str_to_title(gsub("_", " ", region)), "OM Proportion"),
          x = "% Change in Roots",
          y = "% Change in Rhizosphere Soil") +
