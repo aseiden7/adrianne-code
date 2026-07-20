@@ -1833,28 +1833,45 @@ This chunk defines a function that takes "region" as it's only variable, and gen
 ## the y-axis is the soil proportion 
 ## Points are colored by crop & timepoint as defined by the color_map variable config\theme_colors_config.R 
 
-soil_v_root_plot <- function(region) {
+soil_v_root_plot <- function(region, crops_ordered = c("soy", "rice", "wheat")) {
   # Define the column names for soil and root proportions based on the region
   soil_col <- paste0(region, "_prop_soil")
   root_col <- paste0(region, "_prop_root")
   region_label <- str_to_title(gsub("_", " ", region)) # Convert to title case for labeling
-    # find the minimum and maximum values for the whole dataset to set the limits of the plot
+    # find the minimum and maximum values for the whole dataset to set the limits of the plot (same for both axes)
   min_val <- min(combined_data[[root_col]], combined_data[[soil_col]], na.rm = TRUE)
   max_val <- max(combined_data[[root_col]], combined_data[[soil_col]], na.rm = TRUE)
   range <- max_val - min_val
+  # Assign each point's color directly from its crop's own sub-palette (via crop_timepoint ->
+  # color_map lookup), so the real data layer doesn't carry a mapped color aesthetic. This lets
+  # us build one legend block per crop (via dummy layers + ggnewscale) the same way
+  # build_stacked_range_plot() does, instead of one flat crop_timepoint legend.
+  plot_data <- combined_data %>%
+    filter(crop != "noPlant") %>%
+    mutate(point_color = unname(color_map[as.character(crop_timepoint)])) %>%
+    as.data.frame()
+  
   # Create a scatterplot comparing soil and root proportions for the specified region
-  plot <- ggplot(combined_data, aes_string(x = root_col, y = soil_col, color = "crop_timepoint")) +
-    geom_point(size = 3, alpha = 0.98) +
-    scale_color_manual(values = color_map) +
+  # plot <- ggplot(plot_data, aes_string(x = root_col, y = soil_col, color = "crop_timepoint")) +
+  #   geom_point(aes(color = I(point_color)), size = 3, alpha = 0.98) +
+  plot <- ggplot() +
+    geom_point(data = plot_data,
+               mapping = aes_string(x = root_col, y = soil_col, color = "point_color"),
+               size = 3, alpha = 0.98) +
+    scale_color_identity() +
+
     xlim(min_val - 0.05 * range, max_val + 0.05 * range) +
     ylim(min_val - 0.05 * range, max_val + 0.05 * range) +
-    labs(title = paste("Soil vs Root ", region_label, "OM Proportions"),
-         x = "Proportion in Roots",
-         y = "Proportion in Soil"
+    labs(title = paste("Soil vs Root ", region_label, "OM Proportion"),
+         x = "Proportion of Root OM",
+         y = "Proportion of Soil OM"
          ) +
     theme(
-      legend.position = "bottom",
-      legend.title = element_blank(),
+      legend.position = "right",
+      legend.direction = "vertical", # lays out timepoint labels within each crop's legend block
+      legend.box = "vertical", # lays out the legend blocks 
+      legend.spacing.y = unit(0.1, "cm"),
+      legend.title = element_text(size = 12, face = "bold"),
       legend.text = element_text(size = 11.5, face = "bold"),
       axis.text = element_text(size = 12, face = "bold"),
       axis.title = element_text(size = 13, face = "bold"),
@@ -1862,6 +1879,52 @@ soil_v_root_plot <- function(region) {
       plot.margin = margin(17, 17, 7, 17)
     ) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = annotation_line_color) # Add a reference line (y=x)
+ # Build one legend block per crop using invisible dummy layers + ggnewscale, so each
+  # crop keeps its own color palette in its own titled legend block (same approach as
+  # build_stacked_range_plot()). Built in reverse order so the first crop in
+  # crops_ordered ends up as the top-most legend block.
+  if (!require(ggnewscale, quietly = TRUE)) {
+    install.packages("ggnewscale")
+    library(ggnewscale)
+  }
+  for (i in seq_along(crops_ordered)) {
+    crop_name <- crops_ordered[i]
+    # Only include timepoints that actually have data for this crop
+    present_tps <- names(color_map_all_sep[[crop_name]])[
+      names(color_map_all_sep[[crop_name]]) %in% unique(as.character(plot_data$timepoint[plot_data$crop == crop_name]))
+    ]
+    if (length(present_tps) == 0) next
+
+    dummy_data <- data.frame(
+      x = rep(min_val, length(present_tps)),
+      y = rep(min_val, length(present_tps)),
+      tp = present_tps
+    )
+    plot <- plot +
+      ggnewscale::new_scale_color() +
+      geom_point(data = dummy_data, aes(x = x, y = y, color = tp), size = 0, alpha = 0) +
+      scale_color_manual(
+        name = str_to_title(crop_name),
+        values = color_map_all_sep[[crop_name]][present_tps],
+        breaks = present_tps,
+        labels = present_tps,
+        guide = guide_legend(override.aes = list(size = 4, alpha = 1), order = i)
+      )
+   }
+  #   plot <- plot +
+  #     geom_point(data = dummy_data, aes(x = x, y = y, color = tp), size = 0, alpha = 0) +
+  #     scale_color_manual(
+  #       name = str_to_title(crop_name),
+  #       values = color_map_all_sep[[crop_name]][present_tps],
+  #       breaks = present_tps,
+  #       labels = present_tps,
+  #       guide = guide_legend(override.aes = list(size = 4, alpha = 1), order = i)
+  #     )
+
+  #   if (i < length(crops_ordered)) {
+  #     plot <- plot + ggnewscale::new_scale_color()
+  #   }
+  # }
   
   return(plot)
 }
