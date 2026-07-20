@@ -1963,8 +1963,8 @@ soil_v_root_change_plot <- function(region) {
     geom_point(size = 3, alpha = 0.98) +
     scale_color_manual(values = crop_colors) +
     labs(title = paste("Percent Change in", str_to_title(gsub("_", " ", region)), "OM Proportion (wk0 to wk40)"),
-         x = paste(str_to_title(gsub("_", " ", region)), "% Change in Roots"),
-         y = paste(str_to_title(gsub("_", " ", region)), "% Change in Rhizosphere Soil")) +
+         x = "% Change in Roots",
+         y = "% Change in Rhizosphere Soil") +
     theme(
       legend.position = "bottom",
       legend.title = element_blank(),
@@ -2054,8 +2054,8 @@ soil_v_root_change_plot_wk10_wk40 <- function(region) {
     geom_point(size = 3, alpha = 0.98) +
     scale_color_manual(values = crop_colors) +
     labs(title = paste("Percent Change in", str_to_title(gsub("_", " ", region)), "OM Proportion"),
-         x = paste(str_to_title(region), "% Change in Roots"),
-         y = paste(str_to_title(region), "% Change in Rhizosphere Soil")) +
+         x = "% Change in Roots",
+         y = "% Change in Rhizosphere Soil") +
     theme(
       legend.position = "bottom",
       legend.title = element_blank(),
