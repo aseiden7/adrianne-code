@@ -83,7 +83,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
 
 # Install and load required packages for integration if needed
-required_packages <- c("pracma", "nc","ggplot2","ggridges","readr","stringr","viridis","dplyr","cowplot","ggsignif","tidyr","rmarkdown","knitr","grid","ggpubr")
+required_packages <- c("pracma", "nc","ggplot2","ggridges","readr","stringr","viridis","dplyr","cowplot","ggsignif","tidyr","rmarkdown","knitr","grid","ggpubr", "egg")
 for (pkg in required_packages) {
   if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
     cat("Installing package:", pkg, "\n")
@@ -370,8 +370,8 @@ create_timepoint_ridge_plot <- function(data, timepoint_week, title = NULL) {
     
     theme(axis.text.y = element_text(size = 12),
           legend.position = "none") +
-    scale_fill_manual(values = crop_colors) +
-    scale_color_manual(values = crop_colors) +
+    scale_fill_manual(values = crop_colors, labels = crop_labels) +
+    scale_color_manual(values = crop_colors, labels = crop_labels) +
     ggtitle(title) +
     labs(x = expression("wavenumber (cm"^-1*")"), y = "") +
     # Add simple plant region annotation
@@ -648,9 +648,10 @@ plot_crop_vs_noplant <- function(data, crop_name, timepoint_week) {
   plot <- ggplot(summary_data, aes(x = wavenumber, color = crop, fill = crop)) +
     geom_ribbon(aes(ymin = min_absorbance, ymax = max_absorbance), alpha = 0.3, color = NA) +
     geom_line(aes(y = mean_absorbance), linewidth = 1) +
-    scale_x_reverse(limits = c(3777, 422)) +
-    scale_color_manual(values = crop_colors) +
-    scale_fill_manual(values = crop_colors) +
+    scale_x_reverse(limits = c(3777, 422), breaks = seq(500, 3500, by = 500), expand = c(0.001, 0.001)) +
+    scale_y_continuous(limits = c(0, max_y), expand = c(0.002, 0.015)) +
+    scale_color_manual(values = crop_colors, labels = crop_labels) +
+    scale_fill_manual(values = crop_colors, labels = crop_labels) +
     ggtitle(paste(str_to_title(crop_name), "vs No-Plant Soil DRIFTS at", str_extract(timepoint_week, "\\d+"))) +
     labs(x = expression("wavenumber (cm"^-1*")"), y = "normalized absorbance",
          color = "", fill = "") +
@@ -696,9 +697,10 @@ plot_crops_by_week <- function(data, timepoint_week) {
   plot <- ggplot(summary_data, aes(x = wavenumber, color = crop, fill = crop)) +
     geom_ribbon(aes(ymin = min_absorbance, ymax = max_absorbance), alpha = 0.3, color = NA) +
     geom_line(aes(y = mean_absorbance), linewidth = 1) +
-    scale_x_reverse(limits = c(3777, 422), breaks = seq(400, 3800, by = 200)) +
-    scale_color_manual(values = crop_colors) +
-    scale_fill_manual(values = crop_colors) +
+    scale_x_reverse(limits = c(3777, 422), breaks = seq(400, 3800, by = 200), expand = c(0.001, 0.001)) +
+    scale_y_continuous(limits = c(0, max_y), expand = c(0.002, 0.015)) +
+    scale_color_manual(values = crop_colors, labels = crop_labels) +
+    scale_fill_manual(values = crop_colors, labels = crop_labels) +
     ggtitle(paste("All crops at", str_extract(timepoint_week, "\\d+"))) +
     labs(x = expression("wavenumber (cm"^-1*")"), y = "normalized absorbance",
          color = "", fill = "") +
@@ -709,6 +711,7 @@ plot_crops_by_week <- function(data, timepoint_week) {
 
 wk40_all_crops_plot <- plot_crops_by_week(dpt_data_rhizo, "wk40")
 print(wk40_all_crops_plot)
+ggsave_themed("all_crops_overlay_wk40.png", wk40_all_crops_plot, width = 10, height = 6)
 ```
 
 # Combined stacked overlay plot
@@ -742,7 +745,7 @@ build_stacked_range_plot <- function(data, crops_ordered, color_map, offset_amou
   # Create the base plot with functional region annotations
   base_plot <- ggplot() +
     xlim(3777, 422) +
-
+    ylim(0, max_y) +
     labs(x = expression("Wavenumber (cm"^-1*")"),
          y = "Normalized absorbance") +
     theme(
@@ -1611,7 +1614,7 @@ create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label
                       ymax = !!sym(y_metric) + !!sym(y_metric_se)),
                   width = 1.5, alpha = 0.73, linewidth = 0.8) +
     
-    scale_color_manual(values = crop_colors) +
+    scale_color_manual(values = crop_colors, labels = crop_colors) +
     labs(title = title,
          x = "Timepoint (weeks)",
          y = y_label,
@@ -2059,8 +2062,13 @@ write_csv(change_data_wk10_wk40, file.path(outputs_folder, "within_pot_change_da
 ```
 
 ## Create function to generate within-pot percent-change scatterplots
-Same structure as the earlier change-plot function, but now each point is one pot's own wk10 -> wk40 change (true pairing, not a crop average). Dashed reference lines at x = 0 and y = 0 mark no change; points colored by crop.
-```{r soil-root-percent-change-scatterplots-wk10-wk40}
+Plots showing the change in each OM-proportion as a percentage difference from wk10 to wk40. Each point is one pot's own wk10 -> wk40 change (true pairing, not a crop average). Dashed reference line shows a slope of -1 (proportional relationship). Wheat and soy roots decrease in simple plant OM proportion, while the adjacent rhizosphere soil increases in simple plant OM proportion, suggesting that the decomposing roots are contributing simple aliphatics to the soil OM pool.
+```{r soil-root-percent-change-scatterplots-wk10-wk40, fig.height=6.7, fig.width=7.6}
+print_square_plot <- function(plot, panel_size = unit(5.8, "in")) {
+  fixed_plot <- egg::set_panel_size(plot, width = panel_size, height = panel_size)
+  grid::grid.newpage()
+  grid::grid.draw(fixed_plot)
+}
 soil_v_root_change_plot_wk10_wk40 <- function(region) {
   root_col <- paste0(region, "_root_pct_change")
   soil_col <- paste0(region, "_soil_pct_change")
@@ -2068,27 +2076,42 @@ soil_v_root_change_plot_wk10_wk40 <- function(region) {
   min_val <- min(change_data_wk10_wk40[[root_col]], change_data_wk10_wk40[[soil_col]], na.rm = TRUE)
   max_val <- max(change_data_wk10_wk40[[root_col]], change_data_wk10_wk40[[soil_col]], na.rm = TRUE)
   range <- max_val - min_val
+  lower <- min_val - 0.05 * range
+  upper <- max_val + 0.05 * range
+  step <- max(round(0.15 * range, 0), 1)  # 15% of the rangeor some sensible minimum
+  breaks <- seq(
+  from = step * floor(lower / step),
+  to   = step * ceiling(upper / step),
+  by   = step
+)
 
 
   plot <- ggplot(change_data_wk10_wk40, aes_string(x = root_col, y = soil_col, color = "crop")) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = annotation_line_color) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = annotation_line_color) +
-    geom_point(size = 3, alpha = 0.98) +
-    scale_color_manual(values = crop_colors) +
+    geom_hline(yintercept = 0, linetype = "solid", color = annotation_line_color) +
+    geom_vline(xintercept = 0, linetype = "solid", color = annotation_line_color) +
+    geom_point(size = 3.3, alpha = 1) +
+    scale_color_manual(values = crop_colors, labels = crop_labels) +
     # set the limits of the plot to be slightly larger than the min and max values to avoid cutting off points at the edges
-    xlim(min_val - 0.05 * range, max_val + 0.05 * range) +
-    ylim(min_val - 0.05 * range, max_val + 0.05 * range) +
-    labs(title = paste("Percent Change in", str_to_title(gsub("_", " ", region)), "OM Proportion"),
+    scale_x_continuous(limits = c(lower, upper), breaks = breaks) +
+    scale_y_continuous(limits = c(lower, upper), breaks = breaks) +
+    labs(title = paste("Change in", str_to_title(gsub("_", " ", region)), "OM Proportion"),
          x = "% Change in Roots",
          y = "% Change in Rhizosphere Soil") +
     theme(
-      legend.position = "bottom",
+      legend.position = "right",
       legend.title = element_blank(),
       legend.text = element_text(size = 11.5, face = "bold"),
       axis.text = element_text(size = 12, face = "bold"),
       axis.title = element_text(size = 13, face = "bold"),
       plot.title = element_text(size = 14, face = "bold"),
-      plot.margin = margin(17, 17, 7, 17)
+      plot.margin = margin(l = 10, t = 7, r = 7, b = 7),
+      aspect.ratio = 1  # Ensure equal scaling for x and y axes
+    ) +
+    geom_abline(slope = -1, intercept = 0, linetype = "dashed", color = annotation_line_color) # Add a reference line (y=-x)
+  ggsave(
+    file.path(outputs_folder, sub("\\.png$", paste0(theme_suffix, ".png"),
+    paste0(region, "_change_plot_wk10_wk40.png"))),
+    plot
     )
 
   return(plot)
@@ -2098,9 +2121,9 @@ soil_v_root_change_wk10_wk40_simple_plot    <- soil_v_root_change_plot_wk10_wk40
 soil_v_root_change_wk10_wk40_complex_plot   <- soil_v_root_change_plot_wk10_wk40("complex_plant")
 soil_v_root_change_wk10_wk40_microbial_plot <- soil_v_root_change_plot_wk10_wk40("microbial")
 
-print(soil_v_root_change_wk10_wk40_simple_plot)
-print(soil_v_root_change_wk10_wk40_complex_plot)
-print(soil_v_root_change_wk10_wk40_microbial_plot)
+print_square_plot(soil_v_root_change_wk10_wk40_simple_plot)
+print_square_plot(soil_v_root_change_wk10_wk40_complex_plot)
+print_square_plot(soil_v_root_change_wk10_wk40_microbial_plot)
 ```
 
 ## Within-pot percent change regression statistics

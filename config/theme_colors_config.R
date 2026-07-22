@@ -23,10 +23,11 @@ theme_dark_custom <- function() {
     axis.title = element_text(color = "white", size = 12),
     axis.text = element_text(color = "white", size = 11),
     axis.line = element_line(color = "#ebebeb", linewidth = 0.5),
-    panel.grid.major.y = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
-    panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
-    panel.grid.major.x = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
-    panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
+    panel.grid.major.y = element_line(color = "#484848", linewidth = 0.36, linetype = "dashed"),
+    panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.24, linetype = "dashed"),
+    panel.grid.major.x = element_line(color = "#484848", linewidth = 0.36, linetype = "dashed"),
+    panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.24, linetype = "dashed"),
+    panel.background = element_rect(fill = "#000000", color = NA),
     legend.background = element_rect(fill = "#000000", color = NA),
     legend.text = element_text(color = "white", size = 11),
     legend.title = element_text(color = "white", size = 12),
@@ -34,7 +35,8 @@ theme_dark_custom <- function() {
     strip.background = element_blank(),
     strip.text = element_text(color = "white", size = 11, face = "bold")
   )
-}
+  }
+
 
 
 # THEME SETTINGS ============================================================
@@ -51,7 +53,7 @@ theme_suffix <- "-dark"
 # Text color for annotations based on theme
 # Use "white" when theme_suffix == "-dark", "black" when theme_suffix == "-light"
 annotation_text_color <- ifelse(theme_suffix == "-dark", "white", "black")
-annotation_line_color <- ifelse(theme_suffix == "-dark", "#707070", "#444444")
+annotation_line_color <- ifelse(theme_suffix == "-dark", "#808080", "#444444")
 # Fill color for annotations based on theme
 # Use "black" when theme_suffix == "-dark", "white" when theme_suffix == "-light"
 annotation_fill_color <- ifelse(theme_suffix == "-dark", "black", "white")
