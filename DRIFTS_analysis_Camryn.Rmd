@@ -2124,6 +2124,7 @@ soil_v_root_change_wk10_wk40_microbial_plot <- soil_v_root_change_plot_wk10_wk40
 print_square_plot(soil_v_root_change_wk10_wk40_simple_plot)
 print_square_plot(soil_v_root_change_wk10_wk40_complex_plot)
 print_square_plot(soil_v_root_change_wk10_wk40_microbial_plot)
+
 ```
 
 ## Within-pot percent change regression statistics
@@ -2195,4 +2196,82 @@ change_regression_stats_wk10_wk40 <- change_regression_stats_wk10_wk40 %>%
 knitr::kable(change_regression_stats_wk10_wk40,
              col.names = c("Region", "Group", "n", "R\u00b2", "Slope", "p-value"),
              row.names = FALSE)
+```
+```{r combined-pct-change-plot, fig.height=6.7, fig.width=7.6}
+# Build the long-format dataset directly (no pivot_wider needed, avoids list-column
+# issues if any crop+ID combination isn't perfectly unique going in)
+change_data_long <- bind_rows(
+  change_data_wk10_wk40 %>%
+    transmute(crop, ID, region = "Simple Plant",
+              root = simple_plant_root_pct_change,
+              soil = simple_plant_soil_pct_change),
+  change_data_wk10_wk40 %>%
+    transmute(crop, ID, region = "Complex Plant",
+              root = complex_plant_root_pct_change,
+              soil = complex_plant_soil_pct_change),
+  change_data_wk10_wk40 %>%
+    transmute(crop, ID, region = "Microbial",
+              root = microbial_root_pct_change,
+              soil = microbial_soil_pct_change)
+) %>%
+  mutate(region = factor(region, levels = c("Simple Plant", "Complex Plant", "Microbial")))
+
+soil_v_root_change_plot_combined_wk10_wk40 <- function(data) {
+  min_val <- min(data$root, data$soil, na.rm = TRUE)
+  max_val <- max(data$root, data$soil, na.rm = TRUE)
+  range <- max_val - min_val
+  lower <- min_val - 0.05 * range
+  upper <- max_val + 0.05 * range
+  step <- max(round(0.15 * range, 0), 1)
+  breaks <- seq(
+    from = step * floor(lower / step),
+    to   = step * ceiling(upper / step),
+    by   = step
+  )
+
+  region_shapes <- c("Simple Plant" = 16, "Complex Plant" = 17, "Microbial" = 4)
+  region_strokes <- c("Simple Plant" = 0.5, "Complex Plant" = 0.5, "Microbial" = 1.5)
+
+  plot <- ggplot(data, aes(x = root, y = soil, color = crop, shape = region, stroke = region)) +
+    geom_hline(yintercept = 0, linetype = "solid", color = annotation_line_color) +
+    geom_vline(xintercept = 0, linetype = "solid", color = annotation_line_color) +
+    geom_point(size = 3.3, alpha = 1) +
+    scale_color_manual(values = crop_colors, labels = crop_labels) +
+    scale_shape_manual(
+      values = region_shapes,
+      guide = guide_legend(title = "Region", override.aes = list(color = annotation_text_color, size = 4))
+      ) +
+      scale_discrete_manual(
+        aesthetics = "stroke",
+        values = region_strokes,
+        guide = guide_legend(title = "Region")
+        ) +
+    scale_x_continuous(limits = c(lower, upper), breaks = breaks) +
+    scale_y_continuous(limits = c(lower, upper), breaks = breaks) +
+    labs(title = "Change in OM Proportion (All Regions)",
+         x = "% Change in Roots",
+         y = "% Change in Rhizosphere Soil",
+         color = "Crop"
+         ) +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(face = "bold"),
+      legend.text = element_text(size = 11.5, face = "bold"),
+      axis.text = element_text(size = 12, face = "bold"),
+      axis.title = element_text(size = 13, face = "bold"),
+      plot.title = element_text(size = 14, face = "bold"),
+      aspect.ratio = 1
+    ) +
+    geom_abline(slope = -1, intercept = 0, linetype = "dashed", color = annotation_line_color)
+
+  ggsave(
+    file.path(outputs_folder, paste0("combined_regions_change_plot_wk10_wk40", theme_suffix, ".png")),
+    plot, width = 7.6, height = 6.7
+  )
+
+  return(plot)
+}
+
+combined_change_plot_wk10_wk40 <- soil_v_root_change_plot_combined_wk10_wk40(change_data_long)
+print_square_plot(combined_change_plot_wk10_wk40)
 ```
