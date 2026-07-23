@@ -652,10 +652,14 @@ plot_crop_vs_noplant <- function(data, crop_name, timepoint_week) {
     scale_y_continuous(limits = c(0, max_y), expand = c(0.002, 0.015)) +
     scale_color_manual(values = crop_colors, labels = crop_labels) +
     scale_fill_manual(values = crop_colors, labels = crop_labels) +
-    ggtitle(paste(str_to_title(crop_name), "vs No-Plant Soil DRIFTS at", str_extract(timepoint_week, "\\d+"))) +
-    labs(x = expression("wavenumber (cm"^-1*")"), y = "normalized absorbance",
+    ggtitle(paste(str_to_title(crop_name), "vs No-Plant Soil DRIFTS at week ", str_extract(timepoint_week, "\\d+"))) +
+    labs(x = expression("Wavenumber (cm"^-1*")"), y = "Normalized absorbance",
          color = "", fill = "") +
-    theme(legend.position = "bottom") +
+    theme(legend.position = "bottom",
+          axis.text.y = element_blank(),
+          panel.grid.major.y = element_blank(),
+          panel.grid.minor.y = element_blank()
+          ) +
     annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, alpha = 0.12, fill = "#e3c8b1") +
     annotate("text", x = 2550, y = max_y, label = "Simple Plant", size = 3.3, hjust = 0.5, color = annotation_text_color) +
@@ -701,10 +705,18 @@ plot_crops_by_week <- function(data, timepoint_week) {
     scale_y_continuous(limits = c(0, max_y), expand = c(0.002, 0.015)) +
     scale_color_manual(values = crop_colors, labels = crop_labels) +
     scale_fill_manual(values = crop_colors, labels = crop_labels) +
-    ggtitle(paste("All crops at", str_extract(timepoint_week, "\\d+"))) +
-    labs(x = expression("wavenumber (cm"^-1*")"), y = "normalized absorbance",
+    ggtitle(paste("All crops at week ", str_extract(timepoint_week, "\\d+"))) +
+    labs(x = expression("Wavenumber (cm"^-1*")"), y = "Normalized absorbance",
          color = "", fill = "") +
-    theme(legend.position = "bottom") 
+    theme(legend.position = "bottom",
+      axis.text.y = element_blank(),
+      axis.title.y = element_text(size = 14.5),
+      axis.text.x = element_text(size = 13, face = "bold"),
+      axis.title.x = element_text(size = 16, face = "bold"),
+      panel.grid.major.y = element_blank(), # remove horizontal grid lines
+      panel.grid.minor.y = element_blank(),  # remove minor horizontal grid lines
+      legend.text = element_text(size = 14, face = "bold")
+      ) 
 
   return(plot)
 }
@@ -750,7 +762,7 @@ build_stacked_range_plot <- function(data, crops_ordered, color_map, offset_amou
          y = "Normalized absorbance") +
     theme(
       axis.text.y = element_blank(),
-      axis.title.y = element_text(size = 15, face = "bold"),
+      axis.title.y = element_text(size = 14.5, face = "bold"),
       axis.text.x = element_text(size = 15, face = "bold"),
       axis.title.x = element_text(size = 16, face = "bold"),
       legend.position = "right",
@@ -1614,7 +1626,7 @@ create_ratio_scatterplot <- function(data, y_metric, y_metric_se, title, y_label
                       ymax = !!sym(y_metric) + !!sym(y_metric_se)),
                   width = 1.5, alpha = 0.73, linewidth = 0.8) +
     
-    scale_color_manual(values = crop_colors, labels = crop_colors) +
+    scale_color_manual(values = crop_colors, labels = crop_labels) +
     labs(title = title,
          x = "Timepoint (weeks)",
          y = y_label,

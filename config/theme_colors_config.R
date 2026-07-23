@@ -43,12 +43,12 @@ theme_dark_custom <- function() {
 # Control which theme is active and associated text colors
 
 # Set default theme for all plots
-theme_set(theme_dark_custom())
-# theme_set(theme_minimal())
+# theme_set(theme_dark_custom())
+theme_set(theme_minimal())
 
 # Theme suffix for file naming: "-dark" or "-light"
-theme_suffix <- "-dark"
-# theme_suffix <- "-light"
+# theme_suffix <- "-dark"
+theme_suffix <- "-light"
 
 # Text color for annotations based on theme
 # Use "white" when theme_suffix == "-dark", "black" when theme_suffix == "-light"
