@@ -119,29 +119,40 @@ get_plant_colors <- function(plants = names(plant_hues),
 #     never changes no matter which subset of methods is shown in a plot.
 #     (Currently a placeholder of 3 -- extend to your full list, up to 8.)
 
-method_levels <- c("raw", "raw-milled","h2oinsol-milled","h2o20", "h2o30", "naoh20", "naoh30")  # EDIT: full canonical method list, in order
-method_swatches = c("#473d87", "#3f6a86", "#3f866c", "#4f863f",
-                       "#86833f", "#7e5d43", "#6d393a", "#7a437a")
+# ---- 4 (revised). Method colors: generated, not hand-picked -----------------
+# Golden-angle hue stepping. Each new hue is inserted into the emptiest gap
+# left by prior hues -- unlimited, and stable under appending.
+GOLDEN_ANGLE <- 137.50776  # degrees
 
-
-if (length(method_levels) > length(method_swatches)) {
-  stop("More methods (", length(method_levels), ") than swatches (",
-       length(method_swatches), "). Add more hex colors to method_swatches.")
+golden_angle_hues <- function(n, start_hue = 15) {
+  (start_hue + GOLDEN_ANGLE * (seq_len(n) - 1)) %% 360
 }
 
-# Fixed color per method -- direct lookup, no HCL recomputation, so you get
-# exactly the hex you picked.
-method_colors <- setNames(method_swatches[seq_along(method_levels)], method_levels)
-
-# Hue-only extraction from the same anchors, used to build region-shade
-# families below (same trick as .base_hues -> plant_hues above).
-method_hues <- setNames(
-  as(hex2RGB(method_swatches[seq_along(method_levels)]), "polarLUV")@coords[, "H"],
-  method_levels
+# Full canonical method list. RULE: always ADD new methods at the END,
+# never reorder or delete existing ones -- position in this vector is what
+# determines a method's color, so reordering would repaint old figures.
+method_levels <- c(
+  "raw", "raw-milled", "h2oinsol-milled",
+  "h2o20", "h2o30", "naoh20", "naoh30",
+  "wsol", "wsol-1-2", "wsol-3-4", "wsol-5",
+  "wsol-pour1", "wsol-pour2"
 )
 
-#' Get fixed method colors (used when methods are the only thing being
-#' distinguished -- e.g. one plant with several prep methods).
+# One hue per method -- generated, no manual swatches, no cap.
+method_hues <- setNames(golden_angle_hues(length(method_levels)), method_levels)
+
+# Fixed color per method, built in HCL at one representative lightness
+# (same approach as get_plant_colors() -- one swatch per category).
+method_color_L <- mean(L_range)
+method_colors <- setNames(
+  sapply(method_hues, function(H) {
+    hex(polarLUV(L = method_color_L,
+                 C = max_chroma(H, method_color_L) * chroma_fraction,
+                 H = H))
+  }),
+  names(method_hues)
+)
+
 get_method_colors <- function(methods) {
   stopifnot(all(methods %in% names(method_colors)))
   method_colors[methods]
@@ -299,32 +310,68 @@ preview_region_palette <- function(regions, methods = names(method_hues)) {
   axis(2, at = seq_len(n_m) - 0.5, labels = rev(methods), tick = FALSE, las = 1)
 }
 
+# ---- 5. Material class + extraction-round grouping -------------------------
+material_class_map <- c(
+  "raw"             = "raw",
+  "raw-milled"      = "raw",
+  "h2oinsol-milled" = "insoluble",
+  "h2o20"           = "other",   # ASSUMPTION: I couldn't tell from the data
+  "h2o30"           = "other",   #  whether h2o20/30 & naoh20/30 belong to this
+  "naoh20"          = "other",   #  series or a separate experiment -- flag
+  "naoh30"          = "other",   #  and adjust if they should be elsewhere.
+  "wsol"            = "soluble",
+  "wsol-1-2"        = "soluble",
+  "wsol-3-4"        = "soluble",
+  "wsol-5"          = "soluble",
+  "wsol-5-6"        = "soluble", # remaining sugarcane fraction not yet run
+  "wsol-pour1"      = "soluble",
+  "wsol-pour2"      = "soluble"
+)
+
+extraction_bin_map <- c(
+  "wsol-1-2"   = "wsol-1-2",
+  "wsol-3-4"   = "wsol-3-4",
+  "wsol-5"     = "wsol-5+",
+  "wsol-5-6"   = "wsol-5+",      # remaining sugarcane fraction not yet run
+  "wsol"       = "wsol-pooled",      
+  "wsol-pour1" = "wsol-pooled",  # pour fractions are a separate
+  "wsol-pour2" = "wsol-pooled"   #  category, not part of the 1-2/3-4/5+ ladder
+)
+
+
+# ---- 6. Palette for material_class x extraction_bin -------------------------
+material_hues <- c(raw = 25, insoluble = 145, soluble = 255)  # HCL degrees
+
+# Lightness range used ONLY for the soluble extraction-round ramp.
+# Pulled up from method_region_L_range (19-82) -- that range assumes solid
+# bars with text on top; these are translucent lines/ribbons straight on a
+# black background, so anything much below ~45 disappears.
+soluble_L_range <- c(48, 90)
+
+get_material_bin_palette <- function(bins = c("wsol-1-2", "wsol-3-4", "wsol-5+", "wsol-pooled"),
+                                      l_range = soluble_L_range,
+                                      chroma_frac = method_region_chroma_fraction) {
+  flat_color <- function(H, L) hex(polarLUV(L = L, C = max_chroma(H, L) * chroma_frac, H = H))
+
+  flat <- c(
+    raw       = flat_color(material_hues[["raw"]], mean(L_range)),
+    insoluble = flat_color(material_hues[["insoluble"]], mean(L_range))
+  )
+
+  n <- length(bins)
+  # Straight ramp, NOT region_lightness_ranks() -- this is an ordered,
+  # continuous series (extraction round), not a stacked bar needing
+  # adjacent-segment contrast, so lightness should increase/decrease
+  # monotonically to actually read as "progression" to a viewer.
+  l_vals <- seq(l_range[1], l_range[2], length.out = n)
+  soluble <- setNames(sapply(l_vals, flat_color, H = material_hues[["soluble"]]), bins)
+
+  c(flat, soluble)
+}
+
+material_bin_palette <- get_material_bin_palette()
 # ============================================================================
-# EXAMPLE USAGE (not run automatically -- for reference)
-# ============================================================================
-# methods <- c("cryomill", "ionic_liquid")            # 2 methods -> big contrast
-# pal <- get_plant_palette(methods)
-# pal["miscanthus_cryomill"]
-#
-# methods4 <- c("cryomill", "ionic_liquid", "enzymatic", "alkali")  # 4 methods
-# pal4 <- get_plant_palette(methods4)
-#
-# preview_palette(methods4)     # visual grid check
-# check_cvd(methods4)           # colorblind simulation check
-#
-# In a ggplot (e.g. your ridge plots):
-#   df$color_key <- paste(df$plant, df$method, sep = "_")
-#   ggplot(df, aes(x = wavenumber, y = absorbance, color = color_key)) +
-#     geom_line() +
-#     scale_color_manual(values = pal4)
-#
-# ---- Method-only comparisons (one plant, several methods) -----------------
-# get_method_colors(c("raw", "h2o20"))   # same 2 hex every time, any plant
-#
-# ---- Method x region stacked bars ------------------------------------------
-# region_order <- c("aliphatic", "carbonyl", "microbial", "complex", "sugar")
-# pal <- get_method_region_palette(region_order, c("raw", "h2o20", "h2o30"))
-# preview_region_palette(region_order, c("raw", "h2o20", "h2o30"))
+
 # ============================================================================
 # THEME DEFINITIONS =========================================================
 

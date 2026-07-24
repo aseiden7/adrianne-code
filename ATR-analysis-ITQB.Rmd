@@ -244,6 +244,18 @@ dpt_data <- dpt_data %>%
   ) %>%
   ungroup()
 
+dpt_data <- dpt_data %>%
+  mutate(
+    material_class = unname(material_class_map[method]),
+    extraction_bin = unname(extraction_bin_map[method]),
+    material_class = factor(material_class, levels = c("raw", "insoluble", "soluble", "other")),
+    extraction_bin = factor(extraction_bin, levels = c("wsol-1-2", "wsol-3-4", "wsol-5+", "wsol-pooled")),
+    plot_group = as.character(material_class),
+    plot_group = ifelse(material_class == "soluble", as.character(extraction_bin), plot_group),
+    plot_group = factor(plot_group,
+                         levels = c("raw", "insoluble", "wsol-1-2", "wsol-3-4", "wsol-5+", "wsol-pooled"))
+  )
+
 ## Save normalized data for record-keeping
 
 write.csv(dpt_data, file.path(outputs_folder, "dpt_data_normalized.csv"), row.names = FALSE)
@@ -724,6 +736,36 @@ ggsave_themed("combined_overlay_range_all_plants.png", stacked_plot$plot, width 
 ### Version of the stacked range plot with only the methods in common across all plants
 ```{r stacked-range-plot-common-methods}
 
+```
+
+## Plotting by material class
+Raw and insoluble each get their own flat hue; all soluble fractions share one hue but get shaded lighter→darker by round, reusing the same region_lightness_ranks() trick your functional-group bars already use (so 1-2 vs. 3-4 vs. 5+ read as a visible progression, not three arbitrary colors). A mean ± range overlay per plant, colored by plot_group, is the cleanest way to show raw → insoluble → progressively-depleted soluble fractions on one axis.
+
+```{r material-class-plot}
+plot_data <- dpt_data %>%
+  filter(!is.na(plot_group)) %>%   # drops "other" (h2o/naoh) -- see note in Section 5
+  group_by(plant, plot_group, wavenumber) %>%
+  summarise(
+    mean_absorbance = mean(snv_corrected, na.rm = TRUE),
+    min_absorbance  = min(snv_corrected, na.rm = TRUE),
+    max_absorbance  = max(snv_corrected, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+material_series_plot <- ggplot(plot_data, aes(x = wavenumber, color = plot_group, fill = plot_group)) +
+  geom_ribbon(aes(ymin = min_absorbance, ymax = max_absorbance), alpha = 0.3, color = NA) +
+  geom_line(aes(y = mean_absorbance), linewidth = 0.9) +
+  scale_x_reverse(limits = c(3750, 650), breaks = seq(4000, 600, -500), expand = c(0.001, 0.001)) +
+  scale_color_manual(values = material_bin_palette, name = "Fraction") +
+  scale_fill_manual(values = material_bin_palette, name = "Fraction") +
+  facet_wrap(~ str_to_title(plant), ncol = 1) +
+  labs(x = expression("Wavenumber (cm"^-1*")"), y = "Normalized absorbance") +
+  theme(strip.text = element_text(face = "bold", size = 12),
+  axis.text.y = element_blank()
+  )
+
+print(material_series_plot)
+ggsave_themed("material_class_extraction_series.png", material_series_plot, width = 9, height = 11, dpi = 300)
 ```
 
 # Integration of functional regions
