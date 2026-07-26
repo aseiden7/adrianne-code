@@ -60,8 +60,8 @@ library(grid)
 library(ggsignif)
 
 # Set paths
-dpt_folder <- "C:/Users/adria/OneDrive - University of California Merced/Summer26/Portugal/Data/all_abs_DPT_files"
-outputs_folder <- "C:/Users/adria/OneDrive - University of California Merced/Summer26/Portugal/Data/ATR_outputs"
+dpt_folder <- "C:/Users/adria/OneDrive - University of California Merced/2026Summer/Portugal/Data/all_abs_DPT_files"
+outputs_folder <- "C:/Users/adria/OneDrive - University of California Merced/2026Summer/Portugal/Data/ATR_outputs"
 
 
 # Helper function to find the most recent processed integration data file
