@@ -551,10 +551,11 @@ for (pt in plants) {
 # data: dpt_data (or similar), filtered internally to plants_ordered
 # plants: character vector of plant names, bottom to top in the final plot
 
-build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount = 1.67) {
+build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount = 2.8) {
 
   plot_data <- data %>%
     filter(plant %in% plants) %>%
+    filter(!method %in% c("h2o20", "h2o30", "naoh20", "naoh30", "raw")) %>%
     mutate(plant = factor(plant, levels = plants)) %>%
     mutate(snv_corrected = as.numeric(snv_corrected))
 
@@ -569,7 +570,7 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
   max_y <- max(plot_data$offset_absorbance, na.rm = TRUE)
 
   # Create the base plot with functional region annotations
-  base_plot <- ggplot() +
+  plot_canvas <- ggplot() +
     scale_x_reverse(
       limits = c(3750, 650),
       breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
@@ -606,33 +607,34 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
     # Add shaded regions with annotations
      # Add simple plant region annotation
     annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#e3c8b1") +
+             alpha = 0.12, fill = "#e3c8b1") +
     annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#e3c8b1") +
-    annotate("text", x = 2900, y = max_y * 0.7, label = "Simple Plant", 
-             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
+             alpha = 0.12, fill = "#e3c8b1") +
+    # annotate("text", x = 2900, y = max_y * 0.7, label = "Simple Plant", 
+    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add carbonyl region annotation
     annotate("rect", xmin = 1780, xmax = 1690, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#83a0e8") +
-    annotate("text", x = 1940, y = max_y * 0.5, label = "Carbonyl", 
-             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
+             alpha = 0.18, fill = "#83a0e8") +
+    # annotate("text", x = 1940, y = max_y * 0.5, label = "Carbonyl", 
+    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add protein/amide region annotation
     annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#a8cbad") +
-    annotate("text", x = 1640, y = max_y * 0.67, label = "Protein/amide", 
-             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
+             alpha = 0.16, fill = "#a8cbad") +
+    # annotate("text", x = 1640, y = max_y * 0.67, label = "Protein/amide", 
+    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add complex plant region annotation
     annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
-             alpha = 0.2, fill = "#beb5d5") +
-    annotate("text", x = 1300, y = max_y * 0.80, label = "Complex Plant", 
-             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
+             alpha = 0.12, fill = "#beb5d5") +
+    # annotate("text", x = 1300, y = max_y * 0.80, label = "Complex Plant", 
+    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
     # Add sugars region annotation
     annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
-             alpha = 0.17, fill = "#c9aac7") +
-    annotate("text", x = 911, y = max_y * 0.98, label = "Sugars", 
-             size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) 
+             alpha = 0.1, fill = "#c9aac7") 
+    # annotate("text", x = 911, y = max_y * 0.98, label = "Sugars", 
+    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) 
+  
   # Add layers for each plant with average and range
-  combined_plot <- base_plot
+  combined_plot <- plot_canvas
 
   for (current_plant in plants) {
     plant_data <- plot_data %>% filter(plant == current_plant)
@@ -733,10 +735,6 @@ print(stacked_plot$plot)
 ggsave_themed("combined_overlay_range_all_plants.png", stacked_plot$plot, width = 13, height = 9, dpi = 300)
 ```
 
-### Version of the stacked range plot with only the methods in common across all plants
-```{r stacked-range-plot-common-methods}
-
-```
 
 ## Plotting by material class
 Raw and insoluble each get their own flat hue; all soluble fractions share one hue but get shaded lighter→darker by round, reusing the same region_lightness_ranks() trick your functional-group bars already use (so 1-2 vs. 3-4 vs. 5+ read as a visible progression, not three arbitrary colors). A mean ± range overlay per plant, colored by plot_group, is the cleanest way to show raw → insoluble → progressively-depleted soluble fractions on one axis.
@@ -1046,7 +1044,9 @@ region_lightness <- get_region_lightness(region_order)
 # Builds one plant's % stacked bar chart, one bar per method.
 build_method_region_bar_plot <- function(stats_data, current_plant, title = NULL) {
   plant_data <- stats_data %>%
-    filter(plant == current_plant)
+    filter(plant == current_plant) %>%
+    filter(!method %in% c("h2o20", "h2o30", "naoh20", "naoh30", "raw"))
+
 
   present_methods <- sort(unique(plant_data$method))
 
