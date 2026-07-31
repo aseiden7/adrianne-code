@@ -135,7 +135,7 @@ method_levels <- c(
   "raw", "raw-milled", "h2oinsol-milled",
   "h2o20", "h2o30", "naoh20", "naoh30",
   "wsol", "wsol-1-2", "wsol-3-4", "wsol-5",
-  "wsol-pour1", "wsol-pour2"
+  "wsol-pour1", "wsol-pour2", "wsol-5-6", "suberin-precipitate", "suberin-dark-precipitate"
 )
 
 # One hue per method -- generated, no manual swatches, no cap.
@@ -325,14 +325,16 @@ material_class_map <- c(
   "wsol-5"          = "soluble",
   "wsol-5-6"        = "soluble", # remaining sugarcane fraction not yet run
   "wsol-pour1"      = "soluble",
-  "wsol-pour2"      = "soluble"
+  "wsol-pour2"      = "soluble",
+  "suberin-precipitate"       = "extract",
+  "suberin-dark-precipitate"  = "extract"
 )
 
 extraction_bin_map <- c(
   "wsol-1-2"   = "wsol-1-2",
   "wsol-3-4"   = "wsol-3-4",
   "wsol-5"     = "wsol-5+",
-  "wsol-5-6"   = "wsol-5+",      # remaining sugarcane fraction not yet run
+  "wsol-5-6"   = "wsol-5+",      
   "wsol"       = "wsol-pooled",      
   "wsol-pour1" = "wsol-pooled",  # pour fractions are a separate
   "wsol-pour2" = "wsol-pooled"   #  category, not part of the 1-2/3-4/5+ ladder
@@ -340,7 +342,7 @@ extraction_bin_map <- c(
 
 
 # ---- 6. Palette for material_class x extraction_bin -------------------------
-material_hues <- c(raw = 25, insoluble = 145, soluble = 255)  # HCL degrees
+material_hues <- c(raw = 25, insoluble = 145, soluble = 255, extract = 180)  # HCL degrees
 
 # Lightness range used ONLY for the soluble extraction-round ramp.
 # Pulled up from method_region_L_range (19-82) -- that range assumes solid
@@ -355,7 +357,8 @@ get_material_bin_palette <- function(bins = c("wsol-1-2", "wsol-3-4", "wsol-5+",
 
   flat <- c(
     raw       = flat_color(material_hues[["raw"]], mean(L_range)),
-    insoluble = flat_color(material_hues[["insoluble"]], mean(L_range))
+    insoluble = flat_color(material_hues[["insoluble"]], mean(L_range)),
+    extract   = flat_color(material_hues[["extract"]], mean(L_range))
   )
 
   n <- length(bins)
@@ -372,6 +375,44 @@ get_material_bin_palette <- function(bins = c("wsol-1-2", "wsol-3-4", "wsol-5+",
 material_bin_palette <- get_material_bin_palette()
 # ============================================================================
 
+# ---- 7. Dedicated palette for the raw-milled vs. precipitate figure -------
+# get_plant_palette() spaces lightness EVENLY across however many methods you
+# pass it. `plant_palette`, built in the .Rmd from ALL ~16 processing methods
+# (see `methods <- sort(unique(dpt_data$method))`), gives "raw-milled",
+# "suberin-precipitate", and "suberin-dark-precipitate" whatever L values
+# their alphabetical position happened to land on among 16 evenly-spaced
+# steps (~4 L units apart) -- nearly identical, purely because those three
+# names sort next to each other alphabetically. It's not a bug in the color
+# math, just the wrong N: that math was tuned to separate 16 things, and this
+# figure only shows 3.
+#
+# Building a SEPARATE palette from just these 3 methods re-spreads lightness
+# across the full L_range for only them (~31 L units apart -- roughly 8x the
+# contrast), the same way soluble_L_range exists because L_range (tuned for
+# solid bars) didn't transfer to translucent lines: a lightness scheme tuned
+# for one N/context doesn't automatically transfer to a different one.
+#
+# ORDER MATTERS: get_plant_palette() assigns lightness in the order `methods`
+# is listed, darkest first. Listed "dark" precipitate first so its swatch
+# actually reads as the darkest of the three. There's no chemistry basis for
+# this order beyond matching the label -- ASSUMPTION to check once you see it
+# rendered: reorder this vector if "dark" doesn't look like the darkest one,
+# or if raw-milled and suberin-precipitate would read more naturally swapped.
+precipitate_methods <- c("suberin-dark-precipitate", "raw-milled", "suberin-precipitate")
+
+precipitate_hues <- setNames(golden_angle_hues(length(precipitate_methods), start_hue = 88), precipitate_methods)
+precipitate_light_L <- 82
+precipitate_light_chroma_fraction <- 0.9
+
+get_precipitate_palette <- function(methods = precipitate_methods, 
+L = precipitate_light_L,
+chroma_frac = precipitate_light_chroma_fraction) {
+  H <- precipitate_hues[methods]
+  C <- mapply(function(h) max_chroma(h, L) * chroma_frac, H)
+  setNames(hex(polarLUV(L = L, C = C, H = H)), methods)
+}
+# ============================================================================
+
 # ============================================================================
 # THEME DEFINITIONS =========================================================
 
@@ -385,10 +426,10 @@ theme_dark_custom <- function() {
     axis.title = element_text(color = "white", size = 12),
     axis.text = element_text(color = "white", size = 11),
     axis.line = element_line(color = "#ebebeb", linewidth = 0.5),
-    panel.grid.major.y = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
-    panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
-    panel.grid.major.x = element_line(color = "#484848", linewidth = 0.4, linetype = "dashed"),
-    panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.3, linetype = "dashed"),
+    panel.grid.major.y = element_line(color = "#484848", linewidth = 0.32, linetype = "dashed"),
+    panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.23, linetype = "dashed"),
+    panel.grid.major.x = element_line(color = "#484848", linewidth = 0.32, linetype = "dashed"),
+    panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.23, linetype = "dashed"),
     legend.background = element_rect(fill = "#000000", color = NA),
     legend.text = element_text(color = "white", size = 11),
     legend.title = element_text(color = "white", size = 12),
@@ -397,6 +438,7 @@ theme_dark_custom <- function() {
     strip.text = element_text(color = "white", size = 11, face = "bold")
   )
 }
+
 
 
 # THEME SETTINGS ============================================================

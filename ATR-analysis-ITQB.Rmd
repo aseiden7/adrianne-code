@@ -325,8 +325,8 @@ create_method_ridge_plot <- function(data, target_method, title = NULL) {
                         alpha = 0.25) +
                         
     scale_x_reverse(
-      limits = c(3750, 650),
-      breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
+      limits = c(3750, 600),
+      breaks = seq(3600, 600, -200),  # Ticks every 200 from 3600 down to 600
       expand = c(0.001, 0.001) 
       # Remove padding on x-axis
     ) +
@@ -471,8 +471,8 @@ create_plant_faceted_plot <- function(data, current_plant, title = NULL) {
                         scale = 3, # overlap scale - 1 is no overlap, >1 is more overlap
                         alpha = 0.25) +
    scale_x_reverse(
-      limits = c(3750, 650),
-      breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
+      limits = c(3750, 600),
+      breaks = seq(3600, 600, -200),  # Ticks every 200 from 3600 down to 600
       expand = c(0.001, 0.001) 
       # Remove padding on x-axis
     ) +
@@ -547,15 +547,71 @@ for (pt in plants) {
 
 ### Create helper function for stacked range plots
 ```{r stacked-range-plot-function}
-# Builds an "average + range" stacked overlay plot for an arbitrary set of plants.
-# data: dpt_data (or similar), filtered internally to plants_ordered
-# plants: character vector of plant names, bottom to top in the final plot
+# Suberin-associated peak positions (wavenumber, cm^-1) and the color used to
+# mark each one. Kept together as ONE data frame (rather than two separate
+# vectors of numbers and colors) so a wavenumber and its color can never end
+# up mismatched if someone later adds, removes, or reorders a peak -- each
+# row is a single (position, color) pair that travels together.
+# Used only by the precipitate plot (annotation_type = "peaks" below).
+suberin_peak_positions <- data.frame(
+  wavenumber = c(2923, 2853, # aliphatic C-H stretch
+                  1739, 1712, # carbonyl C=O stretch
+                  1635, 1603, # olefinics, ester-linked aromatics
+                  1463, 1374, # methylene bending
+                  1244, 1176, 1161, 722, # fingerprint
+                  1600, 1510, 1030, 1050),  # contaminant peaks, lignin and sugars
+  color = c("#e6ded6", "#e6ded6", # aliphatic C-H stretch
+                 "#d1d9ec", "#d1d9ec", # carbonyl C=O stretch
+                 "#dee8e0", "#dee8e0", # olefinics, ester-linked aromatics
+                 "#eaeee6", "#eaeee6", # methylene bending
+                 "#ece3ec", "#ece3ec", "#ece3ec", "#ece3ec", # fingerprint
+                 "#ff4343", "#ff4343", "#ff4343", "#ff4343"), # contaminant peaks, lignin and sugars
+  stringsAsFactors = FALSE
+)
 
-build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount = 2.8) {
+# Builds an "average + range" stacked overlay plot for an arbitrary set of plants.
+#
+# data:            dpt_data (or similar), filtered internally to `plants`
+# plants:          character vector of plant names, bottom to top in the final plot
+# methods_include: if supplied, ONLY these methods are kept (a short
+#                  "allow-list" -- used for the precipitate plot, where it's
+#                  easier to name the 3 methods you want than to exclude
+#                  everything else). Takes priority over methods_exclude.
+# methods_exclude: methods to drop before plotting (a "block-list" -- used
+#                  for the main solubility-series plot). Ignored whenever
+#                  methods_include is supplied, so a call never has to
+#                  satisfy both rules at once.
+# annotation_type: "regions" (default) shades the 5 functional-group
+#                  integration windows, exactly as before. "peaks" instead
+#                  draws dashed vertical lines at the suberin peak positions
+#                  above -- use this for the precipitate plot.
+build_stacked_range_plot <- function(data, plants, plant_palette,
+                                      methods_include = NULL,
+                                      methods_exclude = c("h2o20", "h2o30", "naoh20", "naoh30",
+                                                           "raw", "suberin-precipitate",
+                                                           "suberin-dark-precipitate"),
+                                      annotation_type = c("regions", "peaks"),
+                                      offset_amount = 2.8) {
+
+  # match.arg() checks annotation_type against the two allowed values and
+  # fills in "regions" if the argument is left out entirely. If you typo
+  # something like "peak" (missing the s), this fails loudly right away
+  # instead of quietly falling through to an `else` branch you didn't mean.
+  annotation_type <- match.arg(annotation_type)
 
   plot_data <- data %>%
-    filter(plant %in% plants) %>%
-    filter(!method %in% c("h2o20", "h2o30", "naoh20", "naoh30", "raw")) %>%
+    filter(plant %in% plants)
+
+  # Apply exactly ONE of the two filtering rules -- an include-list (keep
+  # only these) or an exclude-list (drop these) -- never both, so there's
+  # always one unambiguous set of methods per call.
+  if (!is.null(methods_include)) {
+    plot_data <- plot_data %>% filter(method %in% methods_include)
+  } else {
+    plot_data <- plot_data %>% filter(!method %in% methods_exclude)
+  }
+
+  plot_data <- plot_data %>%
     mutate(plant = factor(plant, levels = plants)) %>%
     mutate(snv_corrected = as.numeric(snv_corrected))
 
@@ -569,14 +625,17 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
   # Determine max y position for annotations
   max_y <- max(plot_data$offset_absorbance, na.rm = TRUE)
 
-  # Create the base plot with functional region annotations
+  # Create the base plot -- axes, theme, legend layout only. Functional-group
+  # or peak annotations are added separately below, once we know which type
+  # was asked for.
+  #
+  # CLEANUP NOTE: the original had TWO scale_x_reverse() calls stacked in the
+  # same "+" chain (one with breaks starting at 4000, one at 3500). In
+  # ggplot2, adding the same scale twice doesn't error and doesn't merge them
+  # either -- the second one simply replaces the first. So the first call
+  # here was dead code the whole time; only the second (kept below) was ever
+  # actually controlling the axis. Removed the redundant one.
   plot_canvas <- ggplot() +
-    scale_x_reverse(
-      limits = c(3750, 650),
-      breaks = seq(4000, 600, -500),  # Ticks every 500 from 4000 down to 600
-      expand = c(0.001, 0.001)  # Remove padding on x-axis
-    ) +
-
     labs(x = expression("Wavenumber (cm"^-1*")"),
          y = "Normalized absorbance") +
     theme(
@@ -600,39 +659,57 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
       expand = expansion(mult = c(0.003, 0.015)) # (bottom padding, top padding)
     ) +
     scale_x_reverse(
-      limits = c(3750, 650),
-      breaks = seq(3500, 600, -500),  # Ticks every 500 from 3500 down to 500
+      limits = c(3750, 600),
+      breaks = seq(3600, 600, -200),  # Ticks every 200 from 3600 down to 600
       expand = c(0.002, 0.003)  # Remove padding on x-axis
-    ) +
-    # Add shaded regions with annotations
-     # Add simple plant region annotation
-    annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf, 
-             alpha = 0.12, fill = "#e3c8b1") +
-    annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf, 
-             alpha = 0.12, fill = "#e3c8b1") +
-    # annotate("text", x = 2900, y = max_y * 0.7, label = "Simple Plant", 
-    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
-    # Add carbonyl region annotation
-    annotate("rect", xmin = 1780, xmax = 1690, ymin = -Inf, ymax = Inf, 
-             alpha = 0.18, fill = "#83a0e8") +
-    # annotate("text", x = 1940, y = max_y * 0.5, label = "Carbonyl", 
-    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
-    # Add protein/amide region annotation
-    annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf, 
-             alpha = 0.16, fill = "#a8cbad") +
-    # annotate("text", x = 1640, y = max_y * 0.67, label = "Protein/amide", 
-    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
-    # Add complex plant region annotation
-    annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf, 
-             alpha = 0.12, fill = "#beb5d5") +
-    # annotate("text", x = 1300, y = max_y * 0.80, label = "Complex Plant", 
-    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) +
-    # Add sugars region annotation
-    annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf, 
-             alpha = 0.1, fill = "#c9aac7") 
-    # annotate("text", x = 911, y = max_y * 0.98, label = "Sugars", 
-    #          size = 3.6, fontface = "bold", hjust = 0.5, color = annotation_text_color) 
-  
+    )
+
+  # Add ONE of the two annotation styles, depending on what was requested.
+  if (annotation_type == "regions") {
+    # Shaded rectangles marking the 5 functional-group integration windows --
+    # identical to the original behavior. Used for the solubility-series plot.
+    plot_canvas <- plot_canvas +
+      # Simple plant / aliphatic region (two sub-windows)
+      annotate("rect", xmin = 2976, xmax = 2898, ymin = -Inf, ymax = Inf,
+               alpha = 0.12, fill = "#e3c8b1") +
+      annotate("rect", xmin = 2870, xmax = 2839, ymin = -Inf, ymax = Inf,
+               alpha = 0.12, fill = "#e3c8b1") +
+      # Carbonyl region
+      annotate("rect", xmin = 1780, xmax = 1690, ymin = -Inf, ymax = Inf,
+               alpha = 0.18, fill = "#83a0e8") +
+      # Protein/amide region
+      annotate("rect", xmin = 1660, xmax = 1580, ymin = -Inf, ymax = Inf,
+               alpha = 0.16, fill = "#a8cbad") +
+      # Complex plant region
+      annotate("rect", xmin = 1550, xmax = 1500, ymin = -Inf, ymax = Inf,
+               alpha = 0.12, fill = "#beb5d5") +
+      # Sugars region
+      annotate("rect", xmin = 1200, xmax = 900, ymin = -Inf, ymax = Inf,
+               alpha = 0.1, fill = "#c9aac7")
+
+  } else {
+    # "peaks": dashed vertical lines at known suberin-associated wavenumbers
+    # (suberin_peak_positions, defined above the function). Used for the
+    # precipitate plot, where the 5 functional-group windows aren't the point.
+    #
+    # We loop and call geom_vline() once per row with a literal `color =`
+    # value (e.g. color = "#e3c8b1"), rather than mapping color with
+    # aes(color = ...). This matters: aes(color = ...) would register a new
+    # ggplot color SCALE, which would collide with the per-plant legend
+    # scales built later in this function via ggnewscale (ggnewscale lets
+    # multiple color scales coexist in one plot, but only for scales it's
+    # told to isolate). A literal color argument just paints the line and
+    # never touches any color scale or legend, so it can't interfere.
+    for (i in seq_len(nrow(suberin_peak_positions))) {
+      plot_canvas <- plot_canvas +
+        geom_vline(xintercept = suberin_peak_positions$wavenumber[i],
+                   color = suberin_peak_positions$color[i],
+                   linetype = "solid",
+                   linewidth = 0.39,
+                   alpha = 1)
+    }
+  }
+
   # Add layers for each plant with average and range
   combined_plot <- plot_canvas
 
@@ -723,17 +800,171 @@ build_stacked_range_plot <- function(data, plants, plant_palette, offset_amount 
 }
 ```
 
-### Plot all plants \& methods
-```{r stacked-range-plot-all-plants}
+### Plot solubility series (raw-milled, insoluble, soluble fractions)
+Raw, insoluble, and all soluble fractions -- the suberin extract fractions (`suberin-precipitate`, `suberin-dark-precipitate`) are excluded here (that's now the `build_stacked_range_plot()` default) and get their own plot in the next section instead, since they're a different material class -- precipitated extract chemistry, not root residue -- and read better compared directly against `raw-milled` than folded into this series.
+```{r stacked-range-plot-solubility-series}
 stacked_plot <- build_stacked_range_plot(
-  data = dpt_data, 
-  plants = plants, 
-  plant_palette = plant_palette
+  data = dpt_data,
+  plants = plants,
+  plant_palette = plant_palette,
+  annotation_type = "regions"  # shaded functional-group windows (the default)
+  # methods_exclude is left at its default: drops h2o/naoh trial washes,
+  # unmilled "raw", and both suberin precipitate fractions.
   )
 
 print(stacked_plot$plot)
-ggsave_themed("combined_overlay_range_all_plants.png", stacked_plot$plot, width = 13, height = 9, dpi = 300)
+ggsave_themed("combined_overlay_range_solubility_series.png", stacked_plot$plot, width = 13, height = 9, dpi = 300)
 ```
+
+### Plot suberin extract fractions (precipitates vs. raw-milled), faceted by plant
+Only `raw-milled` (as a reference spectrum) plus the two precipitate fractions. Now that just 3 methods are being compared, each plant gets its own panel (`facet_wrap`) instead of being stacked with vertical offsets on one shared axis -- so color only needs to distinguish method, not plant *and* method at once. Color ramps hue across the 3 methods at one fixed, light lightness (`get_precipitate_palette()` in `ITQB_color_config.R`, Section 7) rather than lightness within a single hue, so every line/ribbon reads as a bright, distinct color instead of a dark/mid/light shade of one color family. Dashed lines mark known suberin-associated peaks, same as before.
+```{r precipitate-facet-plot}
+# One row per plant x method x wavenumber, averaged across replicate DPT
+# files -- same mean/min/max summary shape used by the material-class plot
+# above, just scoped to the 3 precipitate-figure methods instead of all
+# plot_group values.
+precip_only_methods <- setdiff(precipitate_methods, "raw-milled")
+
+plants_with_precipitates <- dpt_data %>%
+  filter(method %in% precip_only_methods) %>%
+  distinct(plant) %>%
+  pull(plant)
+
+precipitate_plot_data <- dpt_data %>%
+  filter(method %in% precipitate_methods, plant %in% plants_with_precipitates) %>%
+  group_by(plant, method, wavenumber) %>%
+  summarise(
+    mean_absorbance = mean(snv_corrected, na.rm = TRUE),
+    min_absorbance  = min(snv_corrected, na.rm = TRUE),
+    max_absorbance  = max(snv_corrected, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  # Factor with an explicit level order (rather than default alphabetical)
+  # so the legend and any faceting/grouping always lists methods the same
+  # way, and so it lines up with precipitate_palette's names.
+  mutate(method = factor(method, levels = precipitate_methods))
+
+precipitate_palette <- get_precipitate_palette()
+
+precipitate_facet_plot <- ggplot(precipitate_plot_data,
+                                  aes(x = wavenumber, color = method, fill = method)) +
+  geom_ribbon(aes(ymin = min_absorbance, ymax = max_absorbance), alpha = 0.3, color = NA) +
+  geom_line(aes(y = mean_absorbance), linewidth = 0.76) +
+  scale_x_reverse(limits = c(3750, 600), breaks = seq(3600, 600, -200), expand = c(0.002, 0.003)) +
+  scale_color_manual(values = precipitate_palette, name = "Method") +
+  scale_fill_manual(values = precipitate_palette, name = "Method") +
+  facet_wrap(~ str_to_title(plant), ncol = 1) +
+  labs(x = expression("Wavenumber (cm"^-1*")"), y = "Normalized absorbance") +
+  theme(strip.text = element_text(face = "bold", size = 12),
+        axis.text.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.margin = margin(7, 14, 7, 7, "pt"),  # (top, right, bottom, left)
+  )
+
+# Dashed suberin-peak markers, added the SAME way as in build_stacked_range_plot()
+# (a for-loop of geom_vline() calls, re-assigning the plot each time) -- each
+# call uses a literal `color =`, not aes(color = ...), so these lines stay
+# outside the method color/fill scales above instead of adding extra legend
+# entries or fighting with scale_color_manual()/scale_fill_manual().
+for (i in seq_len(nrow(suberin_peak_positions))) {
+  precipitate_facet_plot <- precipitate_facet_plot +
+    geom_vline(xintercept = suberin_peak_positions$wavenumber[i],
+               color = suberin_peak_positions$color[i],
+               linetype = "solid", linewidth = 0.3, alpha = 0.98)
+}
+
+print(precipitate_facet_plot)
+ggsave_themed("precipitate_facet_by_plant.png", precipitate_facet_plot, dpi = 300)
+```
+
+### Ester : aromatic peak ratio (~1740 cm<sup>-1</sup> : ~1510 cm<sup>-1</sup>)
+The ~1740 cm<sup>-1</sup> band sits right where the suberin ester-carbonyl peak is marked above (1739 cm<sup>-1</sup> in `suberin_peak_positions`); ~1510 cm<sup>-1</sup> falls inside the aromatic/lignin window used elsewhere in this document (1550-1500 cm<sup>-1</sup>, "Complex Plant"). Rather than reading a single point (sensitive to instrument noise at exactly that wavenumber), `find_peak_height()` below takes the LOCAL MAXIMUM absorbance within a small window around each target, per sample -- closer to how you'd pick a peak by eye. This uses SNV-normalized `SNV_corrected`, matching how `perform_spectral_integration()` computes the 5 functional-group proportions elsewhere in this document, rather than `snv_corrected` (which is tuned for visual overlay, not for preserving relative peak heights).
+```{r peak-ratio-function}
+#' Find the local-maximum absorbance near a target wavenumber, per sample.
+#' @param data          data frame with columns wavenumber, absorbance, filename (e.g. dpt_data)
+#' @param target        center wavenumber (cm^-1) to search around
+#' @param window         +/- cm^-1 tolerance searched for the local max
+#'                       (ASSUMPTION: 8 cm^-1 is a starting guess -- widen/narrow
+#'                       once you've checked it lands on the actual peak apex
+#'                       for your spectra, not a shoulder or noise spike)
+#' @param value_col     which column holds the intensity to maximize (default: SNV-normalized absorbance)
+#' @return one row per filename: filename, wavenumber_at_peak, peak_absorbance
+find_peak_height <- function(data, target, window = 8, value_col = "snv_corrected") {
+  data %>%
+    filter(wavenumber >= target - window, wavenumber <= target + window) %>%
+    group_by(filename) %>%
+    slice_max(order_by = .data[[value_col]], n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    transmute(filename,
+              wavenumber_at_peak = wavenumber,
+              peak_absorbance = .data[[value_col]])
+}
+```
+
+```{r peak-ratio-calculation}
+# Restrict to the same 3 methods shown in the faceted plot above -- widen
+# this filter later if you want the ratio for other methods too, nothing
+# else in this chunk assumes only 3 methods.
+precip_dpt_data <- dpt_data %>% filter(method %in% precipitate_methods, plant %in% plants_with_precipitates)
+
+peak_1740 <- find_peak_height(precip_dpt_data, target = 1740) %>%
+  dplyr::rename(abs_1740 = peak_absorbance, wavenumber_1740 = wavenumber_at_peak)
+peak_1510 <- find_peak_height(precip_dpt_data, target = 1510) %>%
+  dplyr::rename(abs_1510 = peak_absorbance, wavenumber_1510 = wavenumber_at_peak)
+
+# One row per sample: plant/method metadata + both peak heights + their ratio.
+sample_metadata <- precip_dpt_data %>%
+  select(filename, plant, method) %>%
+  distinct()
+
+peak_ratio_data <- sample_metadata %>%
+  left_join(peak_1740, by = "filename") %>%
+  left_join(peak_1510, by = "filename") %>%
+  mutate(ester_aromatic_ratio = abs_1740 / abs_1510)
+
+# Mean +/- SE per plant x method, same shape as plant_method_stats earlier.
+peak_ratio_stats <- peak_ratio_data %>%
+  group_by(plant, method) %>%
+  summarise(
+    mean_ratio = mean(ester_aromatic_ratio, na.rm = TRUE),
+    SE_ratio   = sd(ester_aromatic_ratio, na.rm = TRUE) / sqrt(n()),
+    n          = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(method = factor(method, levels = precipitate_methods),
+         plant  = str_to_title(plant)) %>%
+  arrange(plant, method)
+
+knitr::kable(peak_ratio_stats, digits = 3,
+             col.names = c("Plant", "Method", "Mean ratio (1740:1510)", "SE", "n"))
+```
+
+```{r peak-ratio-plot, fig.width=8, fig.height=6}
+peak_ratio_plot <- ggplot(peak_ratio_stats, aes(x = plant, y = mean_ratio, fill = method)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_errorbar(aes(ymin = mean_ratio - SE_ratio, ymax = mean_ratio + SE_ratio),
+                position = position_dodge(width = 0.8), width = 0.2, color = "white") +
+  scale_fill_manual(values = precipitate_palette, name = "Method") +
+  labs(x = NULL, y = "Ester (~1740) : Aromatic (~1510) ratio",
+       title = "Ester-to-aromatic peak ratio") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 14, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()
+  )
+
+print(peak_ratio_plot)
+ggsave_themed("precipitate_peak_ratio.png", peak_ratio_plot, width = 8, height = 6, dpi = 300)
+```
+
 
 
 ## Plotting by material class
@@ -753,7 +984,7 @@ plot_data <- dpt_data %>%
 material_series_plot <- ggplot(plot_data, aes(x = wavenumber, color = plot_group, fill = plot_group)) +
   geom_ribbon(aes(ymin = min_absorbance, ymax = max_absorbance), alpha = 0.3, color = NA) +
   geom_line(aes(y = mean_absorbance), linewidth = 0.9) +
-  scale_x_reverse(limits = c(3750, 650), breaks = seq(4000, 600, -500), expand = c(0.001, 0.001)) +
+  scale_x_reverse(limits = c(3750, 600), breaks = seq(3600, 600, -200), expand = c(0.001, 0.001)) +
   scale_color_manual(values = material_bin_palette, name = "Fraction") +
   scale_fill_manual(values = material_bin_palette, name = "Fraction") +
   facet_wrap(~ str_to_title(plant), ncol = 1) +
@@ -784,8 +1015,8 @@ perform_spectral_integration <- function(dpt_data) {
   # Prepare the data in the format needed for integration
   # Rename columns to match expected format
   comb <- dpt_data %>%
-    select(filename, wavenumber, absorbance) %>%
-    dplyr::rename(sample = filename, abs = absorbance)
+    select(filename, wavenumber, snv_corrected) %>%
+    dplyr::rename(sample = filename, abs = snv_corrected)
   
   # Define spectral windows of interest (same as Leila's code)
   red1 <- comb[comb$wavenumber > 2839 & comb$wavenumber < 2870, ]  # Aliphatic 1
@@ -1041,11 +1272,26 @@ region_labels <- c(
 # even if region_order or method_region_L_range change.
 region_lightness <- get_region_lightness(region_order)
 
+
+# Methods to leave out of the functional-group bar charts entirely: the
+# h2o/naoh trial washes, unmilled "raw", and both suberin precipitate
+# fractions. The precipitates are extract chemistry rather than root
+# residue, so integrating them under these 5 root-derived windows wouldn't
+# be a meaningful comparison.
+# Defined ONCE here and reused below in the combined (all-plant) figure too --
+# previously the combined figure computed its method list straight from
+# plant_method_stats with no exclusion filter at all, so a method dropped
+# from every individual per-plant chart could still have leaked back into
+# the combined one. Sharing this single vector between both makes that
+# impossible: whichever methods change here update both figures identically.
+excluded_bar_methods <- c("h2o20", "h2o30", "naoh20", "naoh30", "raw",
+                           "suberin-precipitate", "suberin-dark-precipitate")
+
 # Builds one plant's % stacked bar chart, one bar per method.
 build_method_region_bar_plot <- function(stats_data, current_plant, title = NULL) {
   plant_data <- stats_data %>%
     filter(plant == current_plant) %>%
-    filter(!method %in% c("h2o20", "h2o30", "naoh20", "naoh30", "raw"))
+    filter(!method %in% excluded_bar_methods)
 
 
   present_methods <- sort(unique(plant_data$method))
@@ -1103,12 +1349,17 @@ bar_plots <- lapply(plants_for_bar, function(pt) {
 names(bar_plots) <- plants_for_bar
 
 for (pt in plants_for_bar) {
-  print(bar_plots[[pt]])
-  ggsave_themed(paste0("method_region_stackedbar_", pt, ".png"),
-                bar_plots[[pt]], width = 4, height = 6, dpi = 300)
-}
+  pt_plot_with_key <- cowplot::plot_grid(
+    bar_plots[[pt]], region_key_plot,
+    nrow = 1,
+    align = "h", axis = "tb",  # lines up the key's y-axis with the bar plot's y-axis
+    rel_widths = c(1, 0.3)    # same idea as the combined figure's rel_widths, just for 1 plant instead of N
+  )
 
-print(region_key_plot)
+  print(pt_plot_with_key)
+  ggsave_themed(paste0("method_region_stackedbar_", pt, ".png"),
+                pt_plot_with_key, width = 5.5, height = 6, dpi = 300)
+}
 ```
 
 ### Combined figure (all plants side-by-side)
@@ -1117,16 +1368,31 @@ Unlike the individual per-plant plots above (each a separate ggplot, combined vi
 # Only include methods present in EVERY selected plant (intersect, not union) --
 # a method missing from even one plant is dropped from the combined figure
 # entirely, so panels are directly comparable method-for-method.
+#
+# excluded_bar_methods (h2o/naoh trials, raw, both suberin precipitates) is
+# applied FIRST, before the intersect. Previously this chunk built its method
+# list straight from plant_method_stats with no exclusion at all, so a
+# method dropped from every individual per-plant bar chart above could still
+# reappear here if it happened to be present for every plant -- e.g. the
+# precipitate fractions, which exist for every plant, would have snuck back
+# in. Filtering with the same shared list the per-plant plots use closes
+# that gap.
 methods_by_plant <- lapply(plants_for_bar, function(pt) {
-  unique(plant_method_stats$method[plant_method_stats$plant == pt])
+  pt_methods <- plant_method_stats$method[plant_method_stats$plant == pt]
+  setdiff(unique(pt_methods), excluded_bar_methods)
 })
 present_methods_all <- sort(Reduce(intersect, methods_by_plant))
 
+# Split what got dropped into two groups for the console message, so
+# deliberately-excluded methods (expected, no action needed) aren't reported
+# the same way as methods that are genuinely just missing for one plant
+# (worth noticing, might be an incomplete dataset).
 all_methods_seen <- sort(unique(plant_method_stats$method[plant_method_stats$plant %in% plants_for_bar]))
-dropped_methods <- setdiff(all_methods_seen, present_methods_all)
-if (length(dropped_methods) > 0) {
+dropped_methods  <- setdiff(all_methods_seen, present_methods_all)
+dropped_missing  <- setdiff(dropped_methods, excluded_bar_methods)
+if (length(dropped_missing) > 0) {
   cat("Methods not present for every plant (excluded from combined figure):",
-      paste(dropped_methods, collapse = ", "), "\n")
+      paste(dropped_missing, collapse = ", "), "\n")
 }
 
 combined_region_palette <- get_method_region_palette(regions = region_order, methods = present_methods_all)
@@ -1174,7 +1440,7 @@ combined_bar_plot <- cowplot::plot_grid(
   combined_bars, region_key_plot,
   nrow = 1,
   align = "h", axis = "tb", # make the key's y-axis line up with the bars' y-axis
-  rel_widths = c(length(plants_for_bar), 0.45)
+  rel_widths = c(length(plants_for_bar), 0.4)
 )
 
 print(combined_bar_plot)
