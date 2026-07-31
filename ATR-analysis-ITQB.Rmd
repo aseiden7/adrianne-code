@@ -873,7 +873,7 @@ for (i in seq_len(nrow(suberin_peak_positions))) {
   precipitate_facet_plot <- precipitate_facet_plot +
     geom_vline(xintercept = suberin_peak_positions$wavenumber[i],
                color = suberin_peak_positions$color[i],
-               linetype = "solid", linewidth = 0.3, alpha = 0.98)
+               linetype = "solid", linewidth = 0.3, alpha = 1)
 }
 
 print(precipitate_facet_plot)
@@ -1353,12 +1353,12 @@ for (pt in plants_for_bar) {
     bar_plots[[pt]], region_key_plot,
     nrow = 1,
     align = "h", axis = "tb",  # lines up the key's y-axis with the bar plot's y-axis
-    rel_widths = c(1, 0.3)    # same idea as the combined figure's rel_widths, just for 1 plant instead of N
+    rel_widths = c(1, 0.22)    # same idea as the combined figure's rel_widths, just for 1 plant instead of N
   )
 
   print(pt_plot_with_key)
   ggsave_themed(paste0("method_region_stackedbar_", pt, ".png"),
-                pt_plot_with_key, width = 5.5, height = 6, dpi = 300)
+                pt_plot_with_key, width = 7.3, height = 6, dpi = 300)
 }
 ```
 
