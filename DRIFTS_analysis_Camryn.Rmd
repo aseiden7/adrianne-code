@@ -246,7 +246,8 @@ ID = case_when(
   # Filter out anomalous spectra if needed
   filter(!filename %in% c("DRIFTS_Pot109_13Cwheat_wk10_rhizoSoil_260624a.0.dpt",
                           "DRIFTS_pot047_13Crice_wk0_root_250725.0.dpt",
-                          "DRIFTS_Pot072_12CnoPlant_wk40_rhizoSoil_260617.0.dpt"))
+                          "DRIFTS_Pot072_12CnoPlant_wk40_rhizoSoil_260617.0.dpt",
+                          "DRIFTS_Pot094_13Csoy_wk10_rhizoSoil_260624A.0.dpt"))
 # save as csv for record-keeping
 write.csv(dpt_data, file.path(outputs_folder, "dpt_data.csv"), row.names = FALSE)
 
