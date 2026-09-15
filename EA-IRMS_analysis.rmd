@@ -105,7 +105,7 @@ plot_theme <-  theme(
   )
 ```
 
-# Creating Figures
+# Box plots
 ## <sup>13</sup>C atom-% in Roots
 
 This chunk creates the two requested root boxplots: one for T0 and one for week 40. Each plot includes the full distribution, individual observations, a mean marker, and a mean plus-or-minus one standard error bar for soy, rice, and wheat. The plots are displayed in the report and saved as themed PNG files.
@@ -158,6 +158,7 @@ root_boxplot_wk40  # Display the week-40 boxplot.
 ggsave_themed("EA_root_13C_at_percent_week40.png", root_boxplot_wk40, width = 9, height = 6)  # Save output.
 ```
 
+# Initial root composition scatterplots
 ## <sup>13</sup>C and Root Elemental Composition at T0
 
 This chunk makes two T0 root composition plots. The first compares <sup>13</sup>C atom-% with total carbon percentage, and the second compares <sup>13</sup>C atom-% with <sup>15</sup>N atom-%. Points are colored by crop, and each crop receives a covariance-based oval. The manual ellipse calculation is used because the soy group contains only three observations, which is too few for the default `stat_ellipse()` implementation.
@@ -250,6 +251,7 @@ paired_plot  # Display the paired plot.
 ggsave_themed("EA_root_vs_aboveground_13C_T0.png", paired_plot, width = 8, height = 6)  # Save the plot.
 ```
 
+# Trends over time
 ## <sup>13</sup>C Through Decomposition
 
 This chunk shows enriched root <sup>13</sup>C over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
