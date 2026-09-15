@@ -58,7 +58,7 @@ Samples were analyzed at UC Davis's Stable Isotope Facility (SIF), using a Therm
 
 For the first batch (1 - 629), SIF lab air CO<sub>2</sub> concentrations are used as the blank value because no samples of SRE 450 lab air were analyzed with these samples. For the second batch, 6 samples of the air in room 450 were included, and an average of these values (within 1 standard deviation, n = 5) is used as the blank value.
 
-Estimates of percent carbon and atom-% $^{13}C$ in the root litter are from EA-IRMS analysis of the root material harvested from the nursery pots at T0. These values are used to estimate the total initial root-C mass and the labeled $^{13}C$ fraction in each jar.
+Estimates of percent carbon and atom-% <sup>13</sup>C$ in the root litter are from EA-IRMS analysis of the root material harvested from the nursery pots at T0. These values are used to estimate the total initial root-C mass and the labeled <sup>13</sup>C fraction in each jar.
 
 ### Why this file is separate
 
@@ -323,7 +323,7 @@ The cumulative outputs are saved as CSV so the timepoint-level integrated table 
 
 Error bars show mean and standard error by crop and week because the jar-level replicates are the experimental units and the weekly aggregation is intended to summarize treatment-level patterns rather than individual containers.
 
-## Plot 1: Headspace atom-% 13C and root-C normalized flux over time
+## Plot 1: Headspace atom-% <sup>13</sup>C and root-C normalized flux over time
 
 This figure shows the weekly isotope trajectory in the top panel and the root-C-normalized respiration trajectory in the bottom panel, which shows whether isotope enrichment and respiration intensity move together over time,
 

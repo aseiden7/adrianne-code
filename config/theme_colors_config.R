@@ -19,9 +19,10 @@ theme_dark_custom <- function() {
   theme_minimal() +
   theme(
     plot.background = element_rect(fill = "#000000", color = NA),
-    plot.title = element_text(color = "white", size = 13, face = "bold", margin = margin(b = 10)),
-    axis.title = element_text(color = "white", size = 12),
-    axis.text = element_text(color = "white", size = 11),
+    plot.title = element_text(color = "white", size = 14, face = "bold", margin = margin(b = 10)),
+    plot.caption = element_text(color = "white", size = 12),
+    axis.title = element_text(color = "white", size = 13),
+    axis.text = element_text(color = "white", size = 12),
     axis.line = element_line(color = "#ebebeb", linewidth = 0.5),
     panel.grid.major.y = element_line(color = "#484848", linewidth = 0.36, linetype = "dashed"),
     panel.grid.minor.y = element_line(color = "#404040", linewidth = 0.24, linetype = "dashed"),
@@ -29,11 +30,11 @@ theme_dark_custom <- function() {
     panel.grid.minor.x = element_line(color = "#404040", linewidth = 0.24, linetype = "dashed"),
     panel.background = element_rect(fill = "#000000", color = NA),
     legend.background = element_rect(fill = "#000000", color = NA),
-    legend.text = element_text(color = "white", size = 11),
-    legend.title = element_text(color = "white", size = 12),
+    legend.text = element_text(color = "white", size = 12),
+    legend.title = element_text(color = "white", size = 13),
     # strip.background = element_rect(fill = "121212"),
     strip.background = element_blank(),
-    strip.text = element_text(color = "white", size = 11, face = "bold")
+    strip.text = element_text(color = "white", size = 12, face = "bold")
   )
   }
 
@@ -43,12 +44,12 @@ theme_dark_custom <- function() {
 # Control which theme is active and associated text colors
 
 # Set default theme for all plots
-# theme_set(theme_dark_custom())
-theme_set(theme_minimal())
+theme_set(theme_dark_custom())
+# theme_set(theme_minimal())
 
 # Theme suffix for file naming: "-dark" or "-light"
-# theme_suffix <- "-dark"
-theme_suffix <- "-light"
+theme_suffix <- "-dark"
+# theme_suffix <- "-light"
 
 # Text color for annotations based on theme
 # Use "white" when theme_suffix == "-dark", "black" when theme_suffix == "-light"

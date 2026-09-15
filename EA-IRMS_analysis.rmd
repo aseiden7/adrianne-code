@@ -1,0 +1,448 @@
+---
+title: "EA-IRMS Analysis of plant samples"
+author: "Adrianne Seiden"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+# Overview
+This report analyzes the EA-IRMS data for plant samples, focusing on <sup>13</sup>C and <sup>15</sup>N isotopic enrichment in roots and aboveground tissues. 
+The excel sheet file.path(box_base, "Salk Institute Project/AKS Salk files/EA_files/ea-data-for-R.xlsx") contains EA-IRMS data from plant roots and aboveground biomass (sample-type = “roots” or sample-type = "aboveground”, respectively). Some of the plants were labeled with <sup>13</sup>C-enriched CO<sub>2</sub> during their V3 growth (isotope = “13C”). The plant materials come from 3 different crops: rice, wheat, and soy, plus no-plant controls (the “roots” from no-plant controls are root fragments that I picked out of the soil; they represent pre-existing soil organic matter rather than cultivated roots). The aboveground samples are all from T0 (i.e. the time when the aboveground biomass was removed, week = 0); the root samples may be from T0, 10 weeks of decomposition or 40 weeks of decomposition (week = 0, week = 10 or week = 40).This report produces the following figures:
+
+1.	A box plot comparing the <sup>13</sup>C atom-% of T0 roots from the 3 crops. The plot should include error bars, lines denoting the mean value for each crop and each individual data point.
+2.	The same box plot as above, using week 40 root data instead of week 0
+3.	A scatter plot showing <sup>13</sup>C vs %C (at T0), colored by crop, with shaded ovals enclosing the datapoints for each crop
+4.	The same scatterplot as above, showing <sup>13</sup>C vs <sup>15</sup>N
+5.  The same scatterplot as above, showing <sup>13</sup>C vs C:N ratio
+6.	A scatterplot showing <sup>13</sup>C of roots vs aboveground at T0 (each pot ID is a datapoint; only pots with T0 data for both roots and aboveground are included)
+7.	A scatterplot showing <sup>13</sup>C vs time, grouped by crop, including the best fit exponential trendline
+8.	The same scatterplot as above, but showing <sup>15</sup>N vs time
+9.  The same scatterplot as above, but showing C:N ratio vs time
+
+
+
+# Setting up 
+This section sets up the environment, loads required libraries, and defines paths to data and output directories.
+
+
+The hidden setup chunk configures knitr, installs any missing R packages, loads the shared visualization theme, defines crop labels, and creates the Box-based input and output paths. It is hidden from the rendered report because it prepares the analysis rather than producing a figure.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)  # Set defaults for every code chunk.
+options(repos = c(CRAN = "https://cloud.r-project.org/"))  # Use the public CRAN mirror.
+required_packages <- c("dplyr", "ggplot2", "readxl", "tidyr")  # List required packages.
+for (pkg in required_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {  # Check whether the package is available.
+    cat("Installing package:", pkg, "\n")  # Report a missing package.
+    install.packages(pkg)  # Install it from CRAN.
+    library(pkg, character.only = TRUE)  # Load it after installation.
+  }
+}
+
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))  # Load shared theme and colors.
+crop_labels <- c(
+    noPlant = "No Plant",  # Label the no-plant control.
+    wheat   = "Wheat",  # Label wheat.
+    rice    = "Rice",  # Label rice.
+    soy     = "Soy"  # Label soy.
+)
+
+box_base <- Sys.getenv("BOX_BASE")  # Read the local Box root.
+if (box_base == "") stop("BOX_BASE environment variable is not set!")  # Fail if Box is not configured.
+data_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/EA_files")  # Locate the workbook.
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/EA_files/ea-code-outputs")  # Locate outputs.
+if (!dir.exists(outputs_folder)) {
+  dir.create(outputs_folder, recursive = TRUE)  # Create missing output folders.
+}
+
+
+```
+
+## Importing Data
+
+This chunk reads the Excel workbook, renames columns with punctuation-heavy names to simpler analysis names, converts grouping variables to useful types, and keeps only enriched root samples for the root-focused figures. The original `ea_data` table remains available for the paired root/aboveground comparison.
+
+```{r import-data}
+library(dplyr)  # Load data manipulation tools.
+library(ggplot2)  # Load plotting tools.
+library(readxl)  # Load Excel import tools.
+library(tidyr)  # Load reshaping tools.
+
+ea_data <- read_excel(file.path(data_folder, "ea-data-for-R.xlsx")) %>%
+  rename(
+    carbon13 = `13C (at-%)`,  # Rename the 13C measurement.
+    nitrogen15 = `15N (at-%)`,  # Rename the 15N measurement.
+    carbon_percent = `%C`,  # Rename percent carbon.
+    sample_type = `sample-type`,  # Rename sample type.
+    C_N = `C:N`  # Rename the C:N ratio.
+  ) %>%
+  mutate(
+    crop = factor(crop, levels = c("soy", "rice", "wheat", "noPlant")),  # Set crop order.
+    week = as.numeric(week),  # Convert week to numeric time.
+    pot = as.character(pot)  # Treat pot IDs as labels.
+  )
+
+enriched_roots <- ea_data %>%
+  filter(isotope == "13C", sample_type == "roots")  # Keep enriched roots only.
+
+crop_levels <- c("soy", "rice", "wheat")  # Set the cultivated-crop order.
+crop_labels <- c(soy = "Soy", rice = "Rice", wheat = "Wheat", noPlant = "No Plant")  # Define display labels.
+
+plot_theme <-  theme(
+    legend.position = "right",  # Keep the legend outside the panel.
+    axis.title = element_text(size = 13, face = "bold"),  # Emphasize axis titles.
+    axis.text = element_text(size = 12),  # Set readable axis text.
+    panel.grid.minor = element_blank()  # Remove minor grid lines.
+  )
+```
+
+# Creating Figures
+## <sup>13</sup>C atom-% in Roots
+
+This chunk creates the two requested root boxplots: one for T0 and one for week 40. Each plot includes the full distribution, individual observations, a mean marker, and a mean plus-or-minus one standard error bar for soy, rice, and wheat. The plots are displayed in the report and saved as themed PNG files.
+
+```{r root-boxplots, fig.width=9, fig.height=6}
+root_summary <- enriched_roots %>%
+  filter(crop %in% crop_levels, week %in% c(0, 40)) %>%  # Retain requested crops and weeks.
+  group_by(crop, week) %>%  # Group by crop and decomposition week.
+  summarise(
+    mean_carbon13 = mean(carbon13, na.rm = TRUE),  # Calculate the group mean.
+    se_carbon13 = sd(carbon13, na.rm = TRUE) / sqrt(sum(!is.na(carbon13))),  # Calculate the standard error.
+    .groups = "drop"  # Return an ungrouped table.
+  )
+
+make_root_boxplot <- function(target_week) {
+  plot_data <- enriched_roots %>%
+    filter(crop %in% crop_levels, week == target_week) %>%  # Select the requested week.
+    mutate(crop = factor(crop, levels = crop_levels))  # Preserve crop order.
+  means <- root_summary %>% filter(week == target_week) %>%  # Select matching summaries.
+    mutate(crop = factor(crop, levels = crop_levels))  # Preserve crop order.
+
+  ggplot(plot_data, aes(x = crop, y = carbon13, fill = crop, color = crop)) +
+    geom_boxplot(alpha = 0.30, width = 0.62, outlier.shape = NA) +  # Draw each crop's box.
+    geom_jitter(width = 0.10, height = 0, size = 2.8, alpha = 0.85) +  # Show individual observations.
+# Mean +/- SE error bars and mean markers for each crop.
+    geom_errorbar(
+      data = means,
+        aes(x = crop, y = mean_carbon13, ymin = mean_carbon13 - se_carbon13,
+          ymax = mean_carbon13 + se_carbon13),
+      width = 0.12, linewidth = 0.8, color = crop_color[crop_levels],  # Draw mean +/- SE.
+      inherit.aes = FALSE  # Use only the summary-layer mappings.
+    ) +
+    geom_point(
+      data = means, aes(x = crop, y = mean_carbon13), shape = 95, size = 8,
+      color = crop_color[crop_levels], inherit.aes = FALSE  # Mark the mean with a dash.
+    ) +
+    scale_x_discrete(labels = crop_labels[crop_levels]) +  # Use readable crop labels.
+    scale_fill_manual(values = crop_color[crop_levels], guide = "none") +  # Color box fills.
+    scale_color_manual(values = crop_color[crop_levels], guide = "none") +  # Color outlines and points.
+    labs(x = "Crop", y = "¹³C (atom-%)", title = paste("Roots at week", target_week)) +  # Label the figure.
+    plot_theme  # Apply common styling.
+}
+
+root_boxplot_t0 <- make_root_boxplot(0)  # Build the T0 boxplot.
+root_boxplot_t0  # Display the T0 boxplot.
+ggsave_themed("EA_root_13C_at_percent_T0.png", root_boxplot_t0, width = 9, height = 6)  # Save T0 output.
+
+root_boxplot_wk40 <- make_root_boxplot(40)  # Build the week-40 boxplot.
+root_boxplot_wk40  # Display the week-40 boxplot.
+ggsave_themed("EA_root_13C_at_percent_week40.png", root_boxplot_wk40, width = 9, height = 6)  # Save output.
+```
+
+## <sup>13</sup>C and Root Elemental Composition at T0
+
+This chunk makes two T0 root composition plots. The first compares <sup>13</sup>C atom-% with total carbon percentage, and the second compares <sup>13</sup>C atom-% with <sup>15</sup>N atom-%. Points are colored by crop, and each crop receives a covariance-based oval. The manual ellipse calculation is used because the soy group contains only three observations, which is too few for the default `stat_ellipse()` implementation.
+
+```{r root-composition-scatterplots, fig.width=9, fig.height=6}
+root_t0 <- enriched_roots %>%
+  filter(crop %in% crop_levels, week == 0) %>%  # Keep cultivated T0 roots.
+  mutate(crop = factor(crop, levels = crop_levels))  # Preserve crop order.
+
+make_covariance_ellipses <- function(data, x_variable, level = 0.68, n_points = 100) {
+  data %>%
+    group_by(crop) %>%  # Calculate an ellipse independently for each crop.
+    group_modify(~ {
+      coordinates <- cbind(.x[[x_variable]], .x$carbon13)  # Combine x and 13C coordinates.
+      center <- colMeans(coordinates, na.rm = TRUE)  # Find the point-cloud center.
+      covariance <- cov(coordinates, use = "complete.obs")  # Estimate the covariance matrix.
+      eigen_covariance <- eigen(covariance, symmetric = TRUE)  # Decompose covariance for rotation and scale.
+      eigen_covariance$values <- pmax(eigen_covariance$values, .Machine$double.eps)  # Prevent zero-eigenvalue issues.
+      angles <- seq(0, 2 * pi, length.out = n_points)  # Generate points around a circle.
+      radius <- sqrt(qchisq(level, df = 2))  # Convert the probability level to a radius.
+      ellipse <- t(center + radius * eigen_covariance$vectors %*%
+        diag(sqrt(eigen_covariance$values), nrow = 2) %*%
+        rbind(cos(angles), sin(angles)))
+      tibble(x_value = ellipse[, 1], carbon13 = ellipse[, 2])  # Return tidy ellipse coordinates.
+    }) %>%
+    ungroup()  # Remove temporary grouping.
+}
+
+make_composition_plot <- function(x_variable, x_label, file_name) {
+  ellipse_data <- make_covariance_ellipses(root_t0, x_variable)  # Calculate crop-specific ellipses.
+  p <- ggplot(root_t0, aes(x = .data[[x_variable]], y = carbon13, color = crop, fill = crop)) +
+    geom_polygon(
+      data = ellipse_data,
+      aes(x = x_value, y = carbon13, group = crop, fill = crop),
+      color = NA, alpha = 0.16, inherit.aes = FALSE, show.legend = FALSE  # Fill each crop's ellipse.
+    ) +
+    geom_path(
+      data = ellipse_data,
+      aes(x = x_value, y = carbon13, group = crop, color = crop),
+      linewidth = 0.7, inherit.aes = FALSE, show.legend = FALSE  # Outline each ellipse.
+    ) +
+    geom_point(size = 3, alpha = 0.85) +  # Overlay individual root measurements.
+    scale_color_manual(values = crop_color[crop_levels], labels = crop_labels[crop_levels]) +  # Set point colors.
+    scale_fill_manual(values = crop_color[crop_levels], guide = "none") +  # Set ellipse fills.
+    labs(x = x_label, y = "¹³C (atom-%)", color = "Crop") +  # Label axes and legend.
+    plot_theme  # Apply common styling.
+  print(p)
+  ggsave_themed(file_name, p, width = 9, height = 6)  # Save the themed PNG.
+  p  # Return the plot object.
+}
+
+root_13c_vs_carbon <- make_composition_plot(
+  "carbon_percent", "%C", "EA_root_13C_vs_percent_C_T0.png"
+)
+root_13c_vs_nitrogen <- make_composition_plot(
+  "nitrogen15", "¹⁵N (atom-%)", "EA_root_13C_vs_15N_T0.png"
+)
+root_13c_vs_CN <- make_composition_plot(
+  "C_N", "C:N ratio", "EA_root_13C_vs_CN_T0.png"
+)
+```
+
+
+## Paired Root and Aboveground <sup>13</sup>C at T0
+
+This chunk compares enriched root and aboveground <sup>13</sup>C at T0 for the nine specified pots. Duplicate analytical rows within a pot and sample type are averaged first, then the data are widened so each pot contributes one root/aboveground point. The dashed one-to-one line provides a visual reference for equal enrichment in the two plant compartments.
+
+```{r paired-root-aboveground, fig.width=8, fig.height=6}
+paired_pots <- c("62", "50", "53", "32", "24", "1", "103", "79", "47")  # Identify complete-pair pots.
+
+paired_data <- ea_data %>%
+  filter(
+    isotope == "13C", week == 0, pot %in% paired_pots,
+    sample_type %in% c("roots", "aboveground")
+  ) %>%
+  group_by(pot, crop, sample_type) %>%  # Group replicate analytical rows.
+  summarise(carbon13 = mean(carbon13, na.rm = TRUE), .groups = "drop") %>%  # Average replicates.
+  pivot_wider(names_from = sample_type, values_from = carbon13) %>%  # Separate roots and aboveground columns.
+  drop_na(roots, aboveground) %>%  # Keep complete pairs only.
+  mutate(crop = factor(crop, levels = crop_levels))  # Preserve crop order.
+
+paired_plot <- ggplot(paired_data, aes(x = roots, y = aboveground, color = crop)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = annotation_line_color) +  # Add equality line.
+  geom_point(size = 3.5, alpha = 0.9) +  # Plot one point per pot.
+  scale_color_manual(values = crop_color[crop_levels], labels = crop_labels[crop_levels]) +  # Set crop colors.
+  labs(x = "Root ¹³C (atom-%)", y = "Aboveground ¹³C (atom-%)", color = "Crop") +  # Label the figure.
+  plot_theme  # Apply common styling.
+
+paired_plot  # Display the paired plot.
+ggsave_themed("EA_root_vs_aboveground_13C_T0.png", paired_plot, width = 8, height = 6)  # Save the plot.
+```
+
+## <sup>13</sup>C Through Decomposition
+
+This chunk shows enriched root <sup>13</sup>C over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
+
+```{r exponential-trend, fig.width=9, fig.height=6}
+trend_data <- enriched_roots %>%
+  filter(crop %in% crop_levels) %>%  # Exclude no-plant controls.
+  mutate(crop = factor(crop, levels = crop_levels))  # Preserve crop order.
+
+fit_exponential <- function(data) {
+  data <- data %>% filter(is.finite(carbon13), is.finite(week))  # Remove invalid values.
+  if (nrow(data) < 3 || n_distinct(data$week) < 2) return(NULL)  # Require enough data for a fit.
+
+  week_means <- data %>%
+    group_by(week) %>%  # Group observations by time.
+    summarise(mean_carbon13 = mean(carbon13), .groups = "drop") %>%  # Calculate timepoint means.
+    arrange(week)  # Sort means chronologically.
+
+  tryCatch(
+    nls(carbon13 ~ asymptote + amplitude * exp(rate * week), data = data,
+        start = list(
+          asymptote = tail(week_means$mean_carbon13, 1),  # Start at the final mean.
+          amplitude = head(week_means$mean_carbon13, 1) - tail(week_means$mean_carbon13, 1),  # Start with endpoint difference.
+          rate = -0.02  # Start with a decreasing exponential rate.
+        )),
+    error = function(e) NULL  # Return NULL if this crop cannot be fitted.
+  )
+}
+
+trend_fits <- trend_data %>%
+  group_by(crop) %>%  # Fit one independent model per crop.
+  group_modify(~ tibble(model = list(fit_exponential(.x)))) %>%  # Store each model in a list-column.
+  ungroup() %>%  # Remove grouping after fitting.
+  filter(!vapply(model, is.null, logical(1)))  # Keep successful fits only.
+
+trend_lines <- do.call(rbind, lapply(seq_len(nrow(trend_fits)), function(index) {
+  prediction_weeks <- seq(
+    min(trend_data$week, na.rm = TRUE),
+    max(trend_data$week, na.rm = TRUE),
+    length.out = 100  # Use a shared 0-to-40-week prediction range.
+  )
+  data.frame(
+    crop = trend_fits$crop[index],  # Preserve the crop identity.
+    week = prediction_weeks,  # Store the prediction times.
+    carbon13 = predict(
+      trend_fits$model[[index]],
+      newdata = data.frame(week = prediction_weeks)
+    )  # Evaluate the current crop's fitted model.
+  )
+}))
+
+trend_plot <- ggplot(trend_data, aes(x = week, y = carbon13, color = crop)) +
+  geom_point(size = 2.8, alpha = 0.80) +  # Show individual root measurements.
+  geom_line(data = trend_lines, aes(group = crop), linewidth = 0.75, linetype = "dashed") +  # Draw crop curves.
+  scale_color_manual(
+    values = crop_color[crop_levels],
+    labels = crop_labels[crop_levels]  # Apply shared crop colors and labels.
+  ) +
+  scale_x_continuous(breaks = c(0, 10, 40)) +  # Mark observed decomposition weeks.
+  labs(x = "Decomposition time (weeks)", y = "¹³C (atom-%)", color = "Crop") +  # Label axes and legend.
+  plot_theme  # Apply common styling.
+
+trend_plot  # Display the time-course plot.
+ggsave_themed("EA_root_13C_exponential_by_week.png", trend_plot, width = 9, height = 6)  # Save the figure.
+```
+## <sup>15</sup>N Through Decomposition
+
+This chunk shows root <sup>15</sup>N over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
+
+```{r N-exponential-trend, fig.width=9, fig.height=6}
+trend_data <- enriched_roots %>%
+  filter(crop %in% crop_levels) %>%  # Exclude no-plant controls.
+  mutate(crop = factor(crop, levels = crop_levels))  # Preserve crop order.
+
+fit_exponential <- function(data) {
+  data <- data %>% filter(is.finite(nitrogen15), is.finite(week))  # Remove invalid values.
+  if (nrow(data) < 3 || n_distinct(data$week) < 2) return(NULL)  # Require enough data for a fit.
+
+  week_means <- data %>%
+    group_by(week) %>%  # Group observations by time.
+    summarise(mean_nitrogen15 = mean(nitrogen15), .groups = "drop") %>%  # Calculate timepoint means.
+    arrange(week)  # Sort means chronologically.
+
+  tryCatch(
+    nls(nitrogen15 ~ asymptote + amplitude * exp(rate * week), data = data,
+        start = list(
+          asymptote = tail(week_means$mean_nitrogen15, 1),  # Start at the final mean.
+          amplitude = head(week_means$mean_nitrogen15, 1) - tail(week_means$mean_nitrogen15, 1),  # Start with endpoint difference.
+          rate = -0.02  # Start with a decreasing exponential rate.
+        )),
+    error = function(e) NULL  # Return NULL if this crop cannot be fitted.
+  )
+}
+
+trend_fits <- trend_data %>%
+  group_by(crop) %>%  # Fit one independent model per crop.
+  group_modify(~ tibble(model = list(fit_exponential(.x)))) %>%  # Store each model in a list-column.
+  ungroup() %>%  # Remove grouping after fitting.
+  filter(!vapply(model, is.null, logical(1)))  # Keep successful fits only.
+
+trend_lines <- do.call(rbind, lapply(seq_len(nrow(trend_fits)), function(index) {
+  prediction_weeks <- seq(
+    min(trend_data$week, na.rm = TRUE),
+    max(trend_data$week, na.rm = TRUE),
+    length.out = 100  # Use a shared 0-to-40-week prediction range.
+  )
+  data.frame(
+    crop = trend_fits$crop[index],  # Preserve the crop identity.
+    week = prediction_weeks,  # Store the prediction times.
+    nitrogen15 = predict(
+      trend_fits$model[[index]],
+      newdata = data.frame(week = prediction_weeks)
+    )  # Evaluate the current crop's fitted model.
+  )
+}))
+
+trend_plot <- ggplot(trend_data, aes(x = week, y = nitrogen15, color = crop)) +
+  geom_point(size = 2.8, alpha = 0.80) +  # Show individual root measurements.
+  geom_line(data = trend_lines, aes(group = crop), linewidth = 0.75, linetype = "dashed") +  # Draw crop curves.
+  scale_color_manual(
+    values = crop_color[crop_levels],
+    labels = crop_labels[crop_levels]  # Apply shared crop colors and labels.
+  ) +
+  scale_x_continuous(breaks = c(0, 10, 40)) +  # Mark observed decomposition weeks.
+  labs(x = "Decomposition time (weeks)", y = "¹⁵N (atom-%)", color = "Crop") +  # Label axes and legend.
+  plot_theme  # Apply common styling.
+
+trend_plot  # Display the time-course plot.
+ggsave_themed("EA_root_15N_exponential_by_week.png", trend_plot, width = 9, height = 6)  # Save the figure.
+```
+
+## C:N Through Decomposition
+
+This chunk shows root C:N ratios over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
+
+```{r CN-exponential-trend, fig.width=9, fig.height=6}
+trend_data <- enriched_roots %>%
+  filter(crop %in% crop_levels) %>%  # Exclude no-plant controls.
+  mutate(crop = factor(crop, levels = crop_levels))  # Preserve crop order.
+
+fit_exponential <- function(data) {
+  data <- data %>% filter(is.finite(C_N), is.finite(week))  # Remove invalid values.
+  if (nrow(data) < 3 || n_distinct(data$week) < 2) return(NULL)  # Require enough data for a fit.
+
+  week_means <- data %>%
+    group_by(week) %>%  # Group observations by time.
+    summarise(mean_cn = mean(C_N), .groups = "drop") %>%  # Calculate timepoint means.
+    arrange(week)  # Sort means chronologically.
+
+  tryCatch(
+    nls(C_N ~ asymptote + amplitude * exp(rate * week), data = data,
+        start = list(
+          asymptote = tail(week_means$mean_cn, 1),  # Start at the final mean.
+          amplitude = head(week_means$mean_cn, 1) - tail(week_means$mean_cn, 1),  # Start with endpoint difference.
+          rate = -0.02  # Start with a decreasing exponential rate.
+        )),
+    error = function(e) NULL  # Return NULL if this crop cannot be fitted.
+  )
+}
+
+trend_fits <- trend_data %>%
+  group_by(crop) %>%  # Fit one independent model per crop.
+  group_modify(~ tibble(model = list(fit_exponential(.x)))) %>%  # Store each model in a list-column.
+  ungroup() %>%  # Remove grouping after fitting.
+  filter(!vapply(model, is.null, logical(1)))  # Keep successful fits only.
+
+trend_lines <- do.call(rbind, lapply(seq_len(nrow(trend_fits)), function(index) {
+  prediction_weeks <- seq(
+    min(trend_data$week, na.rm = TRUE),
+    max(trend_data$week, na.rm = TRUE),
+    length.out = 100  # Use a shared 0-to-40-week prediction range.
+  )
+  data.frame(
+    crop = trend_fits$crop[index],  # Preserve the crop identity.
+    week = prediction_weeks,  # Store the prediction times.
+    C_N = predict(
+      trend_fits$model[[index]],
+      newdata = data.frame(week = prediction_weeks)
+    )  # Evaluate the current crop's fitted model.
+  )
+}))
+
+trend_plot <- ggplot(trend_data, aes(x = week, y = C_N, color = crop)) +
+  geom_point(size = 2.8, alpha = 0.80) +  # Show individual root measurements.
+  geom_line(data = trend_lines, aes(group = crop), linewidth = 0.75, linetype = "dashed") +  # Draw crop curves.
+  scale_color_manual(
+    values = crop_color[crop_levels],
+    labels = crop_labels[crop_levels]  # Apply shared crop colors and labels.
+  ) +
+  scale_x_continuous(breaks = c(0, 10, 40)) +  # Mark observed decomposition weeks.
+  labs(x = "Decomposition time (weeks)", y = "C:N ratio", color = "Crop") +  # Label axes and legend.
+  plot_theme  # Apply common styling.
+
+trend_plot  # Display the time-course plot.
+ggsave_themed("EA_root_CN_exponential_by_week.png", trend_plot, width = 9, height = 6)  # Save the figure.
+```
