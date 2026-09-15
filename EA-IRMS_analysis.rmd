@@ -145,7 +145,7 @@ make_root_boxplot <- function(target_week) {
     scale_x_discrete(labels = crop_labels[crop_levels]) +  # Use readable crop labels.
     scale_fill_manual(values = crop_color[crop_levels], guide = "none") +  # Color box fills.
     scale_color_manual(values = crop_color[crop_levels], guide = "none") +  # Color outlines and points.
-    labs(x = "Crop", y = "¹³C (atom-%)", title = paste("Roots at week", target_week)) +  # Label the figure.
+    labs(x = element_blank(), y = "¹³C (atom-%)", title = paste("Roots at week", target_week)) +  # Label the figure.
     plot_theme  # Apply common styling.
 }
 
