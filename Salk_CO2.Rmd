@@ -302,12 +302,6 @@ for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
                  marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
 
-plt.xlabel('Sampling Week', fontsize=14, fontweight='bold');
-plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$', fontsize=14, fontweight='bold');
-plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week', fontsize=16, fontweight='bold');
-plt.grid(True, linestyle='--', alpha=0.48);
-plt.legend();
-
 # Adjust layout and save figure
 plt.tight_layout()
 plots_folder = os.path.join(box_base, "Salk Institute Project/AKS Salk files/CO2 data/Plots/")
@@ -357,11 +351,11 @@ for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'], 
                  marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
 
-plt.xlabel('Sampling Week', fontsize=14, fontweight='bold');
-plt.ylabel(r'$\mathrm{atom-\% \,^{13}C}$', fontsize=14, fontweight='bold');
-plt.title(r'$\mathrm{atom-\% \,^{13}C}$ vs Sampling Week', fontsize=16, fontweight='bold');
+plt.xlabel('Sampling Week', fontsize=15);
+plt.ylabel(r'$\mathrm{atom-\% \,^{13}C}$', fontsize=15);
+# plt.title(r'$\mathrm{atom-\% \,^{13}C}$ vs Sampling Week', fontsize=16, fontweight='bold');
 plt.grid(True, linestyle='--', alpha=0.48);
-plt.legend();
+plt.legend(fontsize=13);
 
 # Creating Plot 2: Flux (μg CO2-C/g-soil/minute) vs sampling_week
 plt.subplot(2, 1, 2);
@@ -392,11 +386,11 @@ for crop in crops:
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
                  marker='o', linestyle='-', label=f'{crop}', color=color, linewidth=2.5, markersize=8);
 
-plt.xlabel('Sampling Week', fontsize=14, fontweight='bold');
-plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$', fontsize=14, fontweight='bold');
-plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week', fontsize=16, fontweight='bold');
+plt.xlabel('Sampling Week', fontsize=15);
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$', fontsize=15);
+# plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week', fontsize=16, fontweight='bold');
 plt.grid(True, linestyle='--', alpha=0.48);
-plt.legend();
+plt.legend(fontsize=13);
 
 # Adjust layout and save figure
 plt.tight_layout()
