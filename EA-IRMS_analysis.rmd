@@ -28,6 +28,7 @@ The excel sheet file.path(box_base, "Salk Institute Project/AKS Salk files/EA_fi
 8.	The same scatterplot as above, but showing <sup>15</sup>N vs time
 9.  The same scatterplot as above, but showing C:N ratio vs time
 
+A previous version of this report used all data points, including duplicates from the same pot and timepoint. This version uses averages of duplicate measurements, so that each pot & timepoint contributes only one datapoint to the figures. The averaging was done in excel before importing the data into R.
 
 
 # Setting up 
@@ -39,7 +40,7 @@ The hidden setup chunk configures knitr, installs any missing R packages, loads 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)  # Set defaults for every code chunk.
 options(repos = c(CRAN = "https://cloud.r-project.org/"))  # Use the public CRAN mirror.
-required_packages <- c("dplyr", "ggplot2", "readxl", "tidyr")  # List required packages.
+required_packages <- c("dplyr", "ggplot2", "readxl", "tidyr", "minpack.lm")  # List required packages.
 for (pkg in required_packages) {
   if (!require(pkg, character.only = TRUE, quietly = TRUE)) {  # Check whether the package is available.
     cat("Installing package:", pkg, "\n")  # Report a missing package.
@@ -254,7 +255,7 @@ ggsave_themed("EA_root_vs_aboveground_13C_T0.png", paired_plot, width = 8, heigh
 # Trends over time
 ## <sup>13</sup>C Through Decomposition
 
-This chunk shows enriched root <sup>13</sup>C over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
+This chunk shows enriched root <sup>13</sup>C over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The code falls back to a simple linear model if the exponential is not identifiable. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
 
 ```{r exponential-trend, fig.width=9, fig.height=6}
 trend_data <- enriched_roots %>%
@@ -271,13 +272,13 @@ fit_exponential <- function(data) {
     arrange(week)  # Sort means chronologically.
 
   tryCatch(
-    nls(carbon13 ~ asymptote + amplitude * exp(rate * week), data = data,
+    minpack.lm::nlsLM(carbon13 ~ asymptote + amplitude * exp(rate * week), data = data,
         start = list(
           asymptote = tail(week_means$mean_carbon13, 1),  # Start at the final mean.
           amplitude = head(week_means$mean_carbon13, 1) - tail(week_means$mean_carbon13, 1),  # Start with endpoint difference.
           rate = -0.02  # Start with a decreasing exponential rate.
-        )),
-    error = function(e) NULL  # Return NULL if this crop cannot be fitted.
+      ), control = minpack.lm::nls.lm.control(maxiter = 1000)),
+    error = function(e) lm(carbon13 ~ 1, data = data)  # Use a flat line if the exponential is not identifiable.
   )
 }
 
@@ -319,7 +320,7 @@ ggsave_themed("EA_root_13C_exponential_by_week.png", trend_plot, width = 9, heig
 ```
 ## <sup>15</sup>N Through Decomposition
 
-This chunk shows root <sup>15</sup>N over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
+This chunk shows root <sup>15</sup>N over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The code falls back to a simple linear model if the exponential is not identifiable. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
 
 ```{r N-exponential-trend, fig.width=9, fig.height=6}
 trend_data <- enriched_roots %>%
@@ -336,13 +337,13 @@ fit_exponential <- function(data) {
     arrange(week)  # Sort means chronologically.
 
   tryCatch(
-    nls(nitrogen15 ~ asymptote + amplitude * exp(rate * week), data = data,
+    minpack.lm::nlsLM(nitrogen15 ~ asymptote + amplitude * exp(rate * week), data = data,
         start = list(
           asymptote = tail(week_means$mean_nitrogen15, 1),  # Start at the final mean.
           amplitude = head(week_means$mean_nitrogen15, 1) - tail(week_means$mean_nitrogen15, 1),  # Start with endpoint difference.
           rate = -0.02  # Start with a decreasing exponential rate.
-        )),
-    error = function(e) NULL  # Return NULL if this crop cannot be fitted.
+      ), control = minpack.lm::nls.lm.control(maxiter = 1000)),
+    error = function(e) lm(nitrogen15 ~ 1, data = data)  # Use a flat line if the exponential is not identifiable.
   )
 }
 
@@ -385,7 +386,7 @@ ggsave_themed("EA_root_15N_exponential_by_week.png", trend_plot, width = 9, heig
 
 ## C:N Through Decomposition
 
-This chunk shows root C:N ratios over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
+This chunk shows root C:N ratios over decomposition time for soy, rice, and wheat, with no-plant controls excluded. It fits the exponential model `asymptote + amplitude * exp(rate * week)` independently within each crop. The code falls back to a simple linear model if the exponential is not identifiable. The fitted models are evaluated on a shared sequence of weeks so the resulting crop-specific trendlines can be drawn together with the observations.
 
 ```{r CN-exponential-trend, fig.width=9, fig.height=6}
 trend_data <- enriched_roots %>%

@@ -347,8 +347,8 @@ for grp in series_order:
         grp_week['sampling_wk'], grp_week['mean'], yerr=grp_week['sem'],
         marker='o', linestyle='-', color=color_map[grp], label=grp
     )
-ax1.set_xlabel('Sampling Week')
-ax1.set_ylabel('Headspace atom-% ¹³C')
+ax1.set_xlabel('Sampling Week', fontsize=14, fontweight='bold')
+ax1.set_ylabel('Headspace atom-% ¹³C', fontsize=14, fontweight='bold')
 # ax1.set_title('Headspace atom-% ¹³C vs Sampling Week')
 ax1.grid(True, linestyle='--', alpha=0.45)
 ax1.legend(ncol=2)
@@ -364,8 +364,8 @@ for grp in norm_series:
         grp_week['sampling_wk'], grp_week['mean'], yerr=grp_week['sem'],
         marker='o', linestyle='-', color=color_map[grp], label=grp
     )
-ax2.set_xlabel('Sampling Week')
-ax2.set_ylabel('Flux (mg CO₂-C mg root-C⁻¹ day⁻¹)')
+ax2.set_xlabel('Sampling Week', fontsize=14, fontweight='bold')
+ax2.set_ylabel('Flux (mg CO₂-C mg root-C⁻¹ day⁻¹)', fontsize=14, fontweight='bold')
 # ax2.set_title('Root-C-Normalized CO₂ Flux vs Sampling Week')
 ax2.grid(True, linestyle='--', alpha=0.45)
 ax2.legend(ncol=2)
@@ -524,6 +524,64 @@ plt.tight_layout()
 out_plot_3 = os.path.join(plots_dir, 'jars_ea_gc_percent_recovery_metrics.png')
 plt.savefig(out_plot_3, dpi=300)
 print(f"Saved: {out_plot_3}")
+plt.show()
+```
+
+### Plot 4b: Labeled ¹³C recovery for jars retained through the full incubation
+
+The all-jar recovery plot above is a cross-sectional summary: jars are destructively
+harvested at different weeks, so later means contain only jars that survived to those
+weeks. Each jar's cumulative recovery is nondecreasing, but the composition of the
+weekly mean changes when a cohort is removed. This companion plot uses only jars that
+were still sampled at the maximum observed sampling week, so the same jars contribute
+at every timepoint.
+
+```{python plot-complete-cohort-13C-recovery}
+# Retain only jars that were sampled through the final observed incubation week.
+max_sampling_week = jar_cum.groupby('jar_num')['sampling_wk'].max().max()
+complete_jar_nums = (
+    jar_cum.groupby('jar_num')['sampling_wk']
+    .max()
+    .loc[lambda s: s == max_sampling_week]
+    .index
+)
+
+complete_rec = jar_cum.loc[
+    jar_cum['jar_num'].isin(complete_jar_nums) &
+    jar_cum['isotope'].eq(13) &
+    jar_cum['pct_root13C_recovered'].notna()
+].copy()
+
+fig, ax = plt.subplots(figsize=(12, 7))
+
+for crop in ['wheat', 'rice', 'soy']:
+    sub = complete_rec.loc[complete_rec['crop'] == crop]
+    if sub.empty:
+        continue
+    grp = (
+        sub.groupby('sampling_wk')['pct_root13C_recovered']
+        .agg(['mean', 'sem'])
+        .reset_index()
+    )
+    ax.errorbar(
+        grp['sampling_wk'], grp['mean'], yerr=grp['sem'],
+        marker='o', linestyle='-', linewidth=2.2, markersize=7,
+        color=crop_colors.get(crop, '#cccccc'), label=f'¹³C {crop}', capsize=4
+    )
+
+ax.set_xlabel('Sampling Week', fontsize=14, fontweight='bold')
+ax.set_ylabel('Recovered labeled ¹³C (% of initial excess ¹³C)', fontsize=14, fontweight='bold')
+ax.set_title('Labeled ¹³C recovery: jars retained through the full incubation', fontsize=16, pad=14)
+ax.grid(True, linestyle='--', alpha=0.45)
+ax.legend(fontsize=12)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+
+out_plot_complete = os.path.join(plots_dir, 'jars_ea_gc_13C_recovery_complete_cohort.png')
+plt.savefig(out_plot_complete, dpi=300)
+print(f"Saved: {out_plot_complete}")
+print(f"Complete-cohort jars through sampling week {max_sampling_week}: {len(complete_jar_nums)}")
 plt.show()
 ```
 

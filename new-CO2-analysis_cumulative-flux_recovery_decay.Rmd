@@ -1,0 +1,937 @@
+---
+title: "Litterbag microcosm incubation: cumulative CO₂ flux, ¹³C partitioning, and decay kinetics"
+author: "Adrianne"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: darkly
+    highlight: zenburn
+    code_folding: hide
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding,
+                     output_dir = "../adrianne-code/") })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)  # Set defaults for every code chunk.
+options(repos = c(CRAN = "https://cloud.r-project.org/"))  # Use the public CRAN mirror.
+required_packages <- c("tidyverse", "ggplot2", "readxl", "tidyr", "janitor", "broom")  # List required packages.
+for (pkg in required_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {  # Check whether the package is available.
+    cat("Installing package:", pkg, "\n")  # Report a missing package.
+    install.packages(pkg)  # Install it from CRAN.
+    library(pkg, character.only = TRUE)  # Load it after installation.
+  }
+}
+
+source(file.path(dirname(knitr::current_input()), "config/theme_colors_config.R"))  # Load shared theme and colors.
+crop_labels <- c(
+    noPlant = "No Plant",  # Label the no-plant control.
+    wheat   = "Wheat",  # Label wheat.
+    rice    = "Rice",  # Label rice.
+    soy     = "Soy"  # Label soy.
+)
+
+# Match the palette names to the title-case crop factor labels used below.
+crop_colors <- c(
+  "Wheat" = crop_colors[["wheat"]],
+  "Rice" = crop_colors[["rice"]],
+  "Soy" = crop_colors[["soy"]],
+  "No plant" = crop_colors[["noPlant"]]
+)
+
+box_base <- Sys.getenv("BOX_BASE")  # Read the local Box root.
+if (box_base == "") stop("BOX_BASE environment variable is not set!")  # Fail if Box is not configured.
+data_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2-redo")  # Locate the workbook.
+outputs_folder <- file.path(box_base, "Salk Institute Project/AKS Salk files/CO2-redo/code-outputs")  # Locate outputs.
+if (!dir.exists(outputs_folder)) {
+  dir.create(outputs_folder, recursive = TRUE)  # Create missing output folders.
+}
+
+```
+
+# Scope and assumptions
+
+This document takes the jar × sampling-week flux table from the litterbag microcosm
+incubation (rice, soy, wheat, no-plant control; ¹³C-labeled and unlabeled root litter;
+destructive harvests at T0, T10, T20, T30) and produces:
+
+1. Cumulative respired C per jar by trapezoidal integration
+2. Mean cumulative flux vs. time by crop
+3. Cumulative flux normalized to (a) T0 root C added and (b) T0 total jar C
+4. Plots of both normalizations
+5. ¹³C two-pool partitioning → % of added root litter C respired over time
+6. Single-exponential fits $C_t = C_0(1 - e^{-kt})$ per jar and per crop
+
+**Assumptions baked into the code — change them if any are wrong:**
+
+- `Flux_microg-CO2-C/g-soil/min` is µg CO₂-C per **gram dry soil** per minute, and
+  `jar_dry_soil_g` is the matching soil mass. Fluxes are converted to a **whole-jar,
+  per-day** basis before integration, because normalizing to root C (mg per jar) requires
+  a per-jar numerator.
+- `isotope == 13` (or anything ≥ 13) marks labeled jars; `12` marks unlabeled.
+- **`sampling_wk` is a sampling label, not elapsed time.** The jars were sealed 2024-12-30
+  and the "week 1" headspace was taken 2024-12-31 — one day in, not seven. Integration
+  therefore runs on **elapsed days computed from `sampling_date`**, with `(sampling_wk-1) × 7 + 1`
+  used only as a fallback where a date is missing. The QC section prints the label-to-day
+  mapping so you can see exactly what the column means for every other timepoint too.
+- Flux between sampling dates is assumed to change linearly — that is what trapezoidal
+  integration means. The sensitivity section quantifies the bias that introduces; it does
+  not replace the
+  method.
+- The first headspace is at day 1, so cumulative flux is anchored at t = 0 by carrying that
+  flux back over a single day (`anchor = "first"`). The alternative (`"zero"`) assumes zero
+  flux at sealing, which is wrong for a rewetted soil; `"none"` discards the first interval.
+  Over one day the choice is nearly immaterial — but it is the *entire* cumulative value
+  for the T0 cohort.
+- Crop labels in the file are `rice`, `soy`, `wheat`, `noPlant` (matched case-insensitively).
+
+
+# Import and column renaming
+
+The raw headers contain hyphens and slashes (`Flux_microg-CO2-C/g-soil/min`), which are
+not syntactic R names. `clean_names()` makes them predictable, then an explicit map
+shortens them. `any_of()` means a header that doesn't match is skipped rather than
+throwing an error — the check immediately after tells you if that happened.
+
+```{r import}
+data_path <- file.path(data_folder, "Jar-CO2-all-metadata.xlsx")   # <-- EDIT: path to your file
+
+raw <- if (grepl("\\.csv$", data_path, ignore.case = TRUE)) {
+  readr::read_csv(data_path, show_col_types = FALSE)
+} else {
+  readxl::read_excel(data_path)
+}
+
+raw <- janitor::clean_names(raw)   # e.g. "CO2_13C_at-pct" -> "co2_13c_at_pct"
+
+rename_map <- c(
+  jar           = "jar_num",
+  wk            = "sampling_wk",
+  samp_date     = "sampling_date",
+  d13c_co2      = "co2_d13cvpdb_ppt",
+  atpct_co2     = "co2_13c_at_pct",
+  co2_ppm       = "co2_ppm_minus_blank",
+  c_m           = "C_m",
+  flux_ug_g_min = "flux_microg_co2_c_g_soil_min",
+  sealed_min    = "time_sealed_min",
+  gwc           = "jar_gwc",
+  soil_g        = "jar_dry_soil_g",
+  soil_c_g      = "jar_est_soil_c_g",
+  root_mass_mg  = "t0_root_mass_mg",
+  atpct_root    = "t0_root_13c_at_pct",
+  root_c_pct    = "t0_root_c_pct",
+  root_c_mg     = "t0_est_root_c_mg",
+  jar_c_mg      = "t0_est_jar_c_mg"
+)
+
+dat <- raw %>% rename(any_of(rename_map))
+
+# Did every expected column land? Anything printed here needs a manual fix above.
+lost <- setdiff(names(rename_map), names(dat))
+if (length(lost)) {
+  message("NOT FOUND after rename: ", paste(lost, collapse = ", "))
+  message("Actual columns: ", paste(names(raw), collapse = ", "))
+}
+```
+
+```{r derive}
+# Date the jars were sealed. Everything on the time axis is measured from here.
+incubation_start <- as.Date("2024-12-30")
+
+dat <- dat %>%
+  mutate(
+    # Tolerant crop matching; anything unmatched becomes NA and is caught in QC below
+    crop  = factor(str_to_lower(str_trim(crop)),
+                   levels = c("wheat", "rice", "soy", "noplant"),
+                   labels = c("Wheat", "Rice", "Soy", "No plant")),
+    label = factor(if_else(as.numeric(isotope) >= 13, "13C", "12C"),
+                   levels = c("12C", "13C")),
+    samp_date = as.Date(samp_date),
+    # REAL elapsed time, not wk * 7: "week 1" was one day after sealing, so the nominal
+    # week label and true elapsed time are not the same variable. wk * 7 is only a
+    # fallback for rows with a missing or unparseable date.
+    t_day = as.numeric(samp_date - incubation_start),
+    t_day = if_else(is.na(t_day), (wk-1) * 7 + 1, t_day),
+    # µg C g-soil^-1 min^-1  ->  mg C jar^-1 day^-1
+    #   × soil_g : per-gram-soil -> per-jar
+    #   × 1440   : per-minute    -> per-day
+    #   ÷ 1000   : µg            -> mg
+    flux_mg_jar_day = flux_ug_g_min * soil_g * 1440 / 1000
+  )
+```
+
+# Quality control
+
+Run this before anything else. Every downstream number depends on the sampling-week grid
+being what you think it is, and on root/jar C being constant within a jar.
+
+```{r qc}
+# Jar-level metadata; harvest cohort is inferred from the last week each jar was measured
+jar_meta <- dat %>%
+  group_by(jar) %>%
+  summarise(
+    crop = first(crop), label = first(label),
+    n_obs = n(), first_wk = min(wk, na.rm = TRUE), last_wk = max(wk, na.rm = TRUE),
+    root_c_mg = first(root_c_mg), jar_c_mg = first(jar_c_mg),
+    root_c_varies = n_distinct(root_c_mg) > 1,   # should be FALSE everywhere
+    .groups = "drop"
+  ) %>%
+  mutate(harvest = cut(last_wk, breaks = c(-Inf, 5, 15, 25, Inf),
+                       labels = c("T0", "T10", "T20", "T30")))
+
+list(
+  n_rows              = nrow(dat),
+  n_jars              = n_distinct(dat$jar),
+  sampling_weeks      = sort(unique(dat$wk)),
+  crop_NA             = sum(is.na(dat$crop)),
+  duplicated_jar_wk   = sum(duplicated(dat[c("jar", "wk")])),
+  flux_missing        = sum(is.na(dat$flux_mg_jar_day)),
+  flux_negative       = sum(dat$flux_mg_jar_day < 0, na.rm = TRUE),
+  root_c_inconsistent = sum(jar_meta$root_c_varies)
+)
+
+# Design check: jars per harvest cohort × crop × isotope label
+jar_meta %>% count(harvest, crop, label) %>%
+  pivot_wider(names_from = label, values_from = n)
+
+# CHECK THIS TABLE. It shows what each sampling_wk label actually means in elapsed days.
+# Week 1 should come out at day 1. If the later labels are not at 7-day multiples either,
+# the integration is still correct (it runs on t_day), but any statement of the form
+# "by week 20" needs to be phrased in elapsed days instead.
+dat %>%
+  group_by(wk) %>%
+  summarise(n = n(), date_min = min(samp_date), date_max = max(samp_date),
+            day_median = median(t_day), day_if_wk_x_7 = first(wk) * 7, .groups = "drop") %>%
+  mutate(discrepancy_days = day_median - day_if_wk_x_7)
+```
+
+```{r qc-flux-recalc}
+# Independent sanity check on the flux column: rebuild it from headspace ppm and sealed
+# time and see whether the two agree in rank. Getting this right requires headspace
+# volume PER JAR, not one constant — soil mass varies jar to jar, and soil takes up space
+# that air otherwise would. Volume by displacement (jar volume minus the volume the
+# packed soil actually occupies) is the standard way to get this without measuring each
+# jar by hand.
+#
+#   jar_volume_mL      : nominal capacity of the mason jar used
+#   soil_volume_mL      = dry soil mass / bulk density of the PACKED soil (not particle
+#                         density -- bulk density already accounts for pore space, which
+#                         is what makes this a headspace-only calculation)
+#   water_volume_mL     = water mass (from GWC) at ~1 g/mL, since that water also
+#                         displaces air, not just the soil
+#   headspace_volume_mL = jar_volume_mL - soil_volume_mL - water_volume_mL
+
+jar_volume_mL  <- 473    # 16 oz (1 US pint) regular-mouth mason jar, nominal fill volume
+                          # to the rim. Brands vary by a few mL (see note below); if you
+                          # want the true sealed-headspace number rather than this label
+                          # value, fill an empty jar with water to the sealing line and
+                          # weigh it once -- five minutes, and it replaces this assumption
+                          # entirely.
+bulk_density   <- 1.45   # <-- EDIT if you have a measured value. 1.45 g/cm3 is a
+                          #     mid-range literature figure for a sandy clay loam packed
+                          #     to a typical (not compacted) bulk density -- sandy clay
+                          #     loams commonly fall around 1.3-1.6 g/cm3 depending on how
+                          #     firmly the soil was packed into the jar. This is soil
+                          #     TEXTURE information, not a substitute for measuring bulk
+                          #     density in your own jars: if you recorded jar volume
+                          #     before and after adding soil, or weighed a known volume of
+                          #     packed soil, use that number instead.
+Temp <- 22                # <-- EDIT: incubation temperature, deg C
+P    <- 1                 # atm
+
+dat_hs <- dat %>%
+  mutate(
+    water_g       = soil_g * gwc,                      # assumes gwc is g water / g dry soil
+    soil_vol_mL   = soil_g / bulk_density,
+    water_vol_mL  = water_g / 1.0,
+    headspace_mL  = jar_volume_mL - soil_vol_mL - water_vol_mL,
+    headspace_L   = headspace_mL / 1000,
+    umol_CO2       = co2_ppm * 1e-6 * P * headspace_L / (0.082057 * (Temp + 273.15)) * 1e6,
+    check_ug_g_min = umol_CO2 * 12.011 / soil_g / sealed_min
+  )
+
+# Headspace should be a substantial, physically plausible fraction of jar volume -- if
+# this comes out negative or under ~20%, jar_volume_mL or bulk_density is wrong.
+dat_hs %>% summarise(headspace_mL_min = min(headspace_mL, na.rm = TRUE),
+                      headspace_mL_max = max(headspace_mL, na.rm = TRUE),
+                      pct_of_jar_min   = min(headspace_mL / jar_volume_mL, na.rm = TRUE) * 100,
+                      pct_of_jar_max   = max(headspace_mL / jar_volume_mL, na.rm = TRUE) * 100)
+
+dat_hs %>%
+  filter(is.finite(check_ug_g_min), is.finite(flux_ug_g_min)) %>%
+  summarise(
+    pearson  = cor(check_ug_g_min, flux_ug_g_min),
+    ratio_md = median(check_ug_g_min / flux_ug_g_min, na.rm = TRUE)
+  )
+# pearson ~ 1 means the flux column is the monotone function of ppm/time you expect --
+# that check is INSENSITIVE to headspace volume (a wrong volume rescales every row the
+# same way and correlation is scale-invariant), so it verifies the flux column's formula
+# regardless of whether jar_volume_mL/bulk_density above are right.
+# ratio_md is the scale factor between the two, and IS sensitive to headspace volume --
+# treat it only as a rough check unless jar_volume_mL and bulk_density are confirmed.
+# THAT SAID: jar_volume_mL and bulk_density can only be off by a small factor (a wrong
+# jar size or an unrealistic bulk density is at most a 2-3x error). If ratio_md comes back
+# far from 1 -- in the hundreds, thousands, or more -- headspace volume is not a candidate
+# explanation, and the Flux column's own ppm-to-microg-C conversion is the place to look.
+```
+
+# Cumulative flux by trapezoidal integration
+
+```{r trapz-fn}
+#' Running cumulative integral by the trapezoid rule
+#'
+#' @param t      numeric time vector (days here); need not be sorted or evenly spaced
+#' @param y      flux at each time, in units of mass per unit time
+#' @param anchor how to treat the interval between t = 0 and the first measurement:
+#'               "first" carries the first observed flux back to 0 (default),
+#'               "zero"  assumes flux was 0 at t = 0,
+#'               "none"  starts the integral at the first measurement
+#' @return numeric vector, same length and order as `t`; NA where t or y is NA
+cum_trap <- function(t, y, anchor = c("first", "zero", "none")) {
+  anchor <- match.arg(anchor)
+  stopifnot(length(t) == length(y))
+
+  out <- rep(NA_real_, length(t))
+  ok  <- !is.na(t) & !is.na(y)                 # integrate over complete pairs only
+  if (sum(ok) == 0) return(out)
+
+  ti <- t[ok]; yi <- y[ok]
+  o  <- order(ti); ts <- ti[o]; ys <- yi[o]    # the trapezoid rule needs ascending time
+
+  drop_anchor <- FALSE
+  if (anchor != "none" && min(ts) > 0) {
+    ts <- c(0, ts)
+    ys <- c(if (anchor == "first") ys[1] else 0, ys)
+    drop_anchor <- TRUE
+  }
+
+  dt   <- diff(ts)                                   # interval widths
+  seg  <- dt * (head(ys, -1) + tail(ys, -1)) / 2     # area of each trapezoid
+  cums <- c(0, cumsum(seg))                          # running total at each time point
+  if (drop_anchor) cums <- cums[-1]                  # drop the synthetic t = 0 row
+
+  res    <- numeric(length(cums))
+  res[o] <- cums                                     # back to the original row order
+  out[ok] <- res
+  out
+}
+```
+
+```{r cumulative}
+flux <- dat %>%
+  arrange(jar, wk) %>%
+  group_by(jar) %>%
+  mutate(
+    cum_mg = cum_trap(t_day, flux_mg_jar_day, anchor = "first")   # mg CO2-C per jar
+  ) %>%
+  ungroup() %>%
+  left_join(select(jar_meta, jar, harvest), by = "jar") %>%
+  mutate(
+    # (3a) total C respired as a percentage of the root C added
+    #      na_if() stops no-plant jars (root_c_mg == 0) from becoming Inf
+    cum_pct_root = 100 * cum_mg / na_if(root_c_mg, 0),
+    # (3b) as a percentage of TOTAL jar C (soil C + root C) — defined for the no-plant
+    #      controls too, so all four treatments sit on one axis
+    cum_pct_jar  = 100 * cum_mg / na_if(jar_c_mg, 0)
+  )
+
+flux %>%
+  select(jar, crop, label, wk, flux_mg_jar_day, cum_mg, cum_pct_root, cum_pct_jar) %>%
+  head(12)
+```
+
+
+## Flux magnitude sanity check
+
+```{r flux-magnitude-sanity-check}
+# ORDER-OF-MAGNITUDE CHECK ON THE FLUX COLUMN ITSELF. Root litter additions were 19-92 mg
+# fresh mass, so at a generous 50% root C content, root C per jar tops out around 45 mg.
+# Litter mineralization exceeding a few hundred percent of that is already the edge of
+# plausible (see the mass-balance note in the 13C section); tens of thousands of percent
+# is not, regardless of what root_c_mg says. If cum_mg (TOTAL jar CO2, before any 13C
+# partitioning) is already in that range, the problem is upstream of root_c_mg entirely --
+# it is in flux_mg_jar_day, which means it is in flux_ug_g_min, which is the Flux column
+# as provided, not anything this pipeline derives. That would mean every cumulative-flux
+# plot so far (sections 4-6, and the decay fits in section 9) inherits the same error, not
+# just the 13C partitioning plot.
+root_c_upper_bound_mg <- 92 * 0.5   # generous: max root mass x generous C fraction
+
+flux %>%
+  group_by(jar, crop) %>%
+  summarise(final_cum_mg = max(cum_mg, na.rm = TRUE), .groups = "drop") %>%
+  summarise(
+    n_jars = n(),
+    median_final_cum_mg = median(final_cum_mg),
+    max_final_cum_mg     = max(final_cum_mg),
+    fold_over_root_bound = max_final_cum_mg / root_c_upper_bound_mg
+  )
+
+dat %>%
+  summarise(min = min(flux_ug_g_min, na.rm = TRUE),
+            median = median(flux_ug_g_min, na.rm = TRUE),
+            p99 = quantile(flux_ug_g_min, 0.99, na.rm = TRUE),
+            max = max(flux_ug_g_min, na.rm = TRUE))
+```
+
+## Summary by crop
+
+```{r summarise-fn}
+#' Mean ± SE across jars at each crop × week, carrying n so dropout stays visible
+summarise_by_crop <- function(df, yvar, by_label = FALSE) {
+  grps <- c("crop", "wk", if (by_label) "label")
+  df %>%
+    group_by(across(all_of(grps))) %>%
+    summarise(
+      # Jars are grouped by the shared sampling label, but positioned on the x axis at
+      # their true elapsed time — the two differ most at the first timepoint (day 1).
+      t_wk = mean(t_day, na.rm = TRUE) / 7,
+      mean = mean(.data[[yvar]], na.rm = TRUE),
+      sd   = sd(.data[[yvar]],  na.rm = TRUE),
+      n    = sum(!is.na(.data[[yvar]])),
+      se   = sd / sqrt(n),
+      .groups = "drop"
+    )
+}
+```
+
+# Mean cumulative flux vs. time, by crop
+
+```{r plot-cumulative}
+cum_summary <- summarise_by_crop(flux, "cum_mg")
+
+ggplot(cum_summary, aes(t_wk, mean, colour = crop, fill = crop)) +
+  geom_vline(xintercept = c(10, 20, 30), linetype = "dotted", colour = "grey60") +
+  geom_ribbon(aes(ymin = mean - se, ymax = mean + se), alpha = 0.18, colour = NA) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.6) +
+  scale_colour_manual(values = crop_colors) +
+  scale_fill_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = expression("Cumulative "*CO[2]*"-C (mg jar"^-1*")"),
+       colour = NULL, fill = NULL,
+       title = "Cumulative respired C by crop (mean ± SE)",
+       subtitle = "Dotted lines mark destructive harvests; replicate number drops at each one")
+```
+
+```{r plot-n, fig.height=3}
+# How many jars sit behind each point above. Read the two plots together.
+ggplot(cum_summary, aes(t_wk, n, colour = crop)) +
+  geom_step(linewidth = 0.7) +
+  scale_colour_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = "Jars contributing", colour = NULL)
+```
+
+**Dropout matters.** The mean at week 31 comes from the T30 cohort only, while the mean at
+week 5 pools all four cohorts. Any apparent change in slope at a harvest week is partly a
+change in *which jars* are being averaged, not a change in respiration. The balanced
+version below uses only jars that survived to T30, so the curve describes one fixed set of
+jars throughout:
+
+```{r plot-cumulative-balanced}
+flux_bal <- filter(flux, harvest == "T30")
+
+summarise_by_crop(flux_bal, "cum_mg") %>%
+  ggplot(aes(t_wk, mean, colour = crop, fill = crop)) +
+  geom_ribbon(aes(ymin = mean - se, ymax = mean + se), alpha = 0.18, colour = NA) +
+  geom_line(linewidth = 0.8) + geom_point(size = 1.6) +
+  scale_colour_manual(values = crop_colors) + scale_fill_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = expression("Cumulative "*CO[2]*"-C (mg jar"^-1*")"),
+       colour = NULL, fill = NULL, title = "Balanced cohort: T30 jars only")
+```
+
+# Normalized cumulative flux
+
+```{r plot-normalized}
+p_root <- summarise_by_crop(filter(flux, crop != "No plant"), "cum_pct_root") %>%
+  ggplot(aes(t_wk, mean, colour = crop, fill = crop)) +
+  geom_ribbon(aes(ymin = mean - se, ymax = mean + se), alpha = 0.18, colour = NA) +
+  geom_line(linewidth = 0.8) + geom_point(size = 1.5) +
+  scale_colour_manual(values = crop_colors) + scale_fill_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = "Cumulative C respired (% of T0 root C)",
+       colour = NULL, fill = NULL,
+       title = "(a) Normalized to root C added",
+       subtitle = "Total CO2, not litter-derived CO2 — values can exceed 100%")
+
+p_jar <- summarise_by_crop(flux, "cum_pct_jar") %>%
+  ggplot(aes(t_wk, mean, colour = crop, fill = crop)) +
+  geom_ribbon(aes(ymin = mean - se, ymax = mean + se), alpha = 0.18, colour = NA) +
+  geom_line(linewidth = 0.8) + geom_point(size = 1.5) +
+  scale_colour_manual(values = crop_colors) + scale_fill_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = "Cumulative C respired (% of T0 total jar C)",
+       colour = NULL, fill = NULL,
+       title = "(b) Normalized to total jar C",
+       subtitle = "Includes no-plant controls")
+
+p_root
+p_jar
+```
+
+Normalization (a) divides **total** jar CO₂ by root C, so it includes soil-derived CO₂ and
+will exceed 100% given enough time. It answers "how much C left the jar per unit litter
+added", not "how much of the litter decomposed" — the ¹³C partitioning section answers the
+second question.
+Normalization (b) is the one to use for cross-treatment comparison, since it is defined
+for the no-plant controls.
+
+## Control-corrected flux (suggested addition)
+
+The unlabeled jars have no isotopic handle, but the no-plant controls — same soil, empty
+litterbag — give a non-isotopic estimate of litter-induced CO₂: subtract the mean control
+cumulative flux, expressed per gram soil C, from each planted jar. Because the control bag
+is present but empty, the bag material itself is already differenced out. The difference is litter-derived C **plus any
+priming**, which is exactly why it will not agree with the ¹³C estimate — and the size of
+the disagreement is itself the priming signal.
+
+```{r control-corrected}
+ctrl <- flux %>%
+  filter(crop == "No plant") %>%
+  mutate(cum_per_gC = cum_mg / soil_c_g) %>%
+  group_by(wk) %>%
+  summarise(ctrl_cum_per_gC = mean(cum_per_gC, na.rm = TRUE), .groups = "drop")
+
+flux_cc <- flux %>%
+  filter(crop != "No plant") %>%
+  left_join(ctrl, by = "wk") %>%
+  mutate(
+    cum_excess_mg   = cum_mg - ctrl_cum_per_gC * soil_c_g,   # mg C above the control
+    excess_pct_root = 100 * cum_excess_mg / na_if(root_c_mg, 0)
+  )
+
+summarise_by_crop(flux_cc, "excess_pct_root") %>%
+  ggplot(aes(t_wk, mean, colour = crop, fill = crop)) +
+  geom_hline(yintercept = 0, colour = "grey70") +
+  geom_ribbon(aes(ymin = mean - se, ymax = mean + se), alpha = 0.18, colour = NA) +
+  geom_line(linewidth = 0.8) + geom_point(size = 1.5) +
+  scale_colour_manual(values = crop_colors) + scale_fill_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = "Excess CO2-C over control (% of T0 root C)",
+       colour = NULL, fill = NULL, title = "Control-corrected cumulative flux")
+```
+
+# ¹³C partitioning: percent of labeled litter respired
+
+Two-source mixing on each headspace sample:
+
+$$f_{root} = \frac{at\%_{sample} - at\%_{background}}{at\%_{root} - at\%_{background}}$$
+
+`at%_background` is the ¹³C content of CO₂ in jars that received *unlabeled* litter of the
+same crop at the same week — that mixture of soil- and root-derived CO₂ is the correct
+null. The no-plant jars (empty litterbag, unlabeled only) are not used here: they contain no
+root C at all, so they estimate the soil-only endmember rather than the soil-plus-unlabeled-
+root mixture that a labeled jar would have in the absence of enrichment. They are used in
+the control-corrected subsection instead, where a soil-only reference is what you want.
+
+Partitioning is applied to the **instantaneous flux**, and the litter-derived flux is
+then integrated. Partitioning the cumulative curve instead would be wrong, because the
+source mixture changes over time.
+
+```{r partition}
+background <- dat %>%
+  filter(label == "12C", crop != "No plant") %>%
+  group_by(crop, wk) %>%
+  summarise(atpct_bg = mean(atpct_co2, na.rm = TRUE), .groups = "drop")
+
+bg_global <- mean(background$atpct_bg, na.rm = TRUE)   # fallback for unmatched weeks
+
+labeled <- flux %>%
+  filter(label == "13C", crop != "No plant") %>%
+  left_join(background, by = c("crop", "wk")) %>%
+  mutate(
+    atpct_bg   = coalesce(atpct_bg, bg_global),
+    f_root_raw = (atpct_co2 - atpct_bg) / (atpct_root - atpct_bg),
+    f_root     = pmin(pmax(f_root_raw, 0), 1),          # constrain to [0,1] for integration
+    flux_root_mg_jar_day = f_root * flux_mg_jar_day
+  ) %>%
+  arrange(jar, wk) %>%
+  group_by(jar) %>%
+  mutate(cum_root_mg = cum_trap(t_day, flux_root_mg_jar_day, anchor = "first")) %>%
+  ungroup() %>%
+  mutate(pct_root_respired = 100 * cum_root_mg / na_if(root_c_mg, 0))
+
+# How often does the raw mixing fraction fall outside [0,1]? Frequent excursions mean the
+# enrichment is too close to background relative to analytical precision.
+labeled %>%
+  summarise(
+    n        = sum(is.finite(f_root_raw)),
+    below_0  = sum(f_root_raw < 0, na.rm = TRUE),
+    above_1  = sum(f_root_raw > 1, na.rm = TRUE),
+    median_f = median(f_root_raw, na.rm = TRUE),
+    min_enrichment_atpct = min(atpct_root - atpct_bg, na.rm = TRUE)
+  )
+```
+
+
+```{r partition-diagnostics}
+# A percentage in the thousands or millions is not explained by priming or a biased
+# composite root C% (those cost you tens to low hundreds of percent at most) -- it means
+# root_c_mg is vanishingly small for at least some jars, almost certainly a units or
+# data-entry problem rather than biology. This chunk finds exactly which jar(s).
+
+# 1. Does root_c_mg itself contain implausibly small values? Compare against the overall
+#    distribution -- a true outlier will sit orders of magnitude below the rest, not just
+#    somewhat lower.
+labeled %>%
+  distinct(jar, crop, root_c_mg) %>%
+  summarise(min = min(root_c_mg), p01 = quantile(root_c_mg, 0.01),
+            median = median(root_c_mg), max = max(root_c_mg))
+
+# 2. The jar-week rows actually driving the extreme percentages, worst first. Cross-check
+#    root_c_mg for these specific jars against your raw spreadsheet: look for a value
+#    entered in the wrong unit (g instead of mg), a shifted decimal point, or a row that
+#    picked up 0 or a blank that something upstream silently coerced to a tiny number.
+labeled %>%
+  select(jar, crop, wk, harvest, root_c_mg, cum_root_mg, f_root, pct_root_respired) %>%
+  arrange(desc(pct_root_respired)) %>%
+  head(15)
+
+# 3. Is the mean being pulled around by a small number of jars? Compare mean vs. median at
+#    each week -- if they disagree by orders of magnitude, the mean is not representative
+#    and should not be trusted until the jar(s) above are fixed or excluded.
+labeled %>%
+  group_by(crop, wk) %>%
+  summarise(n = n(), mean_pct = mean(pct_root_respired, na.rm = TRUE),
+            median_pct = median(pct_root_respired, na.rm = TRUE),
+            max_pct = max(pct_root_respired, na.rm = TRUE), .groups = "drop") %>%
+  filter(mean_pct > 2 * median_pct)   # rows where the mean is clearly outlier-driven
+```
+
+```{r plot-partition-robust}
+# STOPGAP, not a fix: median + IQR instead of mean + SE, so the plot is legible while
+# the jar(s) above are traced back to the raw sheet and corrected. Once root_c_mg is
+# fixed, re-run plot-partition (mean-based) as the version to report.
+labeled %>%
+  group_by(crop, wk) %>%
+  summarise(t_wk = mean(t_day, na.rm = TRUE) / 7,
+            median = median(pct_root_respired, na.rm = TRUE),
+            q25 = quantile(pct_root_respired, 0.25, na.rm = TRUE),
+            q75 = quantile(pct_root_respired, 0.75, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(t_wk, median, colour = crop, fill = crop)) +
+  geom_ribbon(aes(ymin = q25, ymax = q75), alpha = 0.18, colour = NA) +
+  geom_line(linewidth = 0.9) + geom_point(size = 1.8) +
+  scale_colour_manual(values = crop_colors) + scale_fill_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = "Litter C respired (% of T0 root C, median)",
+       colour = NULL, fill = NULL,
+       title = "Percent of labeled root litter respired (median, outlier-robust)",
+       subtitle = "Diagnostic view only -- use the mean-based plot once root_c_mg is corrected")
+```
+
+
+```{r plot-partition}
+summarise_by_crop(labeled, "pct_root_respired") %>%
+  ggplot(aes(t_wk, mean, color = crop, fill = crop)) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey60") +
+  geom_ribbon(aes(ymin = mean - se, ymax = mean + se), alpha = 0.18, color = NA) +
+  geom_line(linewidth = 0.9) + geom_point(size = 1.8) +
+  scale_color_manual(values = crop_colors) + scale_fill_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = "Litter C respired (% of T0 root C)",
+       color = NULL, fill = NULL,
+       title = "Percent of labeled root litter respired as CO2",
+       subtitle = "13C jars only; dashed line = complete mineralization of the added litter")
+```
+
+```{r mass-balance-check}
+# Mass-balance diagnostic. Cumulative litter-derived C above 100% of the T0 root C pool is
+# not automatically a coding error — it is what happens when the mixing model attributes
+# primed SOM to the litter, when at%_root drifts as the enriched labile fraction is
+# consumed, or when T0_est-root-C_mg is underestimated. Note that root C% is a CROP
+# COMPOSITE, so an error in it shifts an entire crop's denominator by a constant factor:
+# an exceedance confined to one crop points at the composite before it points at biology.
+labeled %>%
+  group_by(crop, jar) %>%
+  summarise(max_pct = max(pct_root_respired, na.rm = TRUE), .groups = "drop") %>%
+  group_by(crop) %>%
+  summarise(n_jars = n(), median_max = median(max_pct),
+            n_over_100 = sum(max_pct > 100), max_observed = max(max_pct))
+```
+
+# Decay kinetics: $C_t = C_0(1 - e^{-kt})$
+
+`SSasympOrig` is the self-starting form of exactly this model in R:
+`SSasympOrig(t, Asym, lrc)` = `Asym * (1 - exp(-exp(lrc) * t))`, so $C_0$ = `Asym` and
+$k$ = `exp(lrc)`. Self-starting removes the need for hand-picked starting values, which is
+what usually breaks `nls()` on short series.
+
+```{r fit-fn}
+#' Fit C_t = C_0 (1 - exp(-k t)); returns NULL instead of erroring on non-convergence
+fit_asym <- function(df, yvar = "cum_mg", min_points = 4) {
+  d <- data.frame(t = df$t_day, y = df[[yvar]])
+  d <- d[complete.cases(d) & is.finite(d$y), ]
+  if (length(unique(d$t)) < min_points || max(d$y) <= 0) return(NULL)
+  tryCatch(nls(y ~ SSasympOrig(t, Asym, lrc), data = d), error = function(e) NULL)
+}
+
+#' Pull C_0 and k (per day and per week) out of a fitted model
+pars_of <- function(fit) {
+  if (is.null(fit)) {
+    return(tibble(C0 = NA_real_, k_day = NA_real_, k_wk = NA_real_,
+                  halflife_wk = NA_real_, rse = NA_real_))
+  }
+  co <- coef(fit)
+  k  <- unname(exp(co[["lrc"]]))                      # lrc is log(k), k in day^-1
+  tibble(C0 = unname(co[["Asym"]]), k_day = k, k_wk = k * 7,
+         halflife_wk = log(2) / (k * 7),
+         rse = summary(fit)$sigma)
+}
+```
+
+## Per-jar fits
+
+Jars from the T0 and T10 cohorts have too few points, or too short a span, to identify an
+asymptote. `min_points = 4` drops the worst cases, but a converged fit on an 11-week series
+still has a nearly unidentifiable $C_0$ — the model is extrapolating to a plateau the data
+never reach. Trust $k$ more than $C_0$ for the short cohorts, and report both *by cohort*
+so that pattern stays visible.
+
+```{r fit-jars}
+jar_fits <- flux %>%
+  filter(crop != "No plant") %>%
+  group_by(jar, crop, label, harvest) %>%
+  nest() %>%
+  mutate(
+    fit_mg  = map(data, fit_asym, yvar = "cum_mg"),
+    pars_mg = map(fit_mg, pars_of)
+  ) %>%
+  select(-data, -fit_mg) %>%
+  unnest(pars_mg) %>%
+  ungroup()
+
+jar_fits %>%
+  filter(!is.na(k_wk)) %>%
+  group_by(crop, harvest) %>%
+  summarise(n = n(),
+            C0_mg_median = median(C0), C0_mg_sd = sd(C0),
+            k_wk_median  = median(k_wk), k_wk_sd = sd(k_wk),
+            halflife_wk  = median(halflife_wk), .groups = "drop")
+```
+
+```{r fit-jars-normalized}
+# The same fits on the 13C-partitioned litter curve, where C_0 is directly interpretable
+# as the labile *fraction* of the added litter (%) rather than an absolute mass.
+lab_fits <- labeled %>%
+  group_by(jar, crop, harvest) %>%
+  nest() %>%
+  mutate(pars = map(data, ~ pars_of(fit_asym(.x, yvar = "pct_root_respired")))) %>%
+  select(-data) %>% unnest(pars) %>% ungroup()
+
+lab_fits %>%
+  filter(!is.na(k_wk)) %>%
+  group_by(crop) %>%
+  summarise(n = n(),
+            labile_pct_median = median(C0), labile_pct_sd = sd(C0),
+            k_wk_median = median(k_wk), k_wk_sd = sd(k_wk), .groups = "drop")
+```
+
+```{r fit-k-boxplot, fig.height=4}
+jar_fits %>%
+  filter(!is.na(k_wk), k_wk < 5) %>%   # drop numerically absurd fits before plotting
+  ggplot(aes(crop, k_wk, colour = crop, fill = crop)) +
+  geom_boxplot(outlier.shape = NA, width = 0.55, alpha = 0.5) +
+  geom_jitter(aes(shape = harvest), width = 0.15, size = 1.8, alpha = 0.8) +
+  scale_colour_manual(values = crop_colors) +
+  scale_fill_manual(values = crop_colors, guide = "none") +
+  guides(shape = guide_legend(override.aes = list(colour = annotation_text_color,
+                                                  fill = annotation_text_color))) +
+  labs(x = NULL, y = expression("k (week"^-1*")"), shape = "Harvest cohort",
+       title = "Per-jar decay constants")
+```
+
+## Pooled fits by crop, with curves over the data
+
+```{r fit-crop}
+crop_fits <- flux %>%
+  filter(crop != "No plant") %>%
+  group_by(crop, label) %>%
+  nest() %>%
+  mutate(fit  = map(data, fit_asym, yvar = "cum_mg"),
+         pars = map(fit, pars_of))
+
+crop_fits %>% select(crop, label, pars) %>% unnest(pars)
+
+pred <- crop_fits %>%
+  filter(!map_lgl(fit, is.null)) %>%
+  mutate(grid = map2(fit, data, ~ tibble(
+    t_day = seq(0, max(.y$t_day, na.rm = TRUE), length.out = 200)
+  ) %>% mutate(cum_mg = predict(.x, newdata = data.frame(t = t_day))))) %>%
+  select(crop, label, grid) %>% unnest(grid) %>% mutate(wk = t_day / 7)
+
+ggplot() +
+  geom_point(data = filter(flux, crop != "No plant"),
+             aes(t_day / 7, cum_mg, colour = crop), alpha = 0.25, size = 0.9) +
+  geom_line(data = pred, aes(wk, cum_mg, colour = crop), linewidth = 1) +
+  facet_wrap(~ label) +
+  scale_colour_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = expression("Cumulative "*CO[2]*"-C (mg jar"^-1*")"),
+       colour = NULL, title = "Single-exponential fits over all jar-level observations")
+```
+
+## Optional: two-pool model and model comparison
+
+A single exponential forces one labile pool with one rate. If residuals are structured
+(early points under-predicted, late points over-predicted), a two-pool model usually fits
+better; AIC tells you whether the extra two parameters earn their keep.
+
+```{r two-pool}
+fit_two_pool <- function(df, yvar = "cum_mg") {
+  d <- data.frame(t = df$t_day, y = df[[yvar]])
+  d <- d[complete.cases(d) & is.finite(d$y), ]
+  one <- fit_asym(df, yvar)
+  if (is.null(one) || length(unique(d$t)) < 6) return(NULL)
+  st <- coef(one); A <- st[["Asym"]]; k <- exp(st[["lrc"]])
+  tryCatch(
+    nls(y ~ C1 * (1 - exp(-k1 * t)) + C2 * (1 - exp(-k2 * t)), data = d,
+        start   = list(C1 = 0.4 * A, k1 = 4 * k, C2 = 0.6 * A, k2 = 0.25 * k),
+        algorithm = "port",
+        lower   = c(C1 = 0, k1 = 1e-6, C2 = 0, k2 = 1e-8),
+        control = nls.control(maxiter = 200)),
+    error = function(e) NULL)
+}
+
+crop_fits %>%
+  mutate(fit2 = map(data, fit_two_pool)) %>%
+  filter(!map_lgl(fit, is.null), !map_lgl(fit2, is.null)) %>%
+  transmute(crop, label,
+            AIC_one = map_dbl(fit,  AIC),
+            AIC_two = map_dbl(fit2, AIC),
+            delta   = AIC_one - AIC_two) %>%   # delta > 2 favours the two-pool model
+  ungroup()
+```
+
+```{r residual-check, fig.height=4}
+# Residuals vs. time for the one-pool fits. Cumulative data are autocorrelated by
+# construction, so these residuals will always show runs — what you are looking for is
+# systematic curvature, which indicates the wrong functional form.
+crop_fits %>%
+  filter(!map_lgl(fit, is.null)) %>%
+  mutate(res = map2(fit, data, ~ tibble(
+    t_day = .y$t_day[complete.cases(.y$cum_mg) & is.finite(.y$cum_mg)],
+    r     = residuals(.x)))) %>%
+  select(crop, label, res) %>% unnest(res) %>%
+  ggplot(aes(t_day / 7, r, colour = crop)) +
+  geom_hline(yintercept = 0, colour = "grey70") +
+  geom_point(alpha = 0.5, size = 0.9) +
+  facet_wrap(~ label) +
+  scale_colour_manual(values = crop_colors) +
+  labs(x = "Weeks since T0", y = "Residual (mg C)", colour = NULL)
+```
+
+# Sensitivity: how much does the interpolation rule matter?
+
+Trapezoidal integration stays the reported method. This section exists only to put a number
+on its bias, so the choice is documented rather than assumed harmless. Log-linear
+interpolation is the natural comparison: across an interval where flux decays
+exponentially, it is exact where the trapezoid is an overestimate.
+
+```{r loglinear-sensitivity}
+#' Cumulative integral with log-linear (exponential) interpolation between points
+#' Exact analytic form on each interval: integral of y1*exp(-lambda*t) = (y2-y1)*dt/log(y2/y1)
+#' Falls back to the trapezoid on any interval with a non-positive or flat endpoint.
+cum_loglin <- function(t, y, anchor = "first") {
+  out <- rep(NA_real_, length(t))
+  ok  <- !is.na(t) & !is.na(y)
+  if (!any(ok)) return(out)
+  ti <- t[ok]; yi <- y[ok]; o <- order(ti); ts <- ti[o]; ys <- yi[o]
+
+  drop_anchor <- FALSE
+  if (anchor != "none" && min(ts) > 0) {
+    ts <- c(0, ts); ys <- c(ys[1], ys); drop_anchor <- TRUE
+  }
+
+  y1 <- head(ys, -1); y2 <- tail(ys, -1); dt <- diff(ts)
+  ratio <- ifelse(y1 > 0 & y2 > 0, y2 / y1, NA_real_)   # NA avoids log() of <= 0
+  seg   <- ifelse(!is.na(ratio) & ratio != 1,
+                  (y2 - y1) * dt / log(ratio),           # log-linear
+                  dt * (y1 + y2) / 2)                    # trapezoid fallback
+  cums <- c(0, cumsum(seg))
+  if (drop_anchor) cums <- cums[-1]
+  res <- numeric(length(cums)); res[o] <- cums; out[ok] <- res
+  out
+}
+
+sens <- flux %>%
+  arrange(jar, wk) %>%
+  group_by(jar) %>%
+  mutate(cum_mg_loglin = cum_loglin(t_day, flux_mg_jar_day)) %>%
+  slice_max(t_day, n = 1, with_ties = FALSE) %>%   # final cumulative value per jar
+  ungroup()
+
+sens %>%
+  group_by(crop) %>%
+  summarise(
+    n            = n(),
+    trap_mg      = median(cum_mg),
+    loglin_mg    = median(cum_mg_loglin),
+    pct_diff_med = median(100 * (cum_mg - cum_mg_loglin) / cum_mg_loglin),
+    pct_diff_max = max(100 * (cum_mg - cum_mg_loglin) / cum_mg_loglin),
+    .groups = "drop"
+  )
+# pct_diff is how much the trapezoid adds relative to log-linear. Positive is expected.
+# Compare the crops: a bias that is uniform across crops does not affect crop contrasts.
+```
+
+```{r loglinear-early-intervals, fig.height=3.5}
+# Where the two rules disagree, interval by interval, for one representative jar.
+example_jar <- flux %>% filter(harvest == "T30", crop == "Wheat") %>% slice_head(n = 1) %>% pull(jar)
+
+flux %>%
+  filter(jar == example_jar) %>%
+  arrange(t_day) %>%
+  mutate(trap = cum_trap(t_day, flux_mg_jar_day),
+         llin = cum_loglin(t_day, flux_mg_jar_day)) %>%
+  select(t_day, trap, llin) %>%
+  pivot_longer(c(trap, llin), names_to = "rule", values_to = "cum_mg") %>%
+  ggplot(aes(t_day / 7, cum_mg, colour = rule)) +
+  geom_line(linewidth = 0.8) + geom_point(size = 1.4) +
+  labs(x = "Weeks since sealing", y = "Cumulative CO2-C (mg)", colour = NULL,
+       title = paste("Interpolation rules compared, jar", example_jar))
+```
+
+# Caveats and suggested improvements
+
+**Integration method.** Trapezoidal integration is the reported method here, per your
+supervisor, and it is the convention in the incubation literature. It does carry a known
+bias: linear interpolation across an exponentially decaying flux sits above the true curve,
+so cumulative C is biased **high**, concentrated in the widest early intervals where flux
+falls fastest. That is not a reason to switch methods — it is a reason to know the size of
+the bias, which the sensitivity section computes. If it is a fraction of a percent, say so in a footnote and
+move on; if it is several percent and differs by crop, it belongs in the methods text
+because it would shift crop contrasts, not just the overall magnitude.
+
+**Fitting cumulative curves.** Cumulative values are running sums of the same measurements,
+so successive points are not independent. The fits above are fine for point estimates of
+$k$ and $C_0$, but the standard errors from `summary(nls)` are optimistic. Fitting the flux
+form $dC/dt = C_0 k e^{-kt}$ to the raw fluxes gives honest uncertainty on the same two
+parameters; running both and comparing point estimates is a cheap check.
+
+**Free asymptote.** With 31 weeks of data and a labile pool largely gone by week 10, $C_0$
+is an extrapolation. Two jars with near-identical data through week 20 can return quite
+different $C_0$. Reporting profile confidence intervals (`confint(fit)`) is more honest
+than a bare point estimate.
+
+**Comparing crops statistically.** Rather than comparing per-jar $k$ with ANOVA — which
+discards the fitting uncertainty and the unequal series lengths — fit one nonlinear mixed
+model with crop as a fixed effect on both parameters and jar as a random effect:
+`nlme::nlme(cum_mg ~ SSasympOrig(t_day, Asym, lrc), fixed = Asym + lrc ~ crop, random = Asym + lrc ~ 1 | jar)`.
+
+**Mixing-model assumptions.** The partitioning assumes (i) no isotopic fractionation during
+respiration, (ii) constant at% of the litter source through time, and (iii) that unlabeled
+jars give the right background. (ii) is the weak one: if the enriched labile fraction is
+consumed preferentially, the residual litter is less enriched than `T0_root_13C_at-pct`, so
+$f_{root}$ is biased low at later timepoints — which pushes cumulative litter-derived C in
+the opposite direction from a priming artifact. Measuring at% on the residual litter at
+each harvest would resolve it, and the harvested litterbags make that feasible.
+
+**Moisture.** `jar_GWC` is per-jar; if it drifts between sampling dates, some flux variation
+is a moisture effect rather than a substrate effect. Plotting flux residuals against GWC is
+a quick screen.
+
+**Root C estimate.** `T0_est-root-C_mg` is root mass × root C%, and root C% is a single
+composite per crop. That means its error is *systematic within a crop*, not random across
+jars: a composite that is 10% low scales every wheat jar's denominator the same way and
+lifts the whole wheat curve, without adding any scatter that would make it visible as
+noise. This is the cheapest available explanation for a crop-specific mass-balance
+exceedance, and it is distinguishable from priming — priming should show up in the
+control-corrected series as well, whereas a bad composite affects only the
+root-C-normalized quantities. If any archived T0 root material remains, running C% on
+individual litterbags for the crop that overshoots would settle it directly.

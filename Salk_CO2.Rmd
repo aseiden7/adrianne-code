@@ -136,7 +136,7 @@ except Exception as e:
     print(f"Error saving updated Jars sheet: {e}")
 
 print("\nMerged wk0 root elemental-analysis preview:")
-    print(df[['crop', 'isotope', 'C_pct_wk0', '13C_at-pct', 'T0_root-mass_mg', 'est-root-C_mg']].head(10))
+print(df[['crop', 'isotope', 'C_pct_wk0', '13C_at-pct', 'T0_root-mass_mg', 'est-root-C_mg']].head(10))
 
 # # Display the first few rows to verify data
 # print("\nFirst 5 rows of the dataframe:")
@@ -302,9 +302,9 @@ for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
                  marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
 
-plt.xlabel('Sampling Week');
-plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$');
-plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week');
+plt.xlabel('Sampling Week', fontsize=14, fontweight='bold');
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$', fontsize=14, fontweight='bold');
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week', fontsize=16, fontweight='bold');
 plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
@@ -328,7 +328,7 @@ import numpy as np
 
 # Create figure for plotting
 fig1=plt.figure(figsize=(15, 10))
-fig1.suptitle(r'Incubation Jars: $\mathrm{^{13}CO_{2}}$ Timeseries Data', fontsize=16);
+# fig1.suptitle(r'Incubation Jars: $\mathrm{^{13}CO_{2}}$ Timeseries Data', fontsize=16);
 # Get unique combinations of crop and isotope
 crop_isotope_combinations = df_clean[['crop', 'isotope']].drop_duplicates()
 
@@ -357,9 +357,9 @@ for i, (_, row) in enumerate(crop_isotope_combinations.iterrows()):
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'], 
                  marker='o', linestyle='-', label=f"{isotope}C {crop}", color=colors[i]);
 
-plt.xlabel('Sampling Week');
-plt.ylabel(r'$\mathrm{at-\% \,^{13}C}$');
-plt.title(r'$\mathrm{at-\% \,^{13}C}$ vs Sampling Week');
+plt.xlabel('Sampling Week', fontsize=14, fontweight='bold');
+plt.ylabel(r'$\mathrm{atom-\% \,^{13}C}$', fontsize=14, fontweight='bold');
+plt.title(r'$\mathrm{atom-\% \,^{13}C}$ vs Sampling Week', fontsize=16, fontweight='bold');
 plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
@@ -392,9 +392,9 @@ for crop in crops:
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
                  marker='o', linestyle='-', label=f'{crop}', color=color, linewidth=2.5, markersize=8);
 
-plt.xlabel('Sampling Week');
-plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$');
-plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week');
+plt.xlabel('Sampling Week', fontsize=14, fontweight='bold');
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$', fontsize=14, fontweight='bold');
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1} \cdot minute^{-1}})$ vs Sampling Week', fontsize=16, fontweight='bold');
 plt.grid(True, linestyle='--', alpha=0.48);
 plt.legend();
 
@@ -686,11 +686,11 @@ for i, crop in enumerate(crop_order):
         plt.errorbar(weeks, cumulative, yerr=cumulative_sem, marker='o', linestyle='-', linewidth=2.5,
                     markersize=8, label=f'{crop}', color=colors[i], capsize=4);
 
-plt.xlabel('Sampling Week', fontsize=12);
-plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1})}$', fontsize=12);
+plt.xlabel('Sampling Week', fontsize=14);
+plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot g}$-$\mathrm{soil^{-1})}$', fontsize=14);
 plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (outliers removed, trapezoidal integration)', fontsize=14, pad=20);
 plt.grid(True, linestyle='--', alpha=0.48);
-plt.legend(fontsize=11);
+plt.legend(fontsize=13);
 
 # Add some styling
 ax.spines['top'].set_visible(False)
@@ -1051,11 +1051,11 @@ for crop in crops:
     plt.errorbar(grouped['sampling_wk'], grouped['mean'], yerr=grouped['sem'],
                  marker='o', linestyle='-', label=f'{crop}', color=color, linewidth=2.5, markersize=8);
 
-plt.xlabel('Sampling Week', fontsize=12);
-plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$', fontsize=12);
-plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week by Crop', fontsize=14, pad=20);
+plt.xlabel('Sampling Week', fontsize=14);
+plt.ylabel(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$', fontsize=14);
+plt.title(r'$\mathrm{CO_2}$ flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1}})$ vs Sampling Week by Crop', fontsize=16, pad=20);
 plt.grid(True, linestyle='--', alpha=0.48);
-plt.legend(fontsize=11);
+plt.legend(fontsize=13);
 
 # Add some styling
 ax = plt.gca()
@@ -1175,11 +1175,11 @@ for crop in crops_pots:
         plt.errorbar(weeks, cumulative, yerr=cumulative_sem, marker='o', linestyle='-', linewidth=2.5, 
                 markersize=8, label=f'{crop}', color=color, capsize=4);
 
-plt.xlabel('Sampling Week', fontsize=12);
-plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1})}$', fontsize=12);
-plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (Pots, trapezoidal integration)', fontsize=14, pad=20);
+plt.xlabel('Sampling Week', fontsize=14);
+plt.ylabel(r'Cumulative $\mathrm{CO_2}$ Flux $\mathrm{(μg CO_2}$-$\mathrm{C \cdot cm}$-$\mathrm{[V/A]^{-1} \cdot minute^{-1})}$', fontsize=14);
+plt.title('Cumulative $\mathrm{CO_2}$ Flux by Crop (Pots, trapezoidal integration)', fontsize=16, pad=20);
 plt.grid(True, linestyle='--', alpha=0.48);
-plt.legend(fontsize=11);
+plt.legend(fontsize=13);
 
 # Add some styling
 ax.spines['top'].set_visible(False)
